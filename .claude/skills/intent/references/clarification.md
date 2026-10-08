@@ -107,7 +107,7 @@ Run this checklist before persisting each major update:
 
 1. **Placeholder scan** — any "TBD", "TODO", unfilled blanks? Either fill or move to `# Unknowns`.
 2. **Internal consistency** — contradictions? Does `# Clarified Intent` agree with `# Decisions`?
-3. **Scope check** — focused enough for a single downstream Spec, or does it need decomposition into parent/child?
+3. **Scope check** — does this intent's clarification and decision space benefit from independent management? If yes, propose a child intent. If no, keep as is. Do not split just because the intent is large, cross-domain, or will produce multiple Specs.
 4. **Ambiguity check** — could any sentence be interpreted two different ways? If yes, pick one and make it explicit.
 
 Fix inline. Do not hand a half-baked intent to the user or to a Spec Agent.
@@ -122,6 +122,10 @@ After the first round (and whenever major new info arrives), write a one-paragra
 - **Do not start Spec writing or implementation.**
 - **Do not pad with speculative edge cases** the user didn't raise. If the user is okay with an undefined edge, leave it in `# Unknowns`.
 - **Do not re-ask settled questions.** `# Decisions` is the source of truth.
+
+## 12. Refinement Hints
+
+During clarification, if a sub-goal surfaces that has its own outcome, an independent decision space, and a clear benefit from being managed separately, you may suggest the user run `/intent refine <id>` to evaluate a split. Do not interrupt ordinary clarification, and do not propose splitting in every round. A large cross-domain intent that is already clear does not need to be split just because Specs will eventually multiply.
 
 ## 12. Stop Conditions
 
