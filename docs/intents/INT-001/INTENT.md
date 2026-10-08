@@ -1,6 +1,6 @@
 ---
 id: INT-001
-title: Robinhood Chain UniswapV4 LP backtesting system
+title: Robinhood Chain UniswapV4 LP backtesting system (passive + CTA-driven strategies)
 status: active
 parent: null
 related: []
@@ -13,9 +13,13 @@ updated: 2026-10-08
 
 我要创建一个 robinhood的 uniswapV4 做市商流动性回测系统
 
+我希望在回测系统里支持CTA信号触发系统操作的回测，比如用布林线add liquidity或者quit liquidity 以及设置上下限等等
+
 # Clarified Intent
 
 Build a market-maker liquidity backtesting system targeting the **Robinhood Chain** (chain ID 4663) for **UniswapV4** positions. Scope is the **standard concentrated-liquidity model with multiple fee tiers** (no hooks, no custom 6909 accounting). Data source is the **public Robinhood Chain RPC** with iterative event fetching — V4 events carry post-state (`sqrtPriceX96`, `tick`, `liquidity`, `fee`) so no archive node is required. Output is a **local Web Dashboard styled after Robinhood** for visualizing LP performance.
+
+The system supports two strategy modes on the same event-reconstructed price stream: (a) **passive range LP** (single position, no rebalance) — original scope; and (b) **CTA signal-driven active LP management** — uses technical-indicator signals (e.g. Bollinger Bands) to trigger LP operations such as `add_liquidity`, `quit_liquidity`, and `set_range` (upper/lower tick limits). Signal evaluation (assumed) runs on the historical price series reconstructed from V4 events.
 
 # Constraints and Success Criteria
 
@@ -23,6 +27,12 @@ Build a market-maker liquidity backtesting system targeting the **Robinhood Chai
 - Chain: Robinhood Chain (Arbitrum-based L2, chain ID 4663)
 - Data: public Robinhood Chain RPC, iterative event fetching for a single V4 pool. No archive node needed.
 - Output: local web dashboard (Robinhood-style UI)
+- Strategy modes: passive range LP **and** CTA signal-driven active LP. Both must work on the same data pipeline and produce a comparable P&L view.
+- CTA position model: single position only (always one open range).
+- CTA action vocabulary (v1, locked): `add_liquidity`, `quit_liquidity`, `set_range`, `partial_withdraw`, `rebalance_only`, `stop_loss_take_profit`.
+- CTA indicator scope: general framework; Bollinger Bands ships as first concrete indicator.
+- CTA signal frequency: per swap event.
+- CTA capital sizing: fixed total capital; strategy allocates per open (default 100%).
 
 # Decisions
 
@@ -32,6 +42,12 @@ Build a market-maker liquidity backtesting system targeting the **Robinhood Chai
 - 2026-10-08: **Data source revised** = public Robinhood Chain RPC with iterative event fetching. — user-challenged "archive node" assumption; empirical test showed public RPC returns full historical logs for a single pool address. V4 Swap events carry post-state (`sqrtPriceX96`, `tick`, `liquidity`, `fee`), so pool history can be reconstructed from event log stream alone. No archive node required.
 - 2026-10-08: Output = local web dashboard with Robinhood-style UI. — user-confirmed
 - 2026-10-08: Strategy model = passive range LP (single-position, no rebalance). — user-confirmed (simplest scope)
+- 2026-10-08: **Strategy model expanded** to also include CTA signal-driven active LP management. Same backtest system, two strategy modes. User-confirmed. — extends, does not replace, the passive mode. Concrete action vocabulary at minimum: `add_liquidity`, `quit_liquidity`, `set_range` (update upper/lower tick limits). Initial indicator example: Bollinger Bands.
+- 2026-10-08: CTA position-state model = **single position only** — always exactly one open range at a time. `add_liquidity` opens a new range (after quitting the old). — user-confirmed (simplest LP math surface).
+-  2026-10-08: CTA indicator scope = **general indicator + signal framework**, with Bollinger Bands as the first concrete implementation. Other indicators plug in later without re-engineering. — user-confirmed.
+-  2026-10-08: CTA action vocabulary (final) = `add_liquidity`, `quit_liquidity`, `set_range`, `partial_withdraw`, `rebalance_only`, `stop_loss_take_profit` (single action type with direction; triggers forced `quit_liquidity` when position value crosses a user-set threshold). — user-confirmed. **All six ship in v1.**
+-  2026-10-08: CTA signal evaluation frequency = **per swap event** — re-evaluate on every V4 Swap event. No bar resampling in v1. — user-confirmed (simplest, signals fire at the exact block price moves).
+-  2026-10-08: CTA capital sizing = **fixed total capital**, strategy allocates per open. User sets one total-capital field; default rule allocates 100% of available cash to each new position. — user-confirmed.
 - 2026-10-08: Target pool scope = one manually-specified pool. — user-confirmed (smallest viable scope)
 - 2026-10-08: Backtest window = V4 launch on Robinhood Chain (~July 2026) → today (~3 months). — user-confirmed
 - 2026-10-08: Performance metrics = fee income + APR, impermanent loss (IL), and overall asset change (total portfolio value over time, net of fees and IL). — user-confirmed
@@ -131,7 +147,7 @@ Build a market-maker liquidity backtesting system targeting the **Robinhood Chai
 # Relationships and Impact
 
 - Root intent. No parent, no related intents yet.
-- `impact_scope` (initial): docs/, src/ (Python or TS likely), public RPC client + local log cache, Uniswap V4 SDK + ABI decoder, AMM math library, web dashboard (frontend), data pipeline (event ingestion + state reconstruction).
+- `impact_scope` (initial): docs/, src/ (Python or TS likely), public RPC client + local log cache, Uniswap V4 SDK + ABI decoder, AMM math library, web dashboard (frontend), data pipeline (event ingestion + state reconstruction), CTA strategy engine (indicator framework + action dispatcher), backtest event-loop that drives both passive and CTA modes from the same reconstructed event stream.
 - Downstream Spec(s) will need to cite INT-001.
 
 # Spec Input
@@ -166,9 +182,26 @@ A Spec Agent with no prior context should know:
   - Tech stack (locked: Python).
   - Metrics (locked: fee + APR, IL, total asset change).
   - Pool address, capital, range (user supplies at runtime — Spec must build the form, not pick defaults).
+  - Whether to support CTA mode (locked: yes — must ship both passive and CTA-driven modes on the same data pipeline).
+  - Whether CTA mode is a separate system (locked: no — same engine, same dashboard).
+
+## Spec Input — CTA Strategy Mode (added 2026-10-08)
+
+- **Goal**: On top of the existing event-reconstructed price stream, run a CTA strategy that emits LP actions when technical-indicator signals trigger. Both strategy modes share the same dashboard and metrics.
+- **Action vocabulary (locked)**: `add_liquidity`, `quit_liquidity`, `set_range`, `partial_withdraw`, `rebalance_only`, `stop_loss_take_profit` (threshold-driven forced `quit_liquidity`).
+- **Indicator layer**: general framework. Bollinger Bands ships as the first concrete indicator; spec must define the indicator interface so RSI/MACD/etc. can plug in later.
+- **Position-state model (locked)**: single position only — one open range at a time.
+- **Signal evaluation (locked)**: per swap event. No bar resampling in v1.
+- **Capital sizing (locked)**: fixed total capital field in dashboard form; strategy allocates per `add_liquidity` (default rule = 100% of available cash).
+- **Hard constraints (inherited from base intent)**: same chain, same data source, same Python tech stack, same metrics (fee + APR, IL, total asset change).
+- **Spec Agent must NOT decide on its own**: whether to ship CTA mode (locked: yes); whether CTA mode replaces passive (locked: no, both coexist); the locked action vocab, position model, signal frequency, capital sizing, and indicator scope above.
 
 # Resume Notes
 
 2026-10-08: Round 3 complete. All foundational decisions made. Metrics = fee+APR / IL / total asset change. Pool input = web form. Caching = local. Tech stack = Python (agent recommendation, user accepted). Frontier effectively empty for user-side decisions; remaining unknowns (pool address, IL reference price, exact range) are runtime inputs. Ready for handoff to Spec Agent. User may archive INT-001 when downstream Spec is written.
 
 2026-10-08: `refine` assessment (no topic) → **Keep**. No independent sub-goal with its own outcome or decision space. Cross-domain surface (data / math / UI) is implementation layering, not splitting-worthy per hard rules #13 & #14. Frontier remains empty; intent is bounded and ready for Spec.
+
+2026-10-08: **Scope expanded** — CTA signal-driven active LP mode added (modify, not split; CTA is a feature of the same backtest engine, not a separate system). Confirmed action vocab: `add_liquidity`, `quit_liquidity`, `set_range`. Initial indicator example: Bollinger Bands. Frontier reopened on: indicator scope (one-off vs. framework), action vocab completeness, signal/bar granularity, position-state model (single vs. layered), capital allocation under CTA.
+
+2026-10-08: CTA frontier closed (5/5). Locked decisions: single-position model; general indicator framework (BB first); action vocab expanded to 6 (`add_liquidity`, `quit_liquidity`, `set_range`, `partial_withdraw`, `rebalance_only`, `stop_loss_take_profit`); per-swap signal evaluation; fixed total capital with strategy-side allocation. Intent is now bounded for both passive and CTA modes — ready for handoff to Spec Agent. User may archive when downstream Spec is written.
