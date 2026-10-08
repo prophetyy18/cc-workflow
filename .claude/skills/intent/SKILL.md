@@ -61,6 +61,7 @@ Users do not have to know the subcommand names. The model routes these intents:
 | "show the hierarchy", "how are these related?" | `tree` |
 | "is INT-001 too big?", "should I split this?", "把 X 拆成子 Intent" | `refine` |
 | "we're done with X", "archive INT-002" | `archive` (after confirmation) |
+| "确认，继续" / "INT-001 没问题了，继续 Spec" (after a recent completion proposal) | `archive` + handoff to Spec — do not prompt a second time |
 | "spec found an issue with INT-001", "architecture needs INT-002 changed" | `feedback` |
 | "I need to change X but it's archived" | `reopen` (after confirmation, with warning) |
 | "does X still make sense?", "is Y feasible?" | Add to `# Evaluation` and `# Unknowns` |
@@ -138,10 +139,21 @@ If the ID is partial and exactly one intent matches, proceed. If multiple match,
 
 1. Load `INTENT.md`.
 2. Render a final summary: clarified intent, constraints, decisions, facts, unknowns, spec input.
-3. **Confirm with the user explicitly.** Never archive without explicit confirmation.
-4. **Archive does not require downstream Spec to be complete.** Intent is considered ready for archive when the user confirms the goal, scope, and decisions are sufficiently clarified. Spec, Architecture, and Module work may proceed in parallel or later. If a downstream artifact later finds a real upstream problem, it can route the issue back through `/intent feedback`, which may lead to `reopen` — but that is not automatic.
-5. On confirmation: set `status: archived`, update `updated`. Append a short note to `# Resume Notes` (e.g., "Archived after N clarification rounds; X decisions recorded").
-6. Tell the user: archived intents can be reopened with `reopen`, and can also receive `feedback` without reopening.
+3. **Confirmation rule.** When called as a slash command, confirm with the user explicitly. When called via the natural-language completion flow (the user just said "确认，继续" / "INT-001 没问题了" / "需求已经确定" in response to a recent completion proposal), reuse that confirmation — do not prompt a second time. If the response is ambiguous ("好的", "继续讨论"), ask for clarification rather than assume.
+4. **Completion check before archive.** For the natural-language flow (and recommended for the command flow too), verify: current authoritative document is saved, no Blocking issue remains, confirmed decisions are recorded, sources and traceability are valid, no major upstream conflict requires feedback. If a Blocking issue exists, surface it and stop — do not silently archive. A Non-Blocking issue does not block archive; record it in `# Resume Notes` or `# Unknowns and Upstream Feedback`.
+5. **Archive does not require downstream Spec to be complete.** Intent is considered ready for archive when the user confirms the goal, scope, and decisions are sufficiently clarified. Spec, Architecture, and Module work may proceed in parallel or later. If a downstream artifact later finds a real upstream problem, it can route the issue back through `/intent feedback`, which may lead to `reopen` — but that is not automatic.
+6. On confirmation: set `status: archived`, update `updated`. Append a short note to `# Resume Notes` (e.g., "Archived after N clarification rounds; X decisions recorded").
+7. Tell the user: archived intents can be reopened with `reopen`, and can also receive `feedback` without reopening.
+8. **Natural-language handoff.** If the user already authorized proceeding to Spec in the same turn, after archive attempt to invoke the spec skill with the intent ID. If the spec skill is invokable and accepts model invocation, call it. If not, surface `/spec INT-XXX` as text for the user to run manually. Do not pretend to call it.
+
+### Modifying an Archived Intent (Natural-Language Reopen)
+
+When the user explicitly asks to change an already-archived intent (e.g., "改一下 INT-001 的目标" / "INT-001 缺一个约束"), treat that as authorization to run the reopen-and-modify flow:
+
+- Reopen the intent (status → active), update `updated`, log a note in `# Resume Notes`.
+- Apply the modification, preserving ID and stable item IDs.
+- If the change is materially different from the user's authorization (e.g., they asked to add a constraint, but a Decision also seems to require revision), stop and confirm the scope before extending.
+- After modification, the user may again confirm and re-archive.
 
 ## 10. Subcommand: `reopen <id>`
 
@@ -397,6 +409,8 @@ A downstream Spec should cite the intents it consumes (by ID) so this skill can 
 24. **Stable item IDs are immutable on wording.** Reformatting or rewording an item does not change its `INT-NNN/X-NN` ID. Reassigning an ID to a different meaning is forbidden.
 25. **No auto-archive, no auto-reopen, no auto-modify.** Never change intent status or authoritative content without explicit user authorization, even if a downstream feedback suggests it.
 26. **Don't claim sync that didn't happen.** If a downstream artifact cannot be modified from this skill (almost always), return a clear result for its owner to apply. Do not claim the artifact was updated.
+27. **One explicit confirmation is enough.** When the user has explicitly confirmed the current stage's completion ("确认，继续" / "需求已经确定" / "INT-001 没问题了"), that single confirmation authorizes the corresponding archive and the immediate handoff. Do not prompt a second time to "are you sure?". Do not extend the authorization to unrelated changes (other intents, unrequested Specs, architectural decisions, code).
+28. **Completion check before natural-language archive.** A natural-language completion confirmation is not a license to skip the completion check. The check (saved, no Blocking issue, decisions recorded, traceability valid, no major upstream conflict) still runs. Blocking issues stop the archive; the user must resolve them before re-confirming.
 
 ## 20. Lightweight Reconcile Trigger
 

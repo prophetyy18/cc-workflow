@@ -49,6 +49,7 @@ If the subcommand is unknown, do not guess. Show help and stop.
 | "review SPEC-001", "check this spec" | `review` |
 | "is INT-001 covered?", "what's the coverage?" | `coverage` |
 | "archive SPEC-001", "we're done with this" | `archive` (after confirmation) |
+| "确认，继续" / "SPEC-001 没问题了" (after a recent completion proposal) | `archive` + Downstream Routing — do not prompt a second time |
 | "I need to change SPEC-001 but it's archived" | `reopen` (after confirmation) |
 
 **Modification is the default, not creation.** A Spec for the same capability is modified, not duplicated.
@@ -279,9 +280,11 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
 
 1. Load `SPEC.md`.
 2. Render a final summary: capabilities, Requirements, invariants, acceptance conditions, handoff items.
-3. **Confirm with the user explicitly.** Never archive without confirmation.
-4. Spec can be archived when its Requirements are sufficiently defined for downstream. Architecture / Module Design can proceed in parallel or later.
-5. On confirmation: set `status: archived`, update `updated`. Append a note to `# Resume Notes`.
+3. **Confirmation rule.** When called as a slash command, confirm with the user explicitly. When called via the natural-language completion flow (the user just said "确认，继续" / "SPEC-001 没问题了" / "需求已经确定" in response to a recent completion proposal), reuse that confirmation — do not prompt a second time. If the response is ambiguous, ask for clarification rather than assume.
+4. **Completion check before archive.** For the natural-language flow, verify: saved, no Blocking Unknown, important Requirements have sources and acceptance, traceability valid, no major upstream conflict. If a Blocking issue exists, surface it and stop — do not silently archive. Non-Blocking issues are recorded in `# Unknowns and Upstream Feedback` and do not block.
+5. Spec can be archived when its Requirements are sufficiently defined for downstream. Architecture / Module Design can proceed in parallel or later.
+6. On confirmation: set `status: archived`, update `updated`. Append a note to `# Resume Notes`.
+7. **Downstream Routing (post-archive).** After successful archive, run the routing check (§19) and surface the recommendation to the user. The routing is informational — the user decides whether to follow.
 
 ## 17. Subcommand: `reopen <spec-id>`
 
@@ -304,7 +307,85 @@ Spec does NOT name specific modules, APIs, schemas, algorithms, or storage choic
 
 When existing architecture / contracts already exist, Spec may reference them but must not redefine or silently override.
 
-## 19. Upstream Feedback
+## 19. Downstream Routing (post-archive)
+
+After successful archive, the Spec skill performs a **lightweight downstream routing check**. The check is informational — the user decides whether to follow the recommendation. Spec only proposes the route; it does not make Architecture decisions.
+
+### 19.1 Routing inputs
+
+- The archived `SPEC.md`, especially `# Architecture Handoff` and `# Requirements`.
+- Existing architecture baseline (search conventional locations: `ARCHITECTURE.md`, `docs/architecture/`, `.claude/skills/architecture/`, etc.). If nothing is found, the baseline is considered absent.
+- Existing module / contract documentation.
+- Cross-references to other Specs that share capabilities.
+
+### 19.2 Three routes
+
+**Route A — Architecture Init**
+
+Apply when:
+- No trustworthy Architecture baseline exists.
+- The Spec introduces new system capabilities that have no module responsibility.
+
+Recommendation: surface `/architecture init` as the next step. If the architecture skill does not yet exist in the repo, surface the manual command and report the missing integration.
+
+**Route B — Architecture Impact**
+
+Apply when any of:
+- A new system capability has no clear module owner.
+- An existing public contract may be insufficient for a new Requirement.
+- The Spec may change module ownership, dependency direction, or authoritative state attribution.
+- The Spec may change public contract semantics.
+- Cross-module system invariants may be affected.
+- There is not enough evidence to conclude the existing architecture absorbs the change.
+
+Recommendation: surface `/architecture impact SPEC-NNN` as the next step. If the architecture skill is not yet implemented, surface the manual command and report the missing integration.
+
+**Insufficient evidence means we need to check, not that revision is required.** Only the Architecture skill itself decides whether a Revision is actually needed.
+
+**Route C — Direct Module Design**
+
+Apply when all of:
+- A trustworthy Architecture baseline exists.
+- The capabilities needed have clear responsibility owners.
+- Required public contracts exist and are sufficient.
+- The Spec does not change module boundaries, contract ownership, or key cross-module semantics.
+- The remaining work is module-internal design or implementation.
+
+Recommendation: proceed directly to Module Design for the relevant module. No new Architecture work required.
+
+### 19.3 Routing evidence
+
+The routing conclusion must cite the minimum evidence:
+
+- The relevant Spec Requirements.
+- Required system capabilities.
+- Existing architecture evidence (or its explicit absence).
+- Whether a module owner already exists.
+- Whether a public contract gap is detected.
+- The recommended next step and its reasoning.
+
+If architecture documents are missing, do **not** invent module or contract claims to make the routing look cleaner.
+
+### 19.4 Scope
+
+Spec only proposes the route. It must NOT directly modify:
+
+- Module responsibility.
+- Public contracts.
+- Architecture baseline.
+- Module Design.
+
+If a downstream Architecture or Module Design step concludes the existing baseline is wrong, that conclusion comes from those layers, not from Spec.
+
+### 19.5 No extra router skill
+
+Downstream Routing is a small step in Spec's existing Hand-off, not a separate Workflow Controller, Router Agent, or Handoff Manager.
+
+### 19.6 Architecture skill not yet implemented (current state)
+
+The architecture skill is not yet implemented in this repo. The routing recommendations in §19.2 surface the manual command (e.g., `/architecture init`, `/architecture impact SPEC-XXX`) and explicitly state that the skill is missing. The interface contract is recorded here so that when the architecture skill is implemented, it can be aligned with this routing logic.
+
+## 20. Upstream Feedback
 
 Spec may find problems at any layer. Route them by ownership level:
 
@@ -326,7 +407,7 @@ Spec does NOT modify Intent or Architecture. It only describes the problem, the 
 
 If the spec skill is not invokable from this environment, record the feedback in `# Unknowns and Upstream Feedback` and surface the manual command for the user. Do not print a command and claim it was executed.
 
-## 20. Hard Rules
+## 21. Hard Rules
 
 1. **Spec is system behavior, not architecture.** No module names, no API shapes, no schemas, no storage choices, no specific algorithms.
 2. **No code, no implementation.** Spec does not generate code or pseudo-code beyond minimal illustrative examples.
@@ -345,3 +426,7 @@ If the spec skill is not invokable from this environment, record the feedback in
 15. **When in doubt, classify as Architecture question.** Don't try to settle module / contract questions from Spec.
 16. **Classify load-bearing facts.** For every load-bearing factual claim that supports a Requirement, classify as Verified / Supported / Unverified. Do not silently rely on unverified claims — record them in `# Unknowns and Upstream Feedback` with the required evidence and acceptance obligation, or block the Requirement until resolved. See [references/fact-verification.md](references/fact-verification.md).
 17. **Documentation ≠ empirical evidence.** Runtime availability, data completeness, performance, and reconstruction accuracy cannot be closed as Verified from documentation alone. They require observation or measurement, or an explicit acceptance obligation on a downstream stage.
+18. **One explicit confirmation is enough.** When the user has explicitly confirmed the current stage's completion ("确认，继续" / "需求已经确定" / "SPEC-001 没问题了"), that single confirmation authorizes the corresponding archive and the immediate handoff (including the post-archive Downstream Routing). Do not prompt a second time to "are you sure?". Do not extend the authorization to unrelated Specs or unrequested changes.
+19. **Completion check before natural-language archive.** A natural-language completion confirmation is not a license to skip the completion check. The check (saved, no Blocking Unknown, important Requirements sourced, traceability valid, no major upstream conflict) still runs. Blocking issues stop the archive; the user must resolve them before re-confirming.
+20. **Don't claim sync that didn't happen.** If a downstream artifact (Architecture, Module Design, or another Spec) cannot be modified from this skill, return a clear result for its owner to apply. Do not claim the artifact was updated.
+21. **Routing is a recommendation, not a decision.** Spec proposes Route A / B / C based on available evidence. It does not modify architecture, modules, or contracts. If the architecture skill is not yet implemented, surface the manual command — do not pretend to invoke it.
