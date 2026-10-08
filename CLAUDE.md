@@ -1,27 +1,16 @@
-# Agent 工作流
+# Development Principles
 
-本仓库记录如何在 Claude Code 中使用 agent 工作流。
+1. **Understand first.** Read relevant code, requirements, and interfaces before making changes.
+2. **Preserve intent.** Do not silently change user requirements, established constraints, or approved decisions.
+3. **Keep it simple.** Prefer the smallest complete solution. Avoid unnecessary abstractions, dependencies, and complexity.
+4. **Respect boundaries.** Follow existing architecture and public contracts. Assess downstream impact before changing them.
+5. **Verify facts.** Distinguish evidence from assumptions. Do not invent facts or claim unperformed work.
+6. **Fix root causes.** Investigate failures before changing code. Do not hide errors or weaken tests to pass.
+7. **Test changes.** Run relevant tests and report actual results. Add tests when behavior changes.
+8. **Stay within scope.** Avoid unrelated modifications and preserve existing user work.
+9. **Act autonomously.** Make routine implementation decisions without approval. Escalate only material changes to intent, scope, or critical constraints.
+10. **Report concisely.** Summarize changes, verification results, and unresolved issues.
 
-## 子代理
+Follow project-specific instructions when applicable. Keep documentation consistent with implementation.
 
-- `Explore`：只读检索
-- `Plan`：实现前的方案设计
-- `general-purpose`：多步骤任务
-- 自定义：放在 `.claude/agents/*.md`
-
-## 模式
-
-**并行审查。** 一个维度一个子代理（正确性 / 性能 / 安全），对抗式验证每条 finding，只修复已确认的。
-
-**扇出研究。** 同一问题派给 N 个独立子代理，再汇总。
-
-**配置优于 prompt。** 重复检查放进 `.claude/settings.json`，不放进对话。
-
-**验证后再修复。** 每条 finding 先对抗式验证，再动代码。
-
-## 规则
-
-- 一个子代理一个上下文。
-- `.claude/` 进版本控制。
-- 不可逆或对外动作先确认。
-- 长等待用 `ScheduleWakeup`，别轮询。
+11. **Avoid overthinking and AI slop.** Use proportional reasoning and the simplest sufficient approach. Avoid unnecessary analysis, speculative edge cases, boilerplate, excessive abstraction, redundant documentation, and verbose explanations. Do not overengineer solutions or create work without a demonstrated need. Be concise, direct, and substantive without sacrificing correctness.
