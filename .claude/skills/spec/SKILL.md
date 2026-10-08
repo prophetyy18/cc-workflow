@@ -78,6 +78,7 @@ Use when the user wants to start spec work but hasn't said "new" explicitly.
 2. Read any existing Specs that cite this intent. Note their scope.
 3. **Risk review** (see [references/review.md](references/review.md#1-risk-review-during-intake)):
    - User goal clarity, constraint compatibility, fact verification, unprovable assumptions, infeasible core requirements, high-impact risks, Blocking Unknowns.
+   - For load-bearing factual claims, also follow [references/fact-verification.md](references/fact-verification.md): classify as Verified / Supported / Unverified; defer or resolve before closing the Spec.
 4. **Capability discovery** (see §7): map the intent to system capabilities.
 5. **Spec decomposition decision**: one Spec, or several? Or does a related Spec already exist?
 6. Present a brief proposal: "I propose to create SPEC-NNN for capability X, with sub-Specs for Y and Z. Existing SPEC-XXX already covers W."
@@ -342,3 +343,5 @@ If the spec skill is not invokable from this environment, record the feedback in
 13. **Lightweight by default.** Don't add approval workflows, multi-stage states, or extra lifecycle beyond `active` / `archived`.
 14. **Do not invent Architecture.** If no architecture exists, leave module ownership open. Do not fabricate module names.
 15. **When in doubt, classify as Architecture question.** Don't try to settle module / contract questions from Spec.
+16. **Classify load-bearing facts.** For every load-bearing factual claim that supports a Requirement, classify as Verified / Supported / Unverified. Do not silently rely on unverified claims — record them in `# Unknowns and Upstream Feedback` with the required evidence and acceptance obligation, or block the Requirement until resolved. See [references/fact-verification.md](references/fact-verification.md).
+17. **Documentation ≠ empirical evidence.** Runtime availability, data completeness, performance, and reconstruction accuracy cannot be closed as Verified from documentation alone. They require observation or measurement, or an explicit acceptance obligation on a downstream stage.
