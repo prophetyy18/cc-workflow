@@ -125,7 +125,7 @@ After the first round (and whenever major new info arrives), write a one-paragra
 
 ## 12. Refinement Hints
 
-During clarification, if a sub-goal surfaces, apply the **user-objective test** (see SKILL.md §20): is it a user-valued outcome the owner can independently prioritize, revise, accept, defer, or remove? If yes, and it has its own decision space and meaningful benefit from independent management, you may suggest the user run `/intent refine <id>` to evaluate a split. If the sub-goal is a system capability or technical responsibility, do not propose a split — let Spec or Architecture handle it. Do not interrupt ordinary clarification, and do not propose splitting in every round. A large cross-domain intent that is already clear does not need to be split just because Specs will eventually multiply.
+During clarification, if a sub-goal surfaces, apply the **user-objective test** (see SKILL.md §21): is it a user-valued outcome the owner can independently prioritize, revise, accept, defer, or remove? If yes, and it has its own decision space and meaningful benefit from independent management, you may suggest the user run `/intent refine <id>` to evaluate a split. If the sub-goal is a system capability or technical responsibility, do not propose a split — let Spec or Architecture handle it. Do not interrupt ordinary clarification, and do not propose splitting in every round. A large cross-domain intent that is already clear does not need to be split just because Specs will eventually multiply.
 
 ## 13. Stop Conditions
 
