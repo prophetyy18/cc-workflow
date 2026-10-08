@@ -6,7 +6,7 @@ Read this when verifying facts, checking API behavior, or investigating claims t
 
 Verify facts and surface unknowns before the downstream Spec Agent assumes them. The cost of a wrong fact compounds; the cost of an honest "unknown" is small.
 
-## Source Priority
+## 1. Source Priority
 
 1. **Primary**: official docs, RFCs, source code of the library/API, the repo's own code.
 2. **Secondary**: maintainer blog posts, accepted Stack Overflow answers, conference talks by authors.
@@ -14,7 +14,7 @@ Verify facts and surface unknowns before the downstream Spec Agent assumes them.
 
 When in doubt, go to primary. "I read it on a blog" is not verification.
 
-## Evidence Template
+## 2. Evidence Template
 
 For each verified fact, record in `# Facts and Research`:
 
@@ -38,7 +38,7 @@ A research file is justified when:
 
 A research file is **not** justified for a single-page lookup. Keep it inline.
 
-## Conflict Handling
+## 3. Conflict Handling
 
 When sources disagree:
 
@@ -48,7 +48,11 @@ When sources disagree:
 
 Do not pick a side silently. Do not average sources. Show the conflict.
 
-## Unknowns
+## 4. User Claims vs. Verified Facts
+
+A claim the user makes about the world is a **fact about what the user said**, not a fact about the world. If the user says "Uniswap V4 was launched in 2024" and that is a load-bearing claim, **verify it independently** before recording it under `# Facts and Research`. If verification fails, move the claim to `# Unknowns` with a note that the user asserted it.
+
+## 5. Unknowns
 
 Anything that could not be verified goes in `# Unknowns`:
 
@@ -60,15 +64,15 @@ Anything that could not be verified goes in `# Unknowns`:
 
 `# Unknowns` is a first-class section. Do not delete items to make the doc look complete. Do not move unknowns into `# Facts and Research` to fill space.
 
-## Hard Rules
+## 6. Hard Rules
 
 - **No claim without a source.** "I think this is right" is not verification.
 - **No fabricated URLs or API names.** If you can't cite it, don't claim it.
 - **"I read it somewhere" is not verification.** Cite the page or file.
 - **If you can't verify, say so** in `# Unknowns` and stop. Do not bluff through.
-- **Distinguish what the user said** from what the agent independently verified. The user's claim is a fact about what the user said, not about the world.
+- **Distinguish what the user said** from what the agent independently verified.
 
-## When to Research vs. Ask the User
+## 7. When to Research vs. Ask the User
 
 Default to research when:
 
@@ -84,7 +88,7 @@ Ask the user when:
 
 When in doubt, prefer research — it costs less than asking and produces evidence.
 
-## Verifying In-Repo Claims
+## 8. Verifying In-Repo Claims
 
 For claims about this repo (file exists, function signature, behavior):
 
@@ -94,3 +98,13 @@ For claims about this repo (file exists, function signature, behavior):
 4. Record the verification command and output.
 
 Do not paraphrase repo contents from memory. Always Read first.
+
+## 9. Research Quota
+
+Research is not unlimited. If verification requires a long chain of lookups (more than ~3–4 web fetches or repo sweeps for a single fact), stop and:
+
+- Record what was found so far.
+- Move the rest to `# Unknowns` with a clear "How to resolve" instruction.
+- Note the partial answer in `# Evaluation` if it affects agent recommendations.
+
+This prevents endless rabbit holes during intent capture. The downstream Spec Agent can pick up the unresolved research with the full quota available.

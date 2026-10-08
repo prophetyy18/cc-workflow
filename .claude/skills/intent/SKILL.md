@@ -1,99 +1,174 @@
 ---
 name: intent
-description: Capture, clarify, and persist user Intent. Turns rough ideas into a structured INTENT.md that downstream Spec Agents can read. Use when the user wants to start, resume, archive, or review an intent.
-allowed-tools: Read, Edit, Write, Glob, Grep, Bash(*), WebFetch, WebSearch
-arguments: [subcommand, target]
+description: Capture, clarify, persist, and evolve user Intent. Turns rough goals into a structured INTENT.md that downstream Spec Agents can read. Use when the user wants to start, modify, resume, link, archive, or review an intent. Also use when the user says "I want to build X", "let's plan Y", "create a new intent for Z", or asks to clarify, scope, or refine an existing intent.
+allowed-tools: Read, Edit, Write, Glob, Grep, Bash(date*), Bash(mkdir*), WebFetch, WebSearch
 ---
 
 # Intent Skill
 
-Lightweight intent management: capture → clarify → research → archive.
+Lightweight intent management. Each intent is a small folder with one `INTENT.md`. The skill is a single, focused workflow: understand → clarify → record → research → hand off. It does not design solutions, write code, or run specs.
 
-## Subcommand Routing
+## 1. Identity & Storage
 
-Read `$ARGUMENTS`. The first token is the subcommand:
+Every intent has a stable ID `INT-NNN` (3-digit zero-padded). IDs are **immutable** — they do not change when the title, parent, or scope changes. Re-numbering is not supported; create a new intent if a re-number is truly needed.
 
-| Subcommand | Behavior |
-|---|---|
-| (empty) | Show this help |
-| `help` | Show this help |
-| `new <title...>` | Create a new intent, begin clarifying |
-| `list` | List all intents and their status |
-| `show <id>` | Show the full INTENT.md for an intent |
-| `resume <id>` | Continue work on an existing intent |
-| `archive <id>` | Finalize and mark as archived (after user confirmation) |
-| `reopen <id>` | Re-open an archived intent (warns about downstream impact) |
-
-If the subcommand is unknown, show help and stop. Do not guess.
-
-## Storage Layout
+Storage layout (flat, **no nesting for parent/child**):
 
 ```text
-docs/intents/<id>/
-├── INTENT.md     # required
-└── research/     # optional, only when deep research was needed
-    └── <topic>.md
+docs/intents/
+├── INT-001/
+│   ├── INTENT.md      (required)
+│   └── research/      (optional, only when deep research was done)
+│       └── <topic>.md
+├── INT-002/
+│   └── INTENT.md
+└── ...
 ```
 
-**ID format**: `YYYY-MM-DD-<slug>` — generated once at creation, never changes even if title changes.
+Discover all intents with `Glob` for `docs/intents/INT-*/INTENT.md`. The `id` field in frontmatter is the source of truth.
 
-To find all intents: `Glob` for `docs/intents/*/INTENT.md`. The `id` field in frontmatter is the source of truth.
+## 2. Subcommand Routing
 
-## Subcommand: `new <title...>`
+Read `$ARGUMENTS`. Split on whitespace: first token is the subcommand, the rest is the target. The target is taken as a single string with original spacing preserved for `new` (titles can have spaces). For other subcommands, the target is a single ID or empty.
 
-1. Generate ID: today's date (`date +%Y-%m-%d`) + kebab-case slug from the title (lowercase, ASCII, hyphens).
-2. Create `docs/intents/<id>/` and `INTENT.md` with `status: active`.
-3. Fill `# Original Intent` with the user's raw input verbatim.
-4. Begin clarification. Read `references/clarification.md` for the methodology.
-5. Persist updates to `INTENT.md` after every meaningful decision or research result. Don't wait until the end.
+| Subcommand | Target | Behavior |
+|---|---|---|
+| (empty) or `help` | — | Show this help |
+| `new` | `<title or description>` (rest of args) | Create a new intent, begin clarifying |
+| `list` | — | List all intents grouped by status |
+| `show` | `<id>` | Print the full `INTENT.md` |
+| `resume` | `<id>` | Continue work on an existing intent |
+| `archive` | `<id>` | Finalize and mark as archived (after user confirmation) |
+| `reopen` | `<id>` | Re-open an archived intent (warns about downstream impact) |
+| `tree` | — | Show parent / child / related hierarchy |
 
-If a duplicate id already exists (same date + slug), ask the user to disambiguate rather than overwriting.
+If the subcommand is unknown, do not guess. Show help and stop. Natural-language triggers (see §3) are also valid — they route to the same subcommand.
 
-## Subcommand: `list`
+## 3. Natural-Language Operations
 
-1. Glob `docs/intents/*/INTENT.md`.
-2. Read frontmatter of each (`id`, `title`, `status`, `impact_scope`, `updated`).
-3. Print a compact table grouped by status (`active` first, then `archived`).
+Users do not have to know the subcommand names. The model routes these intents:
 
-## Subcommand: `show <id>`
+| User intent (paraphrased) | Action |
+|---|---|
+| "I want to build X", "plan Y", "let's do Z" | If no existing intent matches → `new`; if one does → modify it |
+| "update INT-NNN to add …", "change the goal of …" | Modify the named intent (or the only active one) |
+| "make this a sub-intent of INT-002" | Set `parent` on the current intent |
+| "link INT-001 and INT-003", "X is related to Y" | Add to `related` on both |
+| "what's the status of INT-002?", "show me X" | `show` |
+| "list everything", "what intents do we have?" | `list` |
+| "show the hierarchy", "how are these related?" | `tree` |
+| "we're done with X", "archive INT-002" | `archive` (after confirmation) |
+| "I need to change X but it's archived" | `reopen` (after confirmation, with warning) |
+| "does X still make sense?", "is Y feasible?" | Add to `# Evaluation` and `# Unknowns` |
 
-Read and print `docs/intents/<id>/INTENT.md` in full. No editing.
+**Modification is the default, not creation.** Before creating a new intent, search for an existing one whose goal is still the same. Only create new when the goal is genuinely independent.
 
-## Subcommand: `resume <id>`
+## 4. Subcommand: `new <title or description>`
 
-1. Load the existing `INTENT.md`.
+1. Read `# Original Intent` from the user's raw input. Verbatim, no paraphrase.
+2. **Before creating**, scan existing intents. If a close match exists, ask the user: "This looks similar to INT-XXX. Modify it, or create a new one?"
+3. Generate ID: scan `docs/intents/INT-*/INTENT.md`, find max `INT-NNN`, take `INT-` + (max+1) zero-padded to 3 digits. If user provided an explicit ID, use it (after confirming no conflict).
+4. Create `docs/intents/INT-NNN/INTENT.md` with `status: active`. Create `docs/intents/` if missing.
+5. Fill the frontmatter (`id`, `title`, `status`, `created`, `updated`). Leave `parent`, `related`, `impact_scope` empty unless the user named them.
+6. Fill `# Original Intent` verbatim. Other sections start as `_TBD_`.
+7. Begin clarification. Read `references/clarification.md` for the methodology.
+8. Persist after every meaningful clarification or research result. Don't batch at the end.
+
+A duplicate ID is never overwritten. If collision, ask the user to disambiguate.
+
+## 5. Subcommand: `list`
+
+1. `Glob` `docs/intents/INT-*/INTENT.md`.
+2. Read frontmatter of each.
+3. Print a compact table. `active` first, then `archived`. Columns: `id`, `title`, `status`, `parent`, `related` (count), `updated`.
+
+## 6. Subcommand: `show <id>`
+
+Read and print the full `INTENT.md`. No editing. If the ID is ambiguous (partial match returns multiple), list candidates and ask.
+
+## 7. Subcommand: `resume <id>`
+
+1. Load `INTENT.md`.
 2. Read `# Resume Notes` to see where the last session left off.
-3. Continue clarification or research from there. **Do NOT re-ask questions already in `# Decisions`.** Check it first.
-4. Update `# Resume Notes` at the end of the session.
+3. Read `# Decisions` first. **Do not re-ask answered questions.**
+4. Continue clarification or research from the open frontier.
+5. Update `# Resume Notes` at the end of the session.
 
-If `id` is ambiguous (multiple candidates match), list them and ask the user to pick. If exactly one matches a partial input, proceed without re-asking.
+If the ID is partial and exactly one intent matches, proceed. If multiple match, list and ask.
 
-## Subcommand: `archive <id>`
+## 8. Subcommand: `archive <id>`
 
-1. Read `INTENT.md`.
-2. Render a final summary covering: clarified intent, constraints, decisions, facts, unknowns, spec input.
-3. Confirm with the user. **Do not archive without explicit confirmation.**
-4. After confirmation: set `status: archived` in the frontmatter; update `updated` date.
-5. Note for the user: archived intents can be reopened with `reopen`.
+1. Load `INTENT.md`.
+2. Render a final summary: clarified intent, constraints, decisions, facts, unknowns, spec input.
+3. **Confirm with the user explicitly.** Never archive without explicit confirmation.
+4. On confirmation: set `status: archived`, update `updated`. Append a short note to `# Resume Notes` (e.g., "Archived after N clarification rounds; X decisions recorded").
+5. Tell the user: archived intents can be reopened with `reopen`.
 
-## Subcommand: `reopen <id>`
+## 9. Subcommand: `reopen <id>`
 
 1. Confirm with the user. Warn that any downstream Spec may have been written against the archived version.
-2. Set `status: active` in the frontmatter; update `updated` date.
-3. Append a note to `# Resume Notes` explaining why it was reopened.
+2. Set `status: active`, update `updated`.
+3. Append a note to `# Resume Notes` explaining why it was reopened. Optionally add a `# Spec Impact` reminder: which downstream Specs may need to be re-checked.
 
-## INTENT.md Template
+## 10. Subcommand: `tree`
 
-Generate the file with this structure. **Omit or trim sections that don't apply. Do not pad with fake content.**
+Walk parent/related links across all intents. Print a hierarchy:
+
+```text
+INT-001  LP backtest system        [active]
+├── INT-002  Historical data        [active, parent=INT-001]
+├── INT-003  Replay engine          [active, parent=INT-001]
+│   └── (no children)
+└── INT-004  Strategy evaluation    [active, parent=INT-001, related=INT-003]
+
+INT-005  Dashboard                 [active]
+└── (no parent, related=INT-001, INT-003)
+
+INT-006  Old prototype             [archived]
+```
+
+Orphans (no parent) are roots. `related` is shown in parentheses, not as a tree edge. Detect and report cycles, self-parent, and missing-parent references as warnings.
+
+## 11. Relationships
+
+### 11.1 `parent`
+
+A child has exactly one parent. Parent is for "this is a sub-goal of X" — a logical ownership relationship. Setting/changing parent requires:
+
+- The target parent must exist.
+- Walking up the new parent's ancestors must not include the child (no cycle).
+- An intent cannot be its own parent.
+- Archived parents are allowed as a parent, but warn.
+
+### 11.2 `related`
+
+A loose "this affects that" link. Multiple related links allowed. Add a related link only when there is a real cross-effect, not just topical similarity.
+
+### 11.3 `impact_scope`
+
+What this intent touches in the project. Examples:
+
+- Modules / files in this repo.
+- Public interfaces.
+- Related Specs.
+- Related other intents (by id).
+- Existing user-facing behavior.
+
+`impact_scope` is not the same as `parent` or `related`. It is "what real-world things will move?" Populate it as clarification progresses. Mark unknown entries explicitly rather than fabricating module names.
+
+## 12. INTENT.md Template
 
 ```markdown
 ---
-id: <id>
-title: <title>
+id: INT-NNN
+title: <short title>
 status: active
-impact_scope: []
-created: <YYYY-MM-DD>
-updated: <YYYY-MM-DD>
+parent: INT-NNN        # omit if none
+related:               # omit if none
+  - INT-NNN
+impact_scope: []       # populate as you learn; [] is fine initially
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
 ---
 
 # Original Intent
@@ -102,27 +177,39 @@ updated: <YYYY-MM-DD>
 
 # Clarified Intent
 
-<one-paragraph restatement of what the user actually wants, validated by user>
+<one-paragraph restatement of what the user actually wants, validated by user. If the agent's restatement has any agent-inferred assumption, label it "(assumed)".>
 
 # Constraints and Success Criteria
 
-<hard constraints; how we know it succeeded>
+<hard constraints; how we know it succeeded. Testable where possible.>
 
 # Decisions
 
-<list of user-confirmed decisions, each with date and short context>
+- YYYY-MM-DD: <decision> — <one-line context or rationale>
+- YYYY-MM-DD: <decision> — …
 
 # Facts and Research
 
-<verified facts with source links; link to files in research/ if any>
+- **Fact**: <one sentence, the minimum claim>
+  **Source**: <URL or path:line in this repo>
+  **Verified on**: <YYYY-MM-DD>
+  **Method**: <how verified>
+  **Scope**: <what this covers and does not cover>
+  **Uncertainty**: <remaining doubt>
 
 # Unknowns
 
-<remaining uncertainties that matter to downstream Spec>
+- **Unknown**: <what is unknown>
+  **Why it matters**: <downstream impact>
+  **How to resolve**: <specific action>
 
 # Evaluation
 
 <agent's independent assessment: feasibility, risks, alternatives. Clearly labeled as agent opinion, NOT user requirement.>
+
+# Relationships and Impact
+
+<parent/child tree position; related intents; impact_scope walkthrough; downstream Specs that may consume this.>
 
 # Spec Input
 
@@ -130,22 +217,68 @@ updated: <YYYY-MM-DD>
 
 # Resume Notes
 
-<short status: last action, what's next>
+<short status: last action, what's next, key open questions.>
 ```
 
-## Methodology References
+**Omit or trim sections that don't apply.** Empty sections are fine. **Do not pad with fake content** to make the document look complete. If a section would only contain "TBD", write `_TBD_` and move on.
 
-Read on demand, not all at once:
+## 13. Modification Flow (vs Creation)
 
-- Clarification (frontier questions, ambiguity taxonomy, decision dependency): `references/clarification.md`
-- Research (evidence template, source priority, fact vs assumption): `references/research.md`
+When the user asks to change an existing intent:
 
-## Hard Rules
+1. Identify which intent. Use `$id` if given; otherwise infer from context (most recently active, or the one the user is currently discussing).
+2. **Confirm if the change is material** (touches goal, success criteria, or a confirmed decision). For trivial wording fixes, just edit.
+3. Edit in place. Preserve the ID. Add a new entry to `# Decisions` for the change (`YYYY-MM-DD: <what changed> — <why>`).
+4. Update `updated` to today.
+5. If the change affects other intents (parent, related, or downstream Specs), note this in `# Relationships and Impact` and warn the user.
 
-1. **Owner authority**: do not silently change the user's intent or constraints. If you disagree, surface it in `# Evaluation`, not by editing the user's words.
-2. **Evidence before assumption**: facts must have sources. Unverified claims go in `# Unknowns`, never in `# Facts and Research`.
-3. **No fabricated requirements**: omit sections that don't apply. Empty sections are fine; fake content is not.
-4. **Persist early, persist often**: write `INTENT.md` after every meaningful clarification or research result. Don't rely on chat history.
-5. **Confirm before archive**: never set `status: archived` without explicit user confirmation.
-6. **Lightweight by default**: simple intents get quick clarification. Don't force the full taxonomy on a one-line request.
-7. **Don't escape into Spec**: this skill never writes code, never proposes a solution architecture. That is the Spec Agent's job.
+For an `archived` intent that needs editing, `reopen` first.
+
+## 14. Clarification Method
+
+Read [references/clarification.md](references/clarification.md) for the full algorithm. Summary:
+
+- Model intent as a **frontier** of decisions. Each round, ask all questions whose prerequisites are settled.
+- Each question ships with a recommended answer. Word it so "yes" accepts.
+- Research is the agent's job. Ask the user only about decisions.
+- Hard cap **5 questions per clarification pass** with a `## Deferred` bucket for the rest. Re-validate after every answer; replace contradicted text, do not append.
+- After meaningful new info, write back a "stated vs assumed" restatement and confirm.
+- Stop when the frontier is empty, the user says stop, or fatigue sets in.
+
+## 15. Research Method
+
+Read [references/research.md](references/research.md). Summary:
+
+- Verify before recording. Cite the URL or repo path. Do not paraphrase repo contents from memory.
+- Distinguish user-stated facts from agent-verified facts.
+- A research file in `research/<topic>.md` is justified when multiple sources were consulted, sources conflicted, verification involved running code, or the fact is load-bearing for downstream Spec.
+- Single-page lookups stay inline. Don't create files for one fact.
+
+## 16. Hand-off
+
+The skill never writes code or designs solutions. Its output is the `INTENT.md`. The `# Spec Input` section must let a Spec Agent with no prior conversation context understand:
+
+- The user's actual goal and why.
+- Success criteria and hard constraints.
+- Confirmed decisions and the date they were made.
+- Verified facts and their sources.
+- Remaining unknowns.
+- Impact scope and relationships.
+- What the Spec Agent is **not** allowed to decide on its own.
+
+A downstream Spec should cite the intents it consumes (by ID) so this skill can detect when an intent changes.
+
+## 17. Hard Rules
+
+1. **Owner authority.** Never silently change user intent or constraints. If disagreeing, surface it in `# Evaluation`, not by editing the user's words.
+2. **Evidence before assumption.** Facts need sources. Unverified claims go in `# Unknowns`, never in `# Facts and Research`.
+3. **No fabricated requirements.** Omit empty sections. Don't pad.
+4. **Modification is the default, creation is the exception.** If the underlying objective is the same, modify.
+5. **Persist early, persist often.** Save `INTENT.md` after every meaningful clarification or research result. Don't wait until the end of the session.
+6. **Confirm before archive.** `status: archived` only with explicit user confirmation.
+7. **Confirm before reopen.** Warn about downstream Spec impact.
+8. **ID is immutable.** Never re-number. Never change `id` field.
+9. **Lightweight by default.** A one-line request gets a one-line clarification. Don't force the full taxonomy.
+10. **Don't escape into Spec.** This skill never writes code, never proposes a solution architecture. That is the Spec Agent's job.
+11. **Validate relationships.** No self-parent, no cycles, no missing-parent refs. Check on every change.
+12. **Stated vs assumed split.** When restating the clarified intent, label anything the agent inferred (not the user said) as "(assumed)".
