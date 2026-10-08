@@ -14,3 +14,4 @@
 Follow project-specific instructions when applicable. Keep documentation consistent with implementation.
 
 11. **Avoid overthinking and AI slop.** Use proportional reasoning and the simplest sufficient approach. Avoid unnecessary analysis, speculative edge cases, boilerplate, excessive abstraction, redundant documentation, and verbose explanations. Do not overengineer solutions or create work without a demonstrated need. Be concise, direct, and substantive without sacrificing correctness.
+12. **Use Chinese for user-facing communication.** When sending results, options, explanations, or asking questions to the user, prefer Chinese. Code, commit messages, file content, technical terms, and identifiers may remain in English.
