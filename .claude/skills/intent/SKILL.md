@@ -96,7 +96,7 @@ Assess whether to modify the existing intent, split it into a child intent, or k
 2. Read the parent intent (if any) and directly related intents for context.
 3. Check for existing children to avoid duplication. `Glob docs/intents/INT-*/INTENT.md` and look for `parent: <id>` in their frontmatter.
 4. Evaluate three refinement conditions:
-   - **Independent outcome** — is there a sub-goal that can be stated as its own outcome (not just an implementation task)?
+   - **Independent outcome** — is there a *user-valued* outcome (something the owner can independently prioritize, revise, accept, defer, or remove) that can be stated as its own goal? A system capability or technical responsibility does not qualify — those belong to Spec and Architecture respectively (see §20).
    - **Independent decision space** — does it have its own key user decisions, fact-investigation scope, constraints, unknowns, or trade-offs?
    - **Meaningful benefit** — would splitting clearly improve clarification, decision boundaries, context, or downstream traceability?
 5. Choose one of three outcomes:
@@ -319,6 +319,7 @@ A downstream Spec should cite the intents it consumes (by ID) so this skill can 
 17. **No silent deletion on split.** Items moved from parent to child must be replaced in the parent by a pointer (e.g., "see INT-XXX"). Downstream Specs that cite the original location must still resolve.
 18. **Archived parents stay archived.** Creating a child of an `archived` parent does not reopen the parent. The new child is `active`.
 19. **Don't reconcile inline.** When a semantic overlap, shared abstraction, or inherited-constraint conflict is detected, do not run the full reconciliation in this skill. Surface the candidate and point the user to `/intent-reconcile ID1 ID2`. See §19.
+20. **User-objective test.** Before creating a child Intent, ask: does the candidate represent a distinct user-valued outcome that the owner can independently prioritize, revise, accept, defer, or remove? If no, do not create a child — the candidate is system behavior (Spec's job) or technical responsibility (Architecture's job). See §20.
 
 ## 19. Lightweight Reconcile Trigger
 
@@ -333,3 +334,37 @@ During `new`, material `modify`, or `refine`, perform a lightweight semantic che
 Domain similarity (same tech stack, same data source) is not sufficient on its own. Only trigger on a real semantic overlap, conflict, or shared abstraction.
 
 Do not loop. At most one reconcile suggestion per change. Further iterations require explicit user request.
+
+## 20. Intent Boundary and Decomposition
+
+An Intent represents an independently meaningful **user objective**, not a technical capability, module, feature list, or implementation task.
+
+### Three Layers
+
+1. **User Objective** — a result the owner wants and can independently prioritize, revise, accept, defer, or remove. This is what an Intent captures.
+2. **System Capability** — behavior required to fulfill one or more user objectives. Belongs primarily to **Spec**.
+3. **Technical Responsibility** — architecture, module, interface, implementation. Belongs to **Architecture / Module Design**.
+
+### Create a child Intent only when
+
+- It represents a distinct user-valued outcome within the parent objective.
+- The owner can meaningfully manage its scope or priority separately.
+- Separate management improves clarity, evolution, or traceability.
+
+### Do not create a child Intent merely because
+
+- A capability has independent technical decisions.
+- A module can be implemented or tested independently.
+- A feature requires substantial research.
+- The system uses multiple domains or technologies.
+- A parent Intent produces multiple Specs.
+- A document has become large.
+
+### Routing Specific Concerns
+
+- If the proposed separation is primarily about **system behavior** → retain the Intent; let Spec decompose capabilities.
+- If the proposed separation is primarily about **module ownership, APIs, data storage, or algorithms** → defer to Architecture or Module Design.
+
+When uncertain, compare alternative structures and explain which user objectives would actually become independently manageable.
+
+Preserve the owner's original goals and all applicable constraints. Do not split or generalize merely to achieve a cleaner document hierarchy.
