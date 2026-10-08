@@ -318,3 +318,18 @@ A downstream Spec should cite the intents it consumes (by ID) so this skill can 
 16. **Preserve parent goal on split.** When creating a child, the parent's overall goal and global constraints stay on the parent. The child takes only the specific sub-goal and its own decisions.
 17. **No silent deletion on split.** Items moved from parent to child must be replaced in the parent by a pointer (e.g., "see INT-XXX"). Downstream Specs that cite the original location must still resolve.
 18. **Archived parents stay archived.** Creating a child of an `archived` parent does not reopen the parent. The new child is `active`.
+19. **Don't reconcile inline.** When a semantic overlap, shared abstraction, or inherited-constraint conflict is detected, do not run the full reconciliation in this skill. Surface the candidate and point the user to `/intent-reconcile ID1 ID2`. See §19.
+
+## 19. Lightweight Reconcile Trigger
+
+During `new`, material `modify`, or `refine`, perform a lightweight semantic check against existing intents. Ask one question:
+
+> Does this change expose a material semantic overlap, shared abstraction, inherited-constraint conflict, or incompatible goal with an existing intent?
+
+**If no** — continue the normal flow.
+
+**If yes** — surface the candidate intent(s) and the reason in one or two sentences. Suggest the user run `/intent-reconcile <new-id> <existing-id>` to compare. Print the command as text; do not pretend to invoke the reconcile skill from this skill. If the reconcile skill is available in the current environment and the user explicitly agrees, the model may call it via the native Skill tool — but only with explicit user authorization to start reconciliation.
+
+Domain similarity (same tech stack, same data source) is not sufficient on its own. Only trigger on a real semantic overlap, conflict, or shared abstraction.
+
+Do not loop. At most one reconcile suggestion per change. Further iterations require explicit user request.
