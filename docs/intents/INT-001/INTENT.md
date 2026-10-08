@@ -170,3 +170,5 @@ A Spec Agent with no prior context should know:
 # Resume Notes
 
 2026-10-08: Round 3 complete. All foundational decisions made. Metrics = fee+APR / IL / total asset change. Pool input = web form. Caching = local. Tech stack = Python (agent recommendation, user accepted). Frontier effectively empty for user-side decisions; remaining unknowns (pool address, IL reference price, exact range) are runtime inputs. Ready for handoff to Spec Agent. User may archive INT-001 when downstream Spec is written.
+
+2026-10-08: `refine` assessment (no topic) → **Keep**. No independent sub-goal with its own outcome or decision space. Cross-domain surface (data / math / UI) is implementation layering, not splitting-worthy per hard rules #13 & #14. Frontier remains empty; intent is bounded and ready for Spec.
