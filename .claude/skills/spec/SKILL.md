@@ -357,9 +357,29 @@ After successful archive, the Spec skill performs a **lightweight downstream rou
 
 ### 19.1 Routing inputs
 
+Routing makes two **independent** checks before deciding.
+
+**Skill Availability** — Whether the Architecture Skill is invocable from the current Claude Code environment. Skills may come from project-level `.claude/skills/`, user-level skills, or other supported sources. **A Skill file existing on disk is not the same as the Skill being invocable in this run.** A separate Skill directory by itself does not imply any project Baseline.
+
+**Baseline Availability** — Whether the current business project has an authoritative Architecture Baseline. The Baseline is a *project* artifact, distinct from any Skill.
+
+Canonical search order for the current project's Baseline:
+
+1. `docs/architecture/ARCHITECTURE.md` (preferred convention).
+2. A project-explicit authoritative path the project has adopted (for example, a top-level `ARCHITECTURE.md`). Use it only when the project has clearly chosen that path.
+3. Any formal successor the project explicitly names.
+
+An empty directory, a missing file, or a near-empty stub is **Baseline absent**. The following are **not** valid Baseline evidence, regardless of filename or directory name:
+
+- `.claude/skills/architecture/SKILL.md` and its references (this is the Skill's own documentation).
+- The Architecture Skill install directory and any file inside it.
+- Generic framework documentation, third-party templates, or unrelated sample projects.
+- Documents not authored as the project's authoritative Baseline.
+
+Other routing inputs (always project-scoped):
+
 - The archived `SPEC.md`, especially `# Architecture Handoff` and `# Requirements`.
-- Existing architecture baseline (search conventional locations: `ARCHITECTURE.md`, `docs/architecture/`, `.claude/skills/architecture/`, etc.). If nothing is found, the baseline is considered absent.
-- Existing module / contract documentation.
+- Module / contract documentation that legitimately follows from the project's Baseline (not Skill files).
 - Cross-references to other Specs that share capabilities.
 
 ### 19.2 Three routes
@@ -367,35 +387,60 @@ After successful archive, the Spec skill performs a **lightweight downstream rou
 **Route A — Architecture Init**
 
 Apply when:
-- No trustworthy Architecture baseline exists.
-- The Spec introduces new system capabilities that have no module responsibility.
 
-Recommendation: surface `/architecture init` as the next step. If the architecture skill does not yet exist in the repo, surface the manual command and report the missing integration.
+- No trustworthy Architecture Baseline exists for the current business project (Baseline Availability = absent).
+- The Spec introduces system capabilities with no assigned module responsibility.
+
+Important clarifications — none of these alone establish a Baseline:
+
+- The Architecture Skill is installed or invocable from this environment.
+- `.claude/skills/architecture/SKILL.md` exists on disk.
+- An architecture-shaped directory exists but is empty.
+- A file with a similar filename exists in an unrelated location.
+
+Skill Availability is **independent** of this route: a Baseline can be absent whether or not the Skill is invocable.
+
+Recommendation: surface `/architecture init` as the next step.
+
+- If the Architecture Skill is invocable from the current environment, use it.
+- If the Architecture Skill is not invocable from the current environment, report the unavailability explicitly and surface the manual command. Preserve the Handoff — do not claim the invocation succeeded.
 
 **Route B — Architecture Impact**
 
-Apply when any of:
-- A new system capability has no clear module owner.
+Apply when **any** of:
+
+- A trustworthy Baseline exists, but a new system capability has no clear module Owner. **(Baseline present + new capability lacks Owner → Route B, not Route A. Reinitialization is not justified by a coverage gap alone.)**
 - An existing public contract may be insufficient for a new Requirement.
 - The Spec may change module ownership, dependency direction, or authoritative state attribution.
 - The Spec may change public contract semantics.
 - Cross-module system invariants may be affected.
 - There is not enough evidence to conclude the existing architecture absorbs the change.
+- The Baseline's applicability to the current Spec is uncertain and needs targeted verification.
 
-Recommendation: surface `/architecture impact SPEC-NNN` as the next step. If the architecture skill is not yet implemented, surface the manual command and report the missing integration.
+When a Baseline exists but is partial or applicability is uncertain, evaluate the gap before recommending reinitialization. Targeted Impact (or even Module Design) is usually cheaper than `init`. Only Architecture itself decides whether a Revision is actually needed (its impact result A / B / C).
 
-**Insufficient evidence means we need to check, not that revision is required.** Only the Architecture skill itself decides whether a Revision is actually needed.
+**Insufficient evidence means we need to check, not that revision is required.**
+
+Recommendation: surface `/architecture impact SPEC-NNN` as the next step.
+
+- If the Architecture Skill is invocable from the current environment, use it.
+- If the Architecture Skill is not invocable, report the unavailability explicitly and surface the manual command.
 
 **Route C — Direct Module Design**
 
-Apply when all of:
-- A trustworthy Architecture baseline exists.
-- The capabilities needed have clear responsibility owners.
+Apply when **all** of:
+
+- A trustworthy Architecture Baseline exists for the current project.
+- The capabilities needed have clear responsibility Owners.
 - Required public contracts exist and are sufficient.
 - The Spec does not change module boundaries, contract ownership, or key cross-module semantics.
 - The remaining work is module-internal design or implementation.
 
-Recommendation: proceed directly to Module Design for the relevant module. No new Architecture work required.
+**Route C requires real evidence** — a trustworthy Baseline that names the affected Owners and shows the contracts hold. Do not conclude Route C from filename similarity, directory presence, or Skill availability.
+
+When the routing evidence itself is incomplete (Baseline exists but Owner / contract status unclear), do not guess Route C. Surface `Insufficient evidence` and propose `/architecture impact SPEC-NNN` or targeted verification.
+
+Recommendation: proceed directly to Module Design for the relevant module. No new Architecture work required. Skill invocability is not required to recommend Route C — it changes only who performs the Module Design, not the routing verdict.
 
 ### 19.3 Routing evidence
 
@@ -425,9 +470,34 @@ If a downstream Architecture or Module Design step concludes the existing baseli
 
 Downstream Routing is a small step in Spec's existing Hand-off, not a separate Workflow Controller, Router Agent, or Handoff Manager.
 
-### 19.6 Architecture skill not yet implemented (current state)
+### 19.6 Skill availability is not fixed
 
-The architecture skill is not yet implemented in this repo. The routing recommendations in §19.2 surface the manual command (e.g., `/architecture init`, `/architecture impact SPEC-XXX`) and explicitly state that the skill is missing. The interface contract is recorded here so that when the architecture skill is implemented, it can be aligned with this routing logic.
+Do not encode a hardcoded implementation status for the Architecture Skill into this SKILL.md. Skill Availability is a runtime property, judged per invocation, and can change between runs and environments.
+
+Each invocation must independently judge:
+
+- Whether the Architecture Skill is invocable from the **current** Claude Code environment.
+- Whether the current business project has a trustworthy Architecture Baseline.
+
+The two checks are independent. The combined cases resolve as:
+
+| Skill Available | Baseline | Routing |
+|---|---|---|
+| Yes | Absent | Route A (Init); the Skill's invocability does not imply a Baseline exists. |
+| Yes | Sufficient | Route C possible; Skill may be invoked for confirmatory Impact if desired. |
+| Yes | Present, new capability lacks Owner | Route B (special case; do not invoke Init just because of a coverage gap). |
+| Yes | Present but applicability uncertain | Route B (Impact) or targeted verification. |
+| Yes | Only Skill files exist | Route A — Skill documentation is not a Baseline. |
+| Yes | Only an empty architecture directory exists | Route A — empty directory is Baseline absent. |
+| No  | Absent | Route A is required in principle, but the Skill is not invocable from this environment; report unavailability and surface the manual command. |
+| No  | Sufficient | Route C is still the right routing conclusion. Skill invocability changes only who performs Module Design, not the routing verdict. |
+
+Rules:
+
+- Judge Skill Availability from the **current** environment, not from a memorized development phase.
+- Do not write any historical development state (e.g. "skill not yet implemented") into the routing rules.
+- When the Skill is unavailable, report it explicitly. Do not claim the call succeeded.
+- Baseline existence is a separate question from Skill installation.
 
 ## 20. Upstream Feedback
 
@@ -473,4 +543,4 @@ If the spec skill is not invokable from this environment, record the feedback in
 18. **One explicit confirmation is enough.** When the user has explicitly confirmed the current stage's completion ("确认，继续" / "需求已经确定" / "SPEC-001 没问题了"), that single confirmation authorizes the corresponding archive and the immediate handoff (including the post-archive Downstream Routing). Do not prompt a second time to "are you sure?". Do not extend the authorization to unrelated Specs or unrequested changes.
 19. **Completion check before natural-language archive.** A natural-language completion confirmation is not a license to skip the completion check. The check (saved, no Blocking Unknown, important Requirements sourced, traceability valid, no major upstream conflict) still runs. Blocking issues stop the archive; the user must resolve them before re-confirming.
 20. **Don't claim sync that didn't happen.** If a downstream artifact (Architecture, Module Design, or another Spec) cannot be modified from this skill, return a clear result for its owner to apply. Do not claim the artifact was updated.
-21. **Routing is a recommendation, not a decision.** Spec proposes Route A / B / C based on available evidence. It does not modify architecture, modules, or contracts. If the architecture skill is not yet implemented, surface the manual command — do not pretend to invoke it.
+21. **Routing is a recommendation, not a decision.** Spec proposes Route A / B / C based on available evidence. It does not modify architecture, modules, or contracts. If the Architecture Skill is not invocable from the current environment, surface the manual command — do not pretend to invoke it.
