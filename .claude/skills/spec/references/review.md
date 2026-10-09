@@ -37,9 +37,71 @@ Do not produce a fixed full-category report. Apply only what is relevant.
 
 ## 2. Spec Review (`/spec review <spec-id>`)
 
-Run a structured review on a Spec.
+Run a structured review on a Spec. By default this is executed as an **Independent Review** by the `independent-reviewer` subagent (`.claude/agents/independent-reviewer.md`) in a fresh context. The Spec Skill holds the report, the user decision, and the resolution path; the Reviewer only finds and reports.
 
-### 2.1 Checklist
+### 2.0 Independent Review vs. Self-check
+
+| Mode | When | Who executes | Output label |
+|---|---|---|---|
+| **Independent Review** (default) | User runs `/spec review <spec-id>`; or Spec is about to be archived and touches money / assets / security / core data correctness / public contracts. | A non-fork `independent-reviewer` subagent. Read-only. No persistent memory. | "Independent Review: SPEC-NNN" |
+| **Self-check** | Trivial wording edits, pure typo fixes, internal-only quick passes. | The current Spec Skill in its own context. | "Self-check (not Independent Review): SPEC-NNN" |
+
+Default to Independent Review. Self-check must never be presented as Independent Review.
+
+### 2.1 Delegation message template
+
+When delegating to the Independent Reviewer, the Spec Skill must construct a single neutral message containing the minimum fields below. **Do not** include author conclusions, pre-baked judgments, or hints about correctness.
+
+```text
+Review Type: Spec
+
+Target:
+docs/specs/SPEC-NNN/SPEC.md
+
+Authoritative Sources:
+- docs/intents/INT-NNN/INTENT.md
+- <related SPEC-NNN/SPEC.md if any>
+- <verified external fact file or URL if any>
+
+Review Criteria:
+.claude/skills/spec/references/review.md
+
+Scope:
+- Full Spec review
+- (Optional) also include: <e.g. "focus on cross-Spec invariants with SPEC-002">
+
+Method:
+Independently derive expected requirements from the source Intent(s) and
+related Specs before reading the target. Look for missing requirements,
+not only inconsistencies among the requirements already listed.
+
+Output:
+Evidence-based findings only. Read-only. No file modifications.
+
+Permissions:
+Read-only: Read, Glob, Grep, WebFetch, WebSearch. Do not modify any file.
+```
+
+**Forbidden content in the delegation:**
+
+- "I've verified all technical facts."
+- "This Spec should have no major issues."
+- "The architecture already confirmed this approach is correct."
+- "Please prove this design satisfies the Requirements."
+- Any other author conclusion presented as established fact.
+
+Allowed: objective scope description, e.g. "This Spec concerns historical chain data, NAV calculation, and timing semantics for replay."
+
+### 2.2 The six phases the Reviewer executes
+
+1. **Authority Discovery** — locate and read each source Intent, related Spec, and verified-fact reference.
+2. **Independent Derivation** — derive required system behavior, boundaries, invariants, failure modes, and acceptance obligations from the authoritative sources **before** reading the target Spec.
+3. **Inspect Target** — read the target Spec and compare against the derivation. Look for missing items, not only inconsistencies among existing items.
+4. **Risk-based Challenge** — for the actual risks of this Spec (money, data integrity, timing, contracts, security, recovery), propose counter-examples and failure scenarios.
+5. **Fact Verification** — for each load-bearing factual claim, cite the source; prefer primary sources; mark `Unknown` when evidence is unavailable. Reuse `.claude/skills/intent/references/research.md` and `.claude/skills/spec/references/fact-verification.md`.
+6. **Findings** — return structured findings per `.claude/agents/independent-reviewer.md` §3.
+
+### 2.3 Checklist (criteria the Reviewer applies)
 
 1. **Risk re-check** — re-run the intake risk categories against the current Spec content.
 2. **Completeness** — every System Capability has at least one Requirement. Every cross-capability invariant is recorded in `# System Invariants and Dependencies`.
@@ -50,39 +112,70 @@ Run a structured review on a Spec.
 7. **Coverage cross-check** — for each Requirement, identify which Intent goal / constraint / decision it serves. Surface any that serve none.
 8. **Source intent status** — if a source intent is still `active` (not `archived`), note that upstream changes may still occur.
 
-### 2.2 Output
+### 2.4 Findings classification
 
-A structured report. No automatic edits — the user decides what to change.
+Findings returned by the Reviewer are classified as exactly one of:
+
+- **Confirmed Defect** — authoritative requirement / contract / fact proves a defect. Blocking / Major / Minor severity.
+- **Probable Risk** — plausible risk, needs more evidence. Always includes `How to Verify`.
+- **Missing Information** — required source absent; cannot conclude.
+- **Improvement Suggestion** — valuable idea, **not** a violation of a confirmed requirement.
+
+Suggestions are not defects. Do not promote or demote between these classes without new evidence.
+
+### 2.5 Finding ownership and resolution
+
+Each finding is owned by exactly one layer. The Reviewer names the owner; the Spec Skill records / surfaces it:
+
+| Owner | When |
+|---|---|
+| Intent | User goal ambiguity, conflicting goals, missing user constraint, decision to revisit. |
+| Spec | Missing / weak system behavior, missing acceptance, weak invariant, weak testability, internal Spec inconsistency. |
+| Architecture | Module ownership, public contract, dependency direction, cross-module invariant responsibility. |
+| Module Design / Contract | API / schema / algorithm design that doesn't yet have a Module to attach to. |
+| Implementation | Code-level issue once you are at the Implementation stage. |
+| Verification / Test | Empirical test not yet performed. |
+| User | Genuine trade-off or preference that only the user can decide. |
+
+**Cross-layer discipline:** if a Spec-level finding actually points to Architecture, route it as Architecture feedback. Do not ask Spec to redesign the module split.
+
+### 2.6 Output format (Spec Skill presents this to the user)
+
+The Reviewer returns its own structured Markdown report (see `.claude/agents/independent-reviewer.md` §3). The Spec Skill wraps that report and adds the owner-classified next-step proposals:
 
 ```text
-## Review Report: SPEC-NNN
+Independent Review: SPEC-NNN
 
-### Risk re-check
-- <finding>: <severity>; <resolution>
+Review Mode: Independent / Fresh Context / Read-only / No persistent memory
 
-### Completeness
-- Capabilities: <covered / partial / uncovered list>
-- Invariants: <covered / partial / uncovered list>
+Authoritative Sources Read:
+- INT-NNN: <one-line purpose>
+- SPEC-XXX (related): <one-line purpose>
 
-### Traceability
-- Orphan Requirements: <list or "none">
-- Unresolved source references: <list or "none">
+Review Scope:
+- <in scope>
+- <out of scope>
 
-### Conflict
-- <finding>: <between which Requirements>
+Findings:
+(reproduced verbatim from the Reviewer's report)
 
-### Testability
-- Untestable: <list or "none">
+Spec Skill Triage (owner + suggested resolution):
+- F1 → Owner: <layer>; Resolution: <what this Skill recommends the user do>
 
-### Architecture boundary
-- Boundary violations: <list or "none">
+Coverage:
+- Confirmed coverage: <list>
+- Missing or partial: <list>
+- Unable to assess: <list>
 
-### Coverage cross-check
-- Requirements serving no Intent item: <list or "none">
+Limitations:
+- <e.g. empirical verification not performed, primary source X not fetched>
 
-### Source intent status
-- <INT-NNN>: <active / archived>; <impact on this Spec>
+Overall:
+- <Material issues identified | No material issues found | Unable to assess>
+- <Explicit remaining uncertainty>
 ```
+
+The Spec Skill **does not** silently rewrite the Reviewer's classifications. If this Skill disagrees with a finding, it will say so explicitly and explain why.
 
 ## 3. Coverage Analysis (`/spec coverage <intent-id>`)
 
