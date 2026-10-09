@@ -204,14 +204,20 @@ Anything beyond that is over-engineering.
 
 | State | Definition | Who marks it |
 |---|---|---|
-| **Review Executed** | The Review ran and returned its report. | Independent Reviewer |
+| **Review Executed** | The Review ran and returned its report. The Independent Reviewer supports two flavors under this single state: **Independent Review** (Mode A, full scope) and **Targeted Resolution Verification** (Mode B, focused on a specific change after an authorized fix). The Reviewer records the flavor and scope it actually executed under. | Independent Reviewer |
 | **Authority Resolved** | The owning layer has, with evidence, confirmed, modified, or rejected the issue. | Owning Skill (Intent / Spec / Architecture / Module Design / Implementation) |
 | **Implementation Verified** | Actual runtime / data / contracts have been observed to satisfy the resolved requirement. | Verification (Test, runtime observation, code review) |
+
+Trigger rules for invoking the Reviewer in either flavor, the shared
+Evidence Standard, and the loop bounding for post-fix verification live
+in `.claude/references/verification.md`. This document does not
+duplicate them; load that file only when the current Skill is about to
+delegate, triage, or sequence a verification call.
 
 Rules:
 
 - The Reviewer must never claim `Authority Resolved` or `Implementation Verified`.
-- The Owning Skill must never claim `Implementation Verified` without Verification evidence.
+- The Owning Skill must never claim `Implementation Verified` without Verification evidence; this includes asserting `Authority Resolved` after a Targeted Resolution Verification has merely returned — see `.claude/references/verification.md` §6 for the loop bounding.
 - Verification never claims `Authority Resolved` — that is the upstream layer's decision.
 - These are **logical states**, not new document lifecycle statuses. They are recorded in `# Resume Notes`, `# Unknowns and Upstream Feedback`, etc., as plain language — never as a `closed` field on a Finding.
 
@@ -223,10 +229,11 @@ The following are **not** cross-layer coordination; they are coordination failur
 - **All suggestions → Confirmed Defect.** Inflating severity to demand a fix.
 - **Tech solution → authoritative Requirement.** Writing "use Redis" into a Spec because a Reviewer proposed it.
 - **Triage rubber-stamps.** The Owning Skill copying the Reviewer's recommendation without independent judgment.
-- **Unconditional loops.** Reviewer → Fix → Reviewer → Fix with no clear stopping condition.
+- **Unconditional loops.** Reviewer → Fix → Reviewer → Fix with no clear stopping condition. The shared loop-bounding rule lives in `.claude/references/verification.md` §6: one initial Targeted Verification per fix; at most one additional corrective fix plus one additional Targeted Verification; beyond that, surface the unresolved constraint and stop. Do not lower the original system guarantee to make a review pass.
 - **Self-closing.** Claiming `Implementation Verified` without empirical evidence.
 - **Decision-talk fatigue.** Creating a feedback record for every micro-issue.
 - **Same-root, duplicate findings.** Producing separate Findings for the same root cause instead of merging them.
+- **Auto-delegation of trivial edits.** Routing every Spec / Architecture edit to a full Independent Review regardless of impact. The Trigger rules in `.claude/references/verification.md` §3 — not the user's `/review` input — decide when an automatic review fires.
 
 ## 7. When this reference is loaded
 

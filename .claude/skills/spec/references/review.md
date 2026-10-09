@@ -37,23 +37,27 @@ Do not produce a fixed full-category report. Apply only what is relevant.
 
 ## 2. Spec Review (`/spec review <spec-id>`)
 
-Run a structured review on a Spec. By default this is executed as an **Independent Review** by the `independent-reviewer` subagent (`.claude/agents/independent-reviewer.md`) in a fresh context. The Spec Skill holds the report, the user decision, and the resolution path; the Reviewer only finds and reports.
+Run a structured review on a Spec. By default this is executed as an **Independent Review** by the `independent-reviewer` subagent (`.claude/agents/independent-reviewer.md`) in a fresh context. The Spec Skill holds the report, the user decision, the **automatic post-fix verification**, and the resolution path; the Reviewer only finds and reports.
 
 ### 2.0 Independent Review vs. Self-check
 
 | Mode | When | Who executes | Output label |
 |---|---|---|---|
-| **Independent Review** (default) | User runs `/spec review <spec-id>`; or Spec is about to be archived and touches money / assets / security / core data correctness / public contracts. | A non-fork `independent-reviewer` subagent. Read-only. No persistent memory. | "Independent Review: SPEC-NNN" |
+| **Independent Review** (Mode A) | User runs `/spec review <spec-id>`; or Spec is about to be archived and touches money / assets / security / core data correctness / public contracts. | A non-fork `independent-reviewer` subagent. Read-only. No persistent memory. | "Independent Review: SPEC-NNN" |
+| **Targeted Resolution Verification** (Mode B) | After a Trigger B fix (`SKILL.md` §14.6): the Spec Skill just applied an authorized fix that materially changes a Requirement / invariant / acceptance / public contract / formula. | Same `independent-reviewer` subagent; scope is the change and its ripple. | "Targeted Verification: SPEC-NNN (Scope: <the change>)" |
 | **Self-check** | Trivial wording edits, pure typo fixes, internal-only quick passes. | The current Spec Skill in its own context. | "Self-check (not Independent Review): SPEC-NNN" |
 
-Default to Independent Review. Self-check must never be presented as Independent Review.
+Default to Independent Review. Self-check must never be presented as Independent Review. Both reviewer modes share the same Subagent identity; the delegation message declares `Review Mode` (see `.claude/references/verification.md` §1, §2 for the shared contract).
 
 ### 2.1 Delegation message template
 
 When delegating to the Independent Reviewer, the Spec Skill must construct a single neutral message containing the minimum fields below. **Do not** include author conclusions, pre-baked judgments, or hints about correctness.
 
+For Initial / full-scope review (`/spec review <spec-id>`):
+
 ```text
 Review Type: Spec
+Review Mode: Independent Review
 
 Target:
 docs/specs/SPEC-NNN/SPEC.md
@@ -82,15 +86,64 @@ Permissions:
 Read-only: Read, Glob, Grep, WebFetch, WebSearch. Do not modify any file.
 ```
 
-**Forbidden content in the delegation:**
+For Post-fix verification (`SKILL.md` §14.6, Trigger B):
+
+```text
+Review Type: Spec
+Review Mode: Targeted Resolution Verification
+
+Target:
+docs/specs/SPEC-NNN/SPEC.md
+
+Authoritative Sources:
+- docs/intents/INT-NNN/INTENT.md
+- <related SPEC-NNN/SPEC.md if any>
+
+Review Criteria:
+.claude/skills/spec/references/review.md
+
+Scope:
+- The specific change being verified: <REQ-ID / Acceptance Criterion / Section>
+- Diff hunk or change description: <what was modified and where>
+- In scope: <what parts of the artifact this verification must cover>
+- Out of scope: <a fresh full review is NOT requested; the rest of the Spec is
+  not under re-examination unless a ripple effect is observed>
+
+Original issue and evidence:
+- <Finding reference> — <one short paragraph with original citation>
+
+Authoritative basis for correct outcome:
+- <Requirement / Intent item / external fact that defines the correct outcome>
+
+Independent re-derivation expected:
+- Re-derive the Necessary Condition for this change from authoritative sources
+  before evaluating the modified target. Do NOT take the Spec Skill's Triage
+  verdict as input.
+
+Method:
+Independently re-derive the Necessary Condition, then locate whether the
+modified target satisfies it. Construct or reason about counterexamples
+that would falsify the fix (wrong implementation passing, correct
+implementation failing). Flag any new material defect the change introduces.
+
+Output:
+Evidence-based findings only. Closure flavor: Targeted Verification Executed.
+Do not modify any file.
+
+Permissions:
+Read-only: Read, Glob, Grep, WebFetch, WebSearch. Do not modify any file.
+```
+
+**Forbidden content in either delegation:**
 
 - "I've verified all technical facts."
 - "This Spec should have no major issues."
 - "The architecture already confirmed this approach is correct."
 - "Please prove this design satisfies the Requirements."
+- "The previous fix is sound — please confirm."
 - Any other author conclusion presented as established fact.
 
-Allowed: objective scope description, e.g. "This Spec concerns historical chain data, NAV calculation, and timing semantics for replay."
+Allowed: objective scope description, e.g. "This Spec concerns historical chain data, NAV calculation, and timing semantics for replay." For Mode B, the factual description of the change is allowed; the verdict about the change is not.
 
 ### 2.2 The phases the Reviewer executes
 
@@ -218,8 +271,9 @@ Triage does not modify authoritative content (Spec skill hard rule — see SKILL
 
 The three closure states in `cross-layer-coordination.md` §5 belong to distinct moments and are not produced here:
 
-- `Review Executed` — recorded by this Skill after Triage returns.
-- `Authority Resolved` — recorded by the owning layer after authorized edits land.
+- `Review Executed` — recorded by this Skill after a Mode A Triage returns.
+- `Targeted Verification Executed` — recorded by this Skill after a Mode B Triage returns (see `SKILL.md` §14.6 and `.claude/references/verification.md` §7).
+- `Authority Resolved` — recorded by the owning layer after authorized edits land; Trigger B's post-fix verification must return before this Skill asserts `Authority Resolved`.
 - `Implementation Verified` — recorded by Verification after empirical evidence.
 
 Re-derive the Necessary Condition from the source and check the proposed resolution logically restores it when applied as described:

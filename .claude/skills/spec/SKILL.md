@@ -249,27 +249,30 @@ See [references/requirements.md](references/requirements.md) for:
 
 ## 14. Subcommand: `review <spec-id>`
 
-Run a structured review of a Spec. The default execution delegates to the read-only `independent-reviewer` subagent (defined in `.claude/agents/independent-reviewer.md`) in a fresh context, so the review does not inherit the author's reasoning. This Skill owns the **independent triage**, the user-decision loop, and the resolution path; the Reviewer owns the evidence-based findings.
+Run a structured review of a Spec. The default execution delegates to the read-only `independent-reviewer` subagent (defined in `.claude/agents/independent-reviewer.md`) in a fresh context, so the review does not inherit the author's reasoning. This Skill owns the **independent triage**, the user-decision loop, the **automatic post-fix verification**, and the resolution path; the Reviewer owns the evidence-based findings.
 
 **Trigger policy.** Delegate to the Independent Reviewer when:
 
-- The user runs `/spec review <spec-id>` explicitly, OR
-- A Spec is about to be archived and the Spec touches money / assets / security / core data correctness / public contracts.
+- The user runs `/spec review <spec-id>` explicitly (Trigger A — Independent Review, full scope).
+- A Spec is about to be archived and the Spec touches money / assets / security / core data correctness / public contracts (Trigger A — Important Deliverable).
+- An authorized Spec fix has just been applied that materially changes a Requirement / invariant / acceptance condition / public contract / load-bearing formula (Trigger B — Material Resolution → Targeted Resolution Verification).
+- A new material risk surfaces during the current Skill's execution that previous reviews did not cover (Trigger C — Significant New Risk; choose Mode A or Mode B by impact).
 
-For trivial wording edits and pure typo fixes, the current Skill may perform a fast Self-check without delegating. Default to delegation; do not skip it just because the Spec looks small.
+For trivial wording edits and pure typo fixes, the current Skill may perform a fast Self-check without delegating. Default to delegation; do not skip it just because the Spec looks small. See `.claude/references/verification.md` §3 for the shared trigger rules and §6 for loop bounding.
 
 ### 14.1 Delegation procedure
 
 1. **Confirm the target.** Resolve `<spec-id>` (must exist; load `docs/specs/<spec-id>/SPEC.md`).
 2. **Locate authoritative sources.** Read `source_intents` from the target's frontmatter; load each source Intent's `INTENT.md`. Read any Specs cited as related in `# Scope and Sources`. Note their `status`.
 3. **Load the Review Criteria.** Read [references/review.md](references/review.md#2-spec-review-spec-review-spec-id) so the Reviewer knows the criteria, and so this Skill can interpret findings.
-4. **Build a neutral delegation message.** See the template in [references/review.md §2.1](references/review.md#21-delegation-message-template). The message must contain: Review Type, Target, Authoritative Sources, Review Criteria, Scope, Method, Output, Permissions. **Do not** include author conclusions such as "this Spec looks correct" or pre-baked judgments about facts.
-5. **Launch the Independent Reviewer.** Use the Agent tool with `subagent_type: "independent-reviewer"` and the neutral delegation message as the prompt. This starts a **non-fork subagent** with read-only access (no Edit / Write / Bash) and no persistent memory. Verify the call succeeded.
-6. **Receive the report.** The Reviewer returns a structured Markdown report (see `.claude/agents/independent-reviewer.md` §3).
+4. **Build a neutral delegation message.** See the template in [references/review.md §2.1](references/review.md#21-delegation-message-template). The message must contain: **Review Type, Review Mode** (`Independent Review` for Trigger A; `Targeted Resolution Verification` for Trigger B), **Target**, **Authoritative Sources**, **Review Criteria**, **Scope**, **Method**, **Output**, **Permissions**. For Trigger B, also include the original finding evidence, the authoritative basis for the correct outcome, and an explicit request to re-derive. **Do not** include author conclusions such as "this Spec looks correct", "the fix is sound — please confirm", or pre-baked judgments about facts.
+5. **Launch the Independent Reviewer.** Use the Agent tool with `subagent_type: "independent-reviewer"` and the neutral delegation message as the prompt. This starts a **non-fork subagent** with read-only access (no Edit / Write / Bash) and no persistent memory. Verify the call succeeded. If the call fails (see §14.2), report honestly; do not fake a review.
+6. **Receive the report.** The Reviewer returns a structured Markdown report (see `.claude/agents/independent-reviewer.md` §3). The report includes the Mode that produced it; preserve that label.
 7. **Independent Triage.** This Skill does **not** rubber-stamp the Reviewer's recommendations. For each finding, run the Triage procedure in [references/review.md §2.7](references/review.md#27-triage-procedure). For cross-layer issues, load the cross-layer rules from `.claude/references/cross-layer-coordination.md`.
 8. **Resolution paths.** Each triaged finding produces a resolution path owned by the **highest necessary** authority whose content must change. Most findings will be triaged to: Accept (modify Spec wording), Reject (with evidence), Request evidence, Redirect (to Spec / Architecture / Module / Implementation / Verification / User), or already covered by an existing downstream guarantee. **Do not** route every finding to Spec.
-9. **Closure language discipline.** Record only `Review Executed` after this Skill finishes. Do not record `Authority Resolved` until the actual authoritative content has been changed (or formally rejected). Do not record `Implementation Verified` — that belongs to Verification. See [references/review.md §2.7.4](references/review.md#274-closure-language-discipline).
+9. **Closure language discipline.** Record `Review Executed` (Mode A) or `Targeted Verification Executed` (Mode B) after this Skill finishes. Do not record `Authority Resolved` until the actual authoritative content has been changed (or formally rejected). Do not record `Implementation Verified` — that belongs to Verification. See [references/review.md §2.7.4](references/review.md#274-closure-language-discipline) and `.claude/references/verification.md` §7.
 10. **No auto-edit.** This Skill does not auto-modify any authoritative file. All material edits wait for user authorization.
+11. **Post-fix verification (Trigger B).** When an Accept verdict has been authorized and the Spec edit has been applied, evaluate whether the fix meets the Trigger B criteria in `.claude/references/verification.md` §3. If yes, automatically delegate a follow-up `Targeted Resolution Verification` to the same Independent Reviewer Subagent — do not rely on the Triage verdict alone to claim the issue is closed. See §14.6 for the procedure.
 
 ### 14.2 If the Independent Reviewer cannot be spawned
 
@@ -289,6 +292,29 @@ No automatic edits; the user decides what to change. The report format and sever
 ### 14.5 Reviewer boundary
 
 The Reviewer does not modify any authoritative content (`INTENT.md` / `SPEC.md` / `ARCHITECTURE.md` / `MODULE.md` / contracts / code), does not approve or archive the Spec, and does not trigger the next phase. See `.claude/agents/independent-reviewer.md` §0 (IS NOT) for the full boundary. Findings that point at another layer come back to this Skill, which routes them via `# Unknowns and Upstream Feedback` and the existing cross-layer feedback contract.
+
+### 14.6 Automatic Post-fix Verification (Trigger B)
+
+When the current Skill has applied an authorized Spec fix that meets any of the criteria below, automatically call the Independent Reviewer in `Targeted Resolution Verification` mode before declaring the issue resolved. This is the post-fix hook that closes the verification loop.
+
+**Trigger B criteria** (apply when the fix materially changes any of):
+
+- A Requirement's acceptance condition, observable behavior, or correctness scope.
+- A System Invariant or cross-capability correctness rule.
+- A load-bearing formula, numerical bound, or quantitative acceptance threshold.
+- An Acceptance Criterion's expected result (e.g., correcting a wrong expected value).
+- Public contract language that flows downstream to Architecture / Module.
+
+**Procedure**:
+
+1. Confirm the change is authorized, persisted to `SPEC.md`, and tracked in `# Resume Notes`.
+2. Build a Mode B delegation message using the template at [references/review.md §2.1](references/review.md#21-delegation-message-template). `Scope` describes the specific change (REQ-ID, Section, Acceptance Criterion). Include the original finding evidence and the authoritative basis for the correct outcome.
+3. Launch the Independent Reviewer in `Targeted Resolution Verification` mode. The Reviewer re-derives the correct outcome independently; this Skill does not pre-bake the verdict.
+4. Triage the `Targeted Verification Executed` report the same way as a Mode A report (§14.1 step 7). If the report shows the change restored the Necessary Condition and introduces no material new defect in scope, record `Authority Resolved` for this finding.
+5. If the report shows the change did NOT restore the Necessary Condition, surface the failing aspects back to the user. One additional corrective fix may justify one additional Targeted Verification (§6 Bound the Loop in `.claude/references/verification.md`). Beyond that, stop and report the unresolved constraint honestly.
+6. **Do not** run Targeted Verification for trivial wording, formatting, or low-risk local edits. The Trigger B criteria above are the gate.
+
+This step is automatic within the current Skill's execution flow — it does not require the user to type `/review` again. See `.claude/references/verification.md` for the shared contract.
 
 ## 15. Subcommand: `coverage <intent-id>`
 

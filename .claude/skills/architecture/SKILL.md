@@ -291,9 +291,35 @@ A revision must:
 
 Use Git and Markdown for history. No separate version control system.
 
+### Automatic Post-fix Verification (Trigger B)
+
+When the current Skill has applied an authorized `revise` that meets any of the criteria below, automatically call the Independent Reviewer Subagent in `Targeted Resolution Verification` mode before declaring the issue resolved. This is the same Trigger B used by the Spec Skill — see `.claude/references/verification.md` §3 Trigger B and the shared trigger rules.
+
+**Trigger B criteria** (apply when the revise materially changes any of):
+
+- A module boundary, Capability / Module ownership, or dependency direction.
+- A public contract's Required Behavior, Failure Semantics, or Timing / State Semantics.
+- A cross-module System Invariant's responsibility attribution or verification path.
+- A load-bearing architectural decision (system-level data flow, atomicity, replay ordering, etc.).
+
+**Procedure**:
+
+1. Confirm the change is authorized, persisted in the Baseline, and recorded in `# Resume Notes` / change log.
+2. Build a Mode B delegation message: see `.claude/references/verification.md` §2 for the contract; the reviewer's reasoning frame lives in `.claude/agents/independent-reviewer.md`. `Scope` describes the specific section (e.g., "Module Responsibility Map §3 — added module X"). Include the original Impact finding's evidence and the authoritative basis for the correct outcome (the Spec Requirement / Capability being satisfied).
+3. Launch the Independent Reviewer in `Targeted Resolution Verification` mode. The Reviewer re-derives the correct outcome; the Skill does not pre-bake the verdict.
+4. Triage the `Targeted Verification Executed` report. If the change satisfies the upstream Spec Requirement and introduces no material new defect in scope, record `Authority Resolved` for this architecture finding. If it does not, surface the failing aspects back to the user.
+5. Bound the loop: one additional corrective revise may justify one additional Targeted Verification (see `.claude/references/verification.md` §6). Beyond that, stop and report the unresolved constraint honestly.
+6. **Do not** run Targeted Verification for trivial wording, formatting, or low-risk local Baseline edits. The Trigger B criteria above are the gate.
+
+This step is automatic within the current Skill's execution flow — it does not require the user to run `/architecture review` again. See `.claude/references/verification.md` for the shared contract and loop bounding.
+
 ## 8. Subcommand: `review`
 
 Audit current architecture for consistency. **Default read-only; do not auto-modify.**
+
+This subcommand is the user-explicit path to Trigger A (Independent Review) for Architecture. The same `independent-reviewer` Subagent (`.claude/agents/independent-reviewer.md`) used for Initial Review also serves the post-fix `Targeted Resolution Verification` of important `revise` changes (§7 Post-fix Verification). Architecture does not auto-modify; the user decides what to fix based on the Reviewer's report.
+
+For the shared delegation contract, evidence standard, loop bounding, and Mode A / Mode B differences, see `.claude/references/verification.md`.
 
 ### Default scope
 
@@ -306,6 +332,8 @@ Check:
 - **Consumer Compatibility** — public capabilities still satisfy known consumers' actual requirements.
 - **System Invariants** — every cross-module invariant has both an integration owner and an end-to-end verification path.
 - **Documentation / Code Consistency** — Baseline, MODULE.md, formal contracts, and code show provable mismatches.
+
+When math / quantitative bounds or acceptance criteria are in scope of the Baseline (rare but possible — e.g., latency budget for a public contract), the Reviewer applies the Mathematics and Acceptance Criteria verification principles from `.claude/references/verification.md` §4.2 and §4.4.
 
 ### Optional scope via natural language
 
