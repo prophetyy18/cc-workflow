@@ -1,0 +1,482 @@
+---
+name: architecture
+description: Design and maintain the system's Architecture Baseline — module responsibilities, dependency boundaries, public contract ownership, and cross-module system invariants. Use when the user wants to start an initial architecture from existing Specs (/architecture init), analyze how a Spec change affects the existing architecture (/architecture impact <spec-id>), revise the architecture after impact analysis is approved (/architecture revise <spec-id>), or audit the current architecture for consistency (/architecture review). Located between Spec and Module Design in the workflow. Triggered by questions like "design the architecture for these specs", "does this spec break existing contracts", "who owns capability X", or "is our module boundary still right".
+allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*)
+---
+
+# Architecture Skill
+
+Designs and maintains the **Architecture Baseline** for a system: module responsibilities, dependency boundaries, public contract ownership, and cross-module system invariants. Architecture decides *who* owns what and *what* must hold across modules. Module Design decides *how* each module implements its responsibilities.
+
+## 1. Layer Boundaries
+
+| Layer | Owns | Does not own |
+|---|---|---|
+| **Intent** | User objectives, goals, constraints, decisions | System behavior, modules, APIs |
+| **Spec** | System capabilities, requirements, system invariants, acceptance conditions | Module names, API shapes, schemas |
+| **Architecture** (this skill) | Module boundaries, capability ownership, public contract ownership, dependency direction, system-level correctness, cross-module invariants, Requirement → Module mapping | Specific APIs, schemas, internal algorithms, actual code |
+| **Module Design** | API details, schemas, internal structure, algorithms, code | Why these capabilities exist (Intent), what they must guarantee (Spec), system responsibility allocation (Architecture) |
+
+**Architecture is the authority for system responsibility and module boundaries. Module Design is the authority for implementation.**
+
+## 2. Subcommand Routing
+
+Read `$ARGUMENTS`. First token is the subcommand, the rest is the target.
+
+| Subcommand | Target | Behavior |
+|---|---|---|
+| (empty) or `help` | — | Show this help |
+| `init` | — | Build initial Architecture Baseline from existing Specs |
+| `impact` | `<spec-id>` | Read-only analysis of how a Spec change affects current architecture |
+| `revise` | `<spec-id>` | Apply authorized Architecture changes from a confirmed Impact |
+| `review` | (optional scope) | Audit current architecture for consistency |
+
+If the subcommand is unknown, do not guess. Show help and stop.
+
+## 3. Natural-Language Operations
+
+| User intent (paraphrased) | Action |
+|---|---|
+| "design the architecture for these specs", "我们还没有架构基线" | `init` |
+| "does this spec break our existing contracts", "SPEC-002 改了，要改架构吗" | `impact` |
+| "update the architecture", "把架构改一下" | `revise` (after an Impact result B is confirmed) |
+| "is our architecture still consistent", "审一下架构" | `review` |
+| "确认，继续" (after a completion proposal) | save baseline, hand off to Module Design |
+
+**Modification is the default, not creation.** The Baseline is a single evolving document; an `init` is only the first cut. Subsequent changes go through `impact` + `revise`.
+
+## 4. Identity & Storage
+
+**Skill files** (this repo):
+
+```text
+.claude/skills/architecture/
+├── SKILL.md
+└── references/
+    └── impact-analysis.md      (detailed 8-step Impact methodology, loaded on demand)
+```
+
+**Runtime project artifacts** (created in the consuming project, not in this repo):
+
+```text
+docs/architecture/
+└── ARCHITECTURE.md             (the authoritative Baseline for the project)
+```
+
+Optional supporting files (created only when needed):
+
+```text
+docs/architecture/
+├── ARCHITECTURE.md
+├── modules/MODULE-<name>.md    (per-module responsibility + contract summary, one file per module)
+└── decisions/ADR-NNN-<topic>.md (Architecture Decision Records, when material decisions need history)
+```
+
+Do not create `docs/architecture/` in this repo. It is a runtime artifact of consuming projects. The cc-workflow repo contains only the skill itself.
+
+## 5. Subcommand: `init`
+
+Build the initial Architecture Baseline from existing Specs.
+
+### Step 1 — Build the System Responsibility View
+
+Read every `SPEC.md` under `docs/specs/`. Extract:
+
+- System Capabilities
+- Requirement IDs (Functional / Non-Functional / Derived)
+- System Invariants
+- Acceptance Criteria
+- `# Architecture Handoff` content
+- Source Intent items
+
+For each Spec, note its `status` (active vs archived). Archived Specs are confirmed baseline input. Active Specs are partial input — only use clearly-accepted sections; flag uncertain parts as "draft, may change".
+
+If a Requirement is not clear enough to drive a responsibility decision, route back to Spec via the existing feedback mechanism. Do not invent business semantics.
+
+### Step 2 — Derive Responsibilities from System Behavior
+
+Analyze, do not pre-assign. For each capability, ask:
+
+- What does it produce? Who consumes it?
+- What authoritative state does it own?
+- What cross-capability coordination does it need?
+- Can this responsibility stand alone, or must it be co-located with another?
+
+Identify logical responsibilities first; modules come after. Do not create one module per Spec Capability — that is mechanical, not architectural.
+
+### Step 3 — Evaluate Module Boundaries
+
+For each candidate grouping, weigh:
+
+- **Cohesion** — do the co-located responsibilities change together?
+- **Authority** — is there a single source of truth for the relevant state?
+- **Boundary clarity** — can external consumers be told exactly what to call?
+- **Maintenance cadence** — do these responsibilities evolve together?
+- **Cross-module dependencies** — how many edges; can they be reduced?
+- **System correctness** — does this grouping preserve end-to-end invariants?
+
+Pick the **simplest structure that satisfies the Requirements**. Compare two candidates only when the choice is genuinely non-obvious. Do not force a multi-candidate comparison for every decision.
+
+### Step 4 — Assign Ownership
+
+For each Requirement, identify the **Primary Owner** — the single module whose absence makes the Requirement unsatisfiable. Mark **Collaborating Modules** and **Capability Providers/Consumers** when applicable.
+
+Critical: a Requirement that spans multiple modules still has end-to-end correctness obligations. Record:
+
+- The Primary Owner (per module role)
+- The Integration Verifier (often Architecture or a designated E2E owner)
+
+Do not lose system-level accountability just because responsibility is split.
+
+### Step 5 — Define Dependency Boundaries
+
+For each module, document:
+
+- Allowed public dependencies (which other modules' public capabilities it can call)
+- Forbidden private dependencies (which internal details it must not touch)
+- Authoritative state owners (only these modules may mutate this state)
+- Required dependency direction
+- Critical shared semantics (e.g., deterministic replay ordering)
+
+The goal is to make dependencies explicit and verifiable, not to eliminate them.
+
+### Step 6 — Define Public Capabilities and Contract Owners
+
+For each cross-module capability, record:
+
+- **Name** (descriptive; specific API/Schema are Module Design's job)
+- **Provider Owner** (single module)
+- **Known Consumers**
+- **Related Requirement IDs**
+- **Required Behavior** (high-level; consumer-observable)
+- **Critical Timing / State Semantics** (e.g., "synchronous", "eventual", "happens-before X")
+- **Required Failure Semantics** (e.g., "errors propagate", "best-effort")
+- **Contract Location** (if a formal contract already exists; otherwise mark "TBD by Module Design")
+
+Do not invent API endpoints, Schema fields, or function signatures. If a formal contract is already published somewhere, reference it. Otherwise, mark as "TBD" and the Contract Owner fills it in via Module Design.
+
+### Step 7 — Preserve End-to-End Correctness
+
+Verify:
+
+- Every important Requirement has at least one Primary Owner.
+- Every cross-capability System Invariant has an integration owner and a verification path.
+- No two modules claim authoritative ownership of the same state.
+- No Requirement is orphaned (no module responsible for satisfying it).
+- System-level guarantees (e.g., "no future-data leakage in the combined historical + replay + performance path") are not silently lost in the module split.
+
+If a check fails, revise the boundary or owner assignment and re-verify. Do not ship a Baseline with known gaps.
+
+### Step 8 — Write the Baseline
+
+Create `docs/architecture/ARCHITECTURE.md` in the consuming project. See §9 for the recommended content structure. Do not create this file in the cc-workflow repo.
+
+## 6. Subcommand: `impact <spec-id>`
+
+**Read-only analysis** of how a Spec change affects the current architecture.
+
+Detailed 8-step methodology in [references/impact-analysis.md](references/impact-analysis.md). The summary:
+
+1. **Establish Spec Delta** — compare the current Spec against the last adopted baseline (or, if no baseline, current architecture state).
+2. **Find Affected System Capabilities** — for each change, identify which capabilities are added, removed, or materially modified.
+3. **Map to Actual Modules** — for each affected capability, find the Primary Owner, Collaborators, Providers, Consumers via the Baseline.
+4. **Trace Contract Consumers** — for each affected Public Capability, walk the Provider → Contract → Consumer chain and identify consumer-side impact.
+5. **Classify Contract Impact** — Existing Contract Sufficient · Internal Change Only · Compatible Extension · Breaking Change · New Public Capability · Insufficient Evidence.
+6. **Find Documentation Impact** — per the table in impact-analysis.md §6, only mark documents that genuinely need update. Do not auto-touch them.
+7. **Evaluate Evidence** — Confirmed / Potential / Unknown, with sources.
+8. **Output the Impact Plan** — a short, executable plan with: Spec changes, capability impact, affected modules, public contracts, providers, consumers, contract adjustment required, documentation updates, verification obligations, owners, unresolved unknowns.
+
+### Impact Decision: A / B / C
+
+The impact result is one of three decisions (separate from Spec's Route A / B / C — those are entry routing, not this result):
+
+- **A — No Architecture Revision Required.** Existing modules, public capabilities, dependency relations, and key contract semantics already satisfy the Requirement. No Architecture change. Hand off to Module Design for the relevant module.
+- **B — Architecture Revision Required.** Evidence shows module responsibility, public capability, contract ownership, dependency boundary, or cross-module invariant semantics need to change. Propose a minimal Revision. After authorization, run `/architecture revise <spec-id>`.
+- **C — Insufficient Evidence.** Cannot reliably judge whether the existing architecture satisfies the Requirement. List the missing evidence. Do not interpret insufficient evidence as "must revise". Targeted investigation is required.
+
+These are impact analysis results, not new lifecycle states.
+
+### Output Format
+
+```text
+## Impact Analysis: SPEC-NNN
+
+### Spec Delta
+- Added Requirements: <list>
+- Removed Requirements: <list>
+- Materially Changed Requirements: <list>
+- Changed System Invariants: <list>
+- Editorial-only Changes: <list>
+- Baseline comparison: <git commit / archived baseline / unable to determine>
+
+### Affected Capabilities
+- <capability>: <changed how>
+
+### Affected Modules
+- <module>: <owner / collaborator / provider / consumer>
+
+### Affected Public Capabilities and Contracts
+- <capability name> (<owner>): <Existing / Internal / Compatible Ext / Breaking / New / Insufficient>
+
+### Documentation Impact
+- <doc>: <owner> — <what needs update>
+
+### Verification Obligations
+- <capability / invariant>: <what must still be verified end-to-end>
+
+### Unresolved Unknowns
+- <unknown with what would resolve it>
+
+### Decision: A | B | C
+- Reasoning: <one paragraph>
+
+### Recommended Next Step
+- <direct Module Design / proceed to /architecture revise / gather evidence>
+```
+
+## 7. Subcommand: `revise <spec-id>`
+
+Apply the Architecture changes authorized by a confirmed `impact` result B.
+
+### Authorization
+
+Run `revise` only when:
+
+- An `impact` result B has been produced and the user has authorized the change scope, OR
+- The user has explicitly asked for a specific Architecture change with sufficient detail.
+
+If the user has already confirmed the change in the natural-language completion flow, do not prompt a second time. If the requested change is materially larger than what was authorized, stop and re-confirm.
+
+### Architecture May Modify
+
+- Module boundaries and naming
+- Responsibility ownership
+- Module dependency constraints
+- Public capability attribution
+- Contract Owner assignment
+- Cross-module collaboration requirements
+- Requirement / Capability → Module mapping
+- Architecture decisions and Baseline records
+- System Invariant responsibility attribution
+
+### Architecture Must Delegate
+
+- Specific API design, Schema, function signatures
+- Module internal algorithms and data structures
+- Consumer-side adaptation code
+- Test code and implementation
+- Detailed MODULE.md content (per-module internal design)
+
+If a contract change is required, Architecture records:
+
+- What behavior must change
+- Why (link to the impact finding)
+- Which consumers are affected
+- Which compatibility guarantees must hold
+- Who is the Contract Owner responsible for executing the change
+
+Architecture does not write the contract itself. The Contract Owner (or Module Design) does.
+
+### Safe Revision
+
+A revision must:
+
+1. Preserve confirmed system Requirements (never drop a Requirement without explicit feedback to Spec / Intent).
+2. Change only the necessary scope (do not over-revise).
+3. Record the source and reason of each change in `# Resume Notes` (or equivalent Baseline change log).
+4. Update the actual Module Responsibility Map, Public Capability / Contract Index, and Dependency Map in the Baseline.
+5. Verify dependency direction remains acyclic and consistent.
+6. List downstream adaptations still required (Module Design, Contract Owner, etc.).
+7. Not claim that downstream changes have been completed when they have not.
+
+Use Git and Markdown for history. No separate version control system.
+
+## 8. Subcommand: `review`
+
+Audit current architecture for consistency. **Default read-only; do not auto-modify.**
+
+### Default scope
+
+Check:
+
+- **Requirement Coverage** — important Requirements without a Primary Owner.
+- **Module Ownership** — duplicate authoritative state owners; capabilities with no owner.
+- **Dependency Boundaries** — modules depending on other modules' private internals.
+- **Contract Ownership** — every formal public contract has exactly one Owner.
+- **Consumer Compatibility** — public capabilities still satisfy known consumers' actual requirements.
+- **System Invariants** — every cross-module invariant has both an integration owner and an end-to-end verification path.
+- **Documentation / Code Consistency** — Baseline, MODULE.md, formal contracts, and code show provable mismatches.
+
+### Optional scope via natural language
+
+- "review module X" — focus on one module's responsibilities, contracts, dependencies.
+- "review the contract for capability Y" — focus on one public contract and its consumers.
+- "review whether SPEC-XXX fits the architecture" — focus on one Spec's Requirements vs current ownership.
+
+Output: a short report of findings. No automatic edits. The user decides what to fix.
+
+Do not produce a giant full-project audit report by default. Scale the review to the actual question.
+
+## 9. Architecture Baseline Content
+
+When a Baseline is written (typically `docs/architecture/ARCHITECTURE.md`), the recommended structure is:
+
+```markdown
+# Architecture Baseline — <Project Name>
+
+## 1. System Context
+<high-level summary of the system, its purpose, the Intent(s) it serves>
+
+## 2. Modules and Responsibilities
+<per-module: name, one-line responsibility, owner role, related Requirements>
+
+## 3. Capability / Requirement Ownership
+<for each System Capability: which module(s) own it, which Requirements it satisfies>
+
+## 4. Dependency Boundaries
+<allowed / forbidden dependencies, authoritative state owners, required direction>
+
+## 5. Public Capabilities and Contract Ownership
+<per public capability: name, Provider Owner, Known Consumers, related Requirements, behavior summary, contract location or "TBD">
+
+## 6. System Invariant Responsibilities
+<per cross-module invariant: what it guarantees, integration owner, verification path>
+
+## 7. Architecture Decisions
+<material decisions with rationale and date. Optional ADR references>
+
+## 8. Spec Baseline References
+<which Spec versions this Baseline adopts. Git commits, archived Spec IDs, or "adopted from working tree on YYYY-MM-DD" if uncommitted>
+
+## 9. Open Architecture Questions
+<known unresolved questions; target resolution path>
+```
+
+This is a recommended structure, not a forced template. Omit or trim sections that don't apply. Do not pad with placeholder content.
+
+### Minimal Traceability
+
+Maintain the chain:
+
+`Requirement → Capability → Responsible Module → Contract / Collaboration → Verification`
+
+Many-to-many is allowed. The chain is the basis for impact analysis.
+
+### Public Contract Index
+
+Records each public capability with:
+
+- Public Capability name
+- Provider Owner
+- Consumers
+- Related Requirement IDs
+- Authoritative contract location (path or "TBD by Module Design")
+
+Do not invent locations for contracts that do not yet exist.
+
+## 10. Completion and Handoff
+
+Architecture does **not** use Intent / Spec's `active` → `archived` lifecycle. The Baseline is a single evolving document.
+
+### Init Completion
+
+`init` is complete when:
+
+- Important System Capabilities have Primary Owners.
+- Public Capabilities have Providers and at least one recorded Consumer (or "no known consumer yet").
+- Module dependency boundaries are explicit.
+- System Invariants have integration owners and verification paths.
+- No Blocking architecture-level Unknowns remain (Non-Blocking may be deferred to "Open Architecture Questions").
+
+When the user confirms ("确认，继续" or equivalent), save the Baseline. Do not prompt a second time. Do not require an `archive` command.
+
+### Impact Completion
+
+- Result A: hand off to Module Design. No Baseline change.
+- Result B: present the Revision plan. If the user confirms, run `revise` (or stay in the same turn if already authorized). Hand off to Module Design after Revision.
+- Result C: explain the missing evidence. Do not pretend to have completed the impact.
+
+### Handoff Content (to Module Design or downstream)
+
+Always include:
+
+- Modules involved
+- Related Requirements
+- Assigned Responsibilities
+- Public Capabilities (with Provider / Consumer)
+- Existing Contract references (or "TBD")
+- Required Contract changes (if any)
+- System Invariants the modules must preserve
+- Verification Obligations
+- Open Design Questions
+
+Module Design should be able to proceed without re-reading the chat history.
+
+## 11. Feedback Routing
+
+Architecture is not the final arbiter of every issue. Route problems to the right layer.
+
+### Feedback to Spec (via Spec's existing feedback convention)
+
+- Requirement missing critical behavior semantics.
+- Input / output meaning unclear.
+- State or timing rules undefined.
+- Acceptance criteria insufficient.
+- Two Requirements conflict.
+
+### Feedback to Intent (via `/intent feedback <intent-id> <source>`)
+
+- User goal contradiction.
+- Confirmed goal needs to change.
+- User constraints cannot be simultaneously satisfied.
+- Technical fact invalidates the original user goal.
+
+Do not modify the user's goal directly.
+
+### Feedback from Module Design
+
+Architecture must accept feedback from Module Design when:
+
+- Responsibility attribution is wrong.
+- A public Capability is missing.
+- Contract Owner is unclear.
+- Dependency direction conflicts.
+- The current architecture cannot satisfy a Requirement.
+- Cross-module Invariants cannot be preserved.
+
+Module-internal design issues stay with the Module Owner.
+
+### Feedback Format
+
+Use the existing lightweight format:
+
+- Source
+- Target
+- Problem
+- Evidence
+- Impact
+- Requested Resolution
+
+Default to the work document that contains the question (the Baseline, the Spec, the Module doc, etc.). Do not create a separate Feedback Manager.
+
+## 12. Hard Rules
+
+1. **No fabricated modules or contracts.** If evidence is missing, mark the question unresolved and say so. Do not invent modules, APIs, or contracts to make the Baseline look complete.
+2. **Impact is read-only by default.** `impact` must not modify the Baseline, modules, contracts, or code. Revision is a separate, authorized step.
+3. **Revision requires authorization.** Material Architecture changes need explicit user confirmation. If the user has confirmed in the natural-language flow, that single confirmation authorizes the documented scope — do not re-prompt.
+4. **One Primary Owner per state.** Each authoritative state has exactly one Owner. Collaboration does not equal co-ownership.
+5. **Consumers depend on contracts, not private internals.** If a module relies on another module's private behavior, that's a Baseline violation.
+6. **One explicit confirmation is enough.** A natural-language "确认，继续" after a completion proposal authorizes saving the Baseline and the immediate handoff. Do not prompt a second time. Do not extend the authorization to unrelated changes.
+7. **No auto-archive, no new lifecycle states.** Architecture does not use `active` / `archived` / `approved` / `released` / etc. The Baseline is a single evolving document. Init and Revision are both `Edit` operations on that document.
+8. **Modify, don't recreate.** A Baseline is rewritten incrementally. `init` is only the first cut. Do not create a parallel Baseline; revise the existing one.
+9. **Module Design is delegated.** Architecture does not write specific APIs, Schemas, internal algorithms, or consumer-side adaptation code. It records the requirement and the Owner.
+10. **Don't claim sync that didn't happen.** If a downstream artifact (Spec, Module Design, etc.) cannot be modified from this skill, return a clear result for its owner to apply. Do not claim the artifact was updated.
+11. **Insufficient evidence ≠ "must revise".** When the impact result is C, do not interpret it as architectural failure. Targeted investigation is required.
+12. **System-level correctness survives decomposition.** Cross-module invariants (e.g., "no future-data leakage across historical + replay + performance") must have an integration owner and a verification path in the Baseline, not just module-local tests.
+13. **Be evidence-bound.** Every important attribution (Owner, Consumer, contract gap, dependency direction) cites the Requirement, Baseline, contract, or code that supports it. "I think" is not evidence.
+14. **No new Workflow machinery.** Do not add a Workflow Controller, Router Agent, or Handoff Manager. Downstream routing and handoff are short steps in the existing skills.
+15. **No `docs/architecture/` in the cc-workflow repo.** That is a runtime artifact of consuming projects. This repo contains the skill, not a sample project Baseline.
+
+## 13. References
+
+- [references/impact-analysis.md](references/impact-analysis.md) — the full 8-step `impact` methodology, the contract classification table, and the documentation impact table. Load on demand when running `impact` or `revise`.
