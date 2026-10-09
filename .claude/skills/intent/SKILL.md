@@ -236,6 +236,17 @@ These are not new intent lifecycle states. They are outcomes of a single feedbac
 
 If the source artifact cannot be modified from this skill (it almost always cannot, since Spec / Architecture / Module are separate Skills), return the result text for the source owner to apply. **Do not claim the source artifact was updated.**
 
+### Cross-layer triggers
+
+When receiving feedback that itself concerns another authority layer (e.g. an Architecture-level concern was misrouted here), or when this Skill needs to forward to another layer (e.g. a Spec-level gap found while reviewing an Intent), load the minimum common feedback contract and discipline from `.claude/references/cross-layer-coordination.md`. Do not load the whole file for in-Intent work; load it only when the issue crosses authority layers.
+
+In particular:
+
+- Use the feedback contract in `cross-layer-coordination.md` §3.
+- Apply **Minimum necessary escalation** (§4): do not push the issue higher than necessary. A Spec-level finding rarely needs an Intent change.
+- Record the outcome under `# Relationships and Impact` or `# Resume Notes` — not in a parallel issue log.
+- Distinguish **Review Executed / Authority Resolved / Implementation Verified** per `cross-layer-coordination.md` §5.
+
 ### Archived intent
 
 An `archived` intent can receive feedback. Feedback alone does not trigger `reopen`. Only when the assessment shows authoritative content needs material change, follow the existing `reopen` flow.

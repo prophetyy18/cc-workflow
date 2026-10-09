@@ -459,6 +459,17 @@ Use the existing lightweight format:
 
 Default to the work document that contains the question (the Baseline, the Spec, the Module doc, etc.). Do not create a separate Feedback Manager.
 
+### Cross-layer triggers
+
+When feedback, an Impact finding, or a Spec Review finding crosses authority layers (e.g. the architecture baseline implies a Spec-level behavior gap, or a Module-level contract change requires a Spec-level invariant), load the minimum discipline from `.claude/references/cross-layer-coordination.md`. Do not load the whole file for in-Architecture work; load it only when the issue crosses authority layers.
+
+In particular:
+
+- Use the feedback contract in `cross-layer-coordination.md` §3.
+- Apply **Minimum necessary escalation** (§4): an architecture-baseline change should not become a Spec rewrite. A contract gap should not be silently resolved as a Spec edit.
+- For `impact` results that touch Spec or Intent, forward them via the feedback contract rather than embedding cross-layer judgments in the Baseline.
+- Distinguish **Review Executed / Authority Resolved / Implementation Verified** per `cross-layer-coordination.md` §5. Architecture can claim only `Authority Resolved` for Baseline-level changes; it does not claim `Implementation Verified`.
+
 ## 12. Hard Rules
 
 1. **No fabricated modules or contracts.** If evidence is missing, mark the question unresolved and say so. Do not invent modules, APIs, or contracts to make the Baseline look complete.

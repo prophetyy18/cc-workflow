@@ -249,7 +249,7 @@ See [references/requirements.md](references/requirements.md) for:
 
 ## 14. Subcommand: `review <spec-id>`
 
-Run a structured review of a Spec. The default execution delegates to the read-only `independent-reviewer` subagent (defined in `.claude/agents/independent-reviewer.md`) in a fresh context, so the review does not inherit the author's reasoning. This Skill owns the report presentation, the user-decision loop, and the resolution path; the Reviewer owns the evidence-based findings.
+Run a structured review of a Spec. The default execution delegates to the read-only `independent-reviewer` subagent (defined in `.claude/agents/independent-reviewer.md`) in a fresh context, so the review does not inherit the author's reasoning. This Skill owns the **independent triage**, the user-decision loop, and the resolution path; the Reviewer owns the evidence-based findings.
 
 **Trigger policy.** Delegate to the Independent Reviewer when:
 
@@ -266,8 +266,10 @@ For trivial wording edits and pure typo fixes, the current Skill may perform a f
 4. **Build a neutral delegation message.** See the template in [references/review.md §2.1](references/review.md#21-delegation-message-template). The message must contain: Review Type, Target, Authoritative Sources, Review Criteria, Scope, Method, Output, Permissions. **Do not** include author conclusions such as "this Spec looks correct" or pre-baked judgments about facts.
 5. **Launch the Independent Reviewer.** Use the Agent tool with `subagent_type: "independent-reviewer"` and the neutral delegation message as the prompt. This starts a **non-fork subagent** with read-only access (no Edit / Write / Bash) and no persistent memory. Verify the call succeeded.
 6. **Receive the report.** The Reviewer returns a structured Markdown report (see `.claude/agents/independent-reviewer.md` §3).
-7. **Present and triage.** This Skill formats the report for the user, classifies each finding by owner (Intent / Spec / Architecture / Module / Verification / User), and proposes resolution steps. **This Skill does not auto-modify any authoritative file.** All material edits wait for user authorization.
-8. **Record closure.** Append a short entry to the target's `# Resume Notes`: "Independent review on YYYY-MM-DD — N findings (X blocking, Y major, Z minor) — protocol: [references/review.md §2](references/review.md#2-spec-review-spec-review-spec-id)."
+7. **Independent Triage.** This Skill does **not** rubber-stamp the Reviewer's recommendations. For each finding, run the Triage procedure in [references/review.md §2.7](references/review.md#27-triage-procedure). For cross-layer issues, load the cross-layer rules from `.claude/references/cross-layer-coordination.md`.
+8. **Resolution paths.** Each triaged finding produces a resolution path owned by the **highest necessary** authority whose content must change. Most findings will be triaged to: Accept (modify Spec wording), Reject (with evidence), Request evidence, Redirect (to Spec / Architecture / Module / Implementation / Verification / User), or already covered by an existing downstream guarantee. **Do not** route every finding to Spec.
+9. **Closure language discipline.** Record only `Review Executed` after this Skill finishes. Do not record `Authority Resolved` until the actual authoritative content has been changed (or formally rejected). Do not record `Implementation Verified` — that belongs to Verification. See [references/review.md §2.7.4](references/review.md#274-closure-language-discipline).
+10. **No auto-edit.** This Skill does not auto-modify any authoritative file. All material edits wait for user authorization.
 
 ### 14.2 If the Independent Reviewer cannot be spawned
 
@@ -287,7 +289,7 @@ The Reviewer applies the existing Spec review criteria (see [references/review.m
 5. **Testability** — every Requirement can be observed, with clear pass/fail criteria.
 6. **Architecture boundary** — no Requirement names a specific module, API, or schema.
 
-Additionally, the Reviewer performs **upstream-first derivation** (Phase 2 of its protocol): it reads the source Intents and derives the required system behavior **before** reading the target Spec, so it can catch requirements that are missing from the Spec, not only items that are present but inconsistent.
+Additionally, the Reviewer performs **upstream-first derivation** (Phase 2 of its protocol) and a **Requirement Sufficiency Gate** (Phase 3.5): when proposing a new Requirement, the Reviewer must justify that none of the other five buckets (Existing Requirement Sufficient / Acceptance Needs Strengthening / Requirement Needs Clarification / Owner Decision Required / Downstream Design / Verification Issue) apply.
 
 ### 14.4 Output: a structured findings report
 
@@ -299,6 +301,8 @@ No automatic edits; the user decides what to change. The report format and sever
 - Does not approve / reject / archive the Spec.
 - Does not trigger the next phase (Architecture init / impact).
 - Does not propose Spec edits that encode Architecture decisions (e.g. naming a specific module). Findings that point to Architecture are routed back to this Skill, which records them in `# Unknowns and Upstream Feedback` and surfaces them to the user.
+- Does not encode a technical solution (algorithm, default value, schema shape) as an authoritative Requirement.
+- Does not classify `Improvement Suggestion` as `Confirmed Defect`.
 
 ## 15. Subcommand: `coverage <intent-id>`
 
