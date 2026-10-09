@@ -1,12 +1,12 @@
 ---
 id: INT-001
 title: Robinhood Chain UniswapV4 LP backtesting system (passive + CTA-driven strategies)
-status: active
+status: archived
 parent: null
 related: []
 impact_scope: []
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Original Intent
@@ -205,3 +205,5 @@ A Spec Agent with no prior context should know:
 2026-10-08: **Scope expanded** — CTA signal-driven active LP mode added (modify, not split; CTA is a feature of the same backtest engine, not a separate system). Confirmed action vocab: `add_liquidity`, `quit_liquidity`, `set_range`. Initial indicator example: Bollinger Bands. Frontier reopened on: indicator scope (one-off vs. framework), action vocab completeness, signal/bar granularity, position-state model (single vs. layered), capital allocation under CTA.
 
 2026-10-08: CTA frontier closed (5/5). Locked decisions: single-position model; general indicator framework (BB first); action vocab expanded to 6 (`add_liquidity`, `quit_liquidity`, `set_range`, `partial_withdraw`, `rebalance_only`, `stop_loss_take_profit`); per-swap signal evaluation; fixed total capital with strategy-side allocation. Intent is now bounded for both passive and CTA modes — ready for handoff to Spec Agent. User may archive when downstream Spec is written.
+
+2026-10-09: Archived after Spec handoff. Downstream `SPEC-001` created (`docs/specs/SPEC-001/SPEC.md`, status: active). Spec resolved the IL reference-price Unknown as the pool's own reconstructed swap-price series (SPEC-001/REQ-D02). All constraints, decisions, facts, and unknowns preserved; no material change during handoff. Can be reopened with `/intent reopen INT-001` or receive feedback via `/intent feedback INT-001 <source>`.
