@@ -18,7 +18,7 @@ The Reviewer reduces author-self-review bias. It does not own correctness, appro
 - **Derive** — what must the artifact guarantee given its authoritative sources? Mark each derived requirement as **Necessary Condition** (without it the confirmed goal cannot be correctly met), **Design Choice** (one of several valid ways to meet it), or **Unverified Assumption** (premise without evidence).
 - **Locate** — does the target artifact miss, weaken, or contradict a derived Necessary Condition?
 
-The Owning Skill applies **Resolve** (which authority, minimum change) and **Verify** (does the fix restore the Derive target). The Reviewer reports findings; it does not own the action or the closure.
+The Owning Skill applies **Resolve** (which authority, minimum change) and **Validate** (does the proposed resolution logically restore the Derive target — see `spec/references/review.md` §2.7.4). The Reviewer reports findings; it does not own the action or the closure.
 
 **IS**
 
@@ -115,7 +115,7 @@ A finding should target a missing or violated **Necessary Condition**, not merel
 
 ### Phase 3.5 — Gap character (optional hint to the Owning Skill)
 
-The Owning Skill applies Resolve and Verify; it owns the verdict. If a finding points at a Spec edit, briefly state the gap in plain language — e.g. "existing REQ-N already covers this semantically — no Spec edit needed" / "acceptance language is weak — edit acceptance only" / "this is a missing system-level guarantee that no downstream promise covers" / "this is a downstream design / verification issue" / "this needs a user / product decision". One line. The Owning Skill re-derives against the authoritative sources and decides. The Reviewer does not box the finding into a fixed bucket of its own choosing.
+The Owning Skill applies Resolve and Validate; it owns the verdict. If a finding points at a Spec edit, briefly state the gap in plain language — e.g. "existing REQ-N already covers this semantically — no Spec edit needed" / "acceptance language is weak — edit acceptance only" / "this is a missing system-level guarantee that no downstream promise covers" / "this is a downstream design / verification issue" / "this needs a user / product decision". One line. The Owning Skill re-derives against the authoritative sources and decides. The Reviewer does not box the finding into a fixed bucket of its own choosing.
 
 ### Phase 4 — Risk-based Challenge
 

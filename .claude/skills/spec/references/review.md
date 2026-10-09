@@ -94,7 +94,7 @@ Allowed: objective scope description, e.g. "This Spec concerns historical chain 
 
 ### 2.2 The phases the Reviewer executes
 
-See `.claude/agents/independent-reviewer.md` §3 for the full procedure. The Reviewer's reasoning frame is **Derive → Locate**: derive what the authoritative sources require (Necessary Conditions, Design Choices, Unverified Assumptions), then locate where the target Spec misses, weakens, or contradicts a Necessary Condition. This Skill adds the independent triage in §2.7 (Resolve + Verify).
+See `.claude/agents/independent-reviewer.md` §3 for the full procedure. The Reviewer's reasoning frame is **Derive → Locate**: derive what the authoritative sources require (Necessary Conditions, Design Choices, Unverified Assumptions), then locate where the target Spec misses, weakens, or contradicts a Necessary Condition. This Skill adds the independent triage in §2.7 (Resolve + Validate).
 
 ### 2.3 Checklist (criteria the Reviewer applies)
 
@@ -160,15 +160,15 @@ Overall:
 - <Explicit remaining uncertainty>
 ```
 
-Scale the triage block to the issue. Plain findings: one-line verdict with cite. Material, contested, or cross-layer findings: brief Derive / Locate / Resolve / Verify reasoning plus verdict.
+Scale the triage block to the issue. Plain findings: one-line verdict with cite. Material, contested, or cross-layer findings: brief Derive / Locate / Resolve / Validate reasoning plus verdict.
 
 ### 2.7 Triage procedure
 
-This Skill applies **Derive → Locate → Resolve → Verify** to each Reviewer finding. The Reviewer's classification, severity, proposed fix, and "Gap Character" hint are **inputs** — re-derive each from the authoritative sources. Verdicts are **conclusions of reasoning**, not menu picks. There is no required distribution across verdicts; a batch of N findings may legitimately become N Accepts, N Rejects, N Redirects, or any mix, as long as each verdict is supported below.
+This Skill applies **Derive → Locate → Resolve → Validate** to each Reviewer finding. The Reviewer's classification, severity, proposed fix, and "Gap Character" hint are **inputs** — re-derive each from the authoritative sources. Verdicts are **conclusions of reasoning**, not menu picks. There is no required distribution across verdicts; a batch of N findings may legitimately become N Accepts, N Rejects, N Redirects, or any mix, as long as each verdict is supported below.
 
 Scale to the issue:
 
-- **Plain findings** — pick the verdict the reasoning supports and cite one line of evidence. No full Derive/Locate/Resolve/Verify trace required.
+- **Plain findings** — pick the verdict the reasoning supports and cite one line of evidence. No full Derive/Locate/Resolve/Validate trace required.
 - **Material, complex, contested, or cross-layer findings** — walk the four steps and record brief reasoning. Reserved for cases that touch money, security, data correctness, public contracts, or any layer above/below Spec.
 
 When a follow-up batch revisits similar findings, re-derive from sources, not from the previous triage.
@@ -212,26 +212,36 @@ the **fix is wrong even if the gap is real**. Reject the fix; resolve at the rig
 
 **Owner layer.** Apply `cross-layer-coordination.md` §4 (Minimum necessary escalation). The fix lives at the highest necessary authority whose content must change. Cross-layer issues produce multiple single-owner actions, not one shared edit. A module-internal algorithm error is not a Spec edit; a User trade-off is not a Requirement.
 
-#### 2.7.4 Verify — does the fix restore the guarantee?
+#### 2.7.4 Validate — does the proposed resolution logically restore the guarantee?
 
-Re-derive the Necessary Condition from the source and check the chosen fix restores it.
+Triage does not modify authoritative content (Spec skill hard rule — see SKILL.md §14.1 #10; all material edits wait for user authorization). At this stage the Skill is **proposing** a resolution path; this step validates the proposal **logically**, not empirically. It does not claim the fix has been applied or that empirical verification has happened.
 
-- Restored → proceed.
-- Over-constrained (the fix now encodes a Design Choice as if it were a Necessary Condition) → reject the fix; choose a smaller or different fix.
-- Weakens another Requirement, contract, or invariant → reject the fix.
+The three closure states in `cross-layer-coordination.md` §5 belong to distinct moments and are not produced here:
+
+- `Review Executed` — recorded by this Skill after Triage returns.
+- `Authority Resolved` — recorded by the owning layer after authorized edits land.
+- `Implementation Verified` — recorded by Verification after empirical evidence.
+
+Re-derive the Necessary Condition from the source and check the proposed resolution logically restores it when applied as described:
+
+- Logically restores the condition when applied → proceed.
+- Over-constrained (proposed wording encodes a Design Choice as a Necessary Condition) → reject the proposal; choose a smaller / different proposal.
+- Weakens another Requirement, contract, or invariant → reject the proposal.
 - Introduces a new Unverified Assumption → `Request Evidence`.
 
-A finding's validity and its proposed fix's validity are independent judgments. A valid finding can carry a bad fix; a "valid fix" without a real gap is meaningless work. If no authority change is needed (`Reject with evidence`) or the work belongs elsewhere (`Redirect`), the Verify step is satisfied by the routing decision.
+If no authority change is needed (`Reject with evidence`) or the work belongs elsewhere (`Redirect`), the validation step is satisfied by the routing decision.
+
+A finding's validity and its proposed resolution's validity are independent judgments (§2.7.5 explicitly splits the two cases under "Reject with evidence"). A valid finding can carry a bad proposal; a "valid proposal" without a real gap is meaningless work.
 
 #### 2.7.5 Verdicts
 
-Each verdict is the named conclusion of Derive → Locate → Resolve → Verify. Pick the verdict whose reasoning check holds; cite the supporting evidence.
+Each verdict is the named conclusion of Derive → Locate → Resolve → Validate. Pick the verdict whose reasoning check holds; cite the supporting evidence.
 
 | Verdict | Reasoning check that must hold |
 |---|---|
-| **Accept** | Necessary Condition real; gap real in this Spec; fix passes boundary check; Verify restores the condition. |
-| **Accept with caveat** | Gap real; edit bounded to acceptance wording or wording clarification; Verify restores. |
-| **Reject with evidence** | No Necessary Condition supports the claim, OR the fix is wrong on boundary / Verify grounds. Cite what defeats the claim or the fix. |
+| **Accept** | Necessary Condition real; gap real in this Spec; fix passes boundary check; Validate restores the condition. |
+| **Accept with caveat** | Gap real; edit bounded to acceptance wording or wording clarification; Validate restores. |
+| **Reject with evidence** | Cite what defeats **this resolution path**. Two distinct cases — never confuse them: (a) the **claim** has no Necessary Condition backing it (the finding is invalid); (b) the **proposed resolution** violates boundary / Validate (the gap is still real — drop the bad proposal and pick the smallest correct one: Accept / Accept with caveat / Redirect). |
 | **Already Covered** | Derive holds; an existing Requirement or downstream guarantee already satisfies the gap semantically. Cite it. |
 | **Redirect to <layer>** | Derive holds; the gap is in another authority that Spec cannot resolve while preserving confirmed upstream; the receiving authority is the right owner. |
 | **Owner Decision Required** | The gap is a trade-off / default / magic number the agent cannot decide. Surface to the User; record as Pending. |

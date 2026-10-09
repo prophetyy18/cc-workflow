@@ -12,12 +12,12 @@ This is **not**:
 
 It is a rules file. Load it from the Skill that needs to escalate, propagate, or coordinate.
 
-## 0. Relationship to the Derive → Locate → Resolve → Verify reasoning
+## 0. Relationship to the Derive → Locate → Resolve → Validate reasoning
 
-Each Skill that surfaces or routes issues applies a shared **Derive → Locate → Resolve → Verify** reasoning method, but the reasoning is performed inside the Skill itself, not by this document.
+Each Skill that surfaces or routes issues applies a shared **Derive → Locate → Resolve → Validate** reasoning method, but the reasoning is performed inside the Skill itself, not by this document.
 
 - **Derive** and **Locate** live in the Independent Reviewer (`.claude/agents/independent-reviewer.md` §0 / §3). The Reviewer reports findings; it does not act on them.
-- **Resolve** and **Verify** live in the Owning Skill's triage (e.g. `.claude/skills/spec/references/review.md` §2.7). The Owning Skill decides the action and the closure language.
+- **Resolve** and **Validate** live in the Owning Skill's triage (e.g. `.claude/skills/spec/references/review.md` §2.7). The Owning Skill decides the action and the closure language. The triage Validate step is **proposed-resolution validation** — it does not claim the fix has been applied or verified empirically (those are downstream closure states in §5).
 
 This document only defines the **cross-layer protocol** — when the Resolve step names a different authority, or when several authorities must act. The Identify / Escalate / Resolve / Propagate stages below are how cross-layer issues move between authorities; the `Resolve` stage here is *not* the Owning Skill's internal Resolve step (that happens earlier). Apply §4 (Minimum necessary escalation) whenever a Resolve decision crosses an authority boundary.
 

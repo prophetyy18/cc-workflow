@@ -280,7 +280,7 @@ For trivial wording edits and pure typo fixes, the current Skill may perform a f
 
 ### 14.3 Reviewer reasoning frame
 
-The Reviewer uses a **Derive → Locate** reasoning frame: derive what the authoritative sources require (Necessary Conditions, Design Choices, Unverified Assumptions), then locate where the target Spec misses, weakens, or contradicts a Necessary Condition. See [references/review.md §2.2](references/review.md#22-the-phases-the-reviewer-executes) and `.claude/agents/independent-reviewer.md` §3–§4. This Skill adds the independent triage in [references/review.md §2.7](references/review.md#27-triage-procedure) (Resolve + Verify).
+The Reviewer uses a **Derive → Locate** reasoning frame: derive what the authoritative sources require (Necessary Conditions, Design Choices, Unverified Assumptions), then locate where the target Spec misses, weakens, or contradicts a Necessary Condition. See [references/review.md §2.2](references/review.md#22-the-phases-the-reviewer-executes) and `.claude/agents/independent-reviewer.md` §3–§4. This Skill adds the independent triage in [references/review.md §2.7](references/review.md#27-triage-procedure) (Resolve + Validate).
 
 ### 14.4 Output: a structured findings report
 
@@ -375,7 +375,8 @@ Other routing inputs (always project-scoped):
 Apply when:
 
 - No trustworthy Architecture Baseline exists for the current business project (Baseline Availability = absent).
-- The Spec introduces system capabilities with no assigned module responsibility.
+
+This is the **only** trigger for Route A. Any "new capability without a module Owner" or "applicability of an existing Baseline unclear" is **not** a Route A trigger — see Route B.
 
 Important clarifications — none of these alone establish a Baseline:
 
