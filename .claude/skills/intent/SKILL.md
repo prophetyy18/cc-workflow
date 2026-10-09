@@ -184,6 +184,35 @@ Orphans (no parent) are roots. `related` is shown in parentheses, not as a tree 
 
 Receive upstream feedback from Spec, Architecture, Module Design, or Implementation, and route the issue to the right ownership level. A short natural-language message ("spec found an issue with INT-001") is also valid feedback.
 
+### Independent verification at the Intent layer
+
+Intent is the user-decision layer. It normally does **not** delegate to the
+Independent Reviewer, because the authoritative content here is the
+user's stated goals, constraints, and decisions — not a verifiable
+system artifact. Self-check by this Skill, plus the user's own
+confirmation, is the standard verification.
+
+A Targeted Resolution Verification (Mode B in
+`.claude/references/verification.md`) is appropriate **only when** all
+of the following hold:
+
+- The Intent change has material downstream system-level correctness
+  implications (not just wording or scope).
+- An authorized fix at this layer materially changes a downstream
+  Requirement / constraint / System Invariant / public contract /
+  load-bearing decision.
+- The Material Resolution trigger in `.claude/references/verification.md` §3 Trigger B fires.
+
+For ordinary `feedback`, `refine`, `new`, or `modify` flows, do not
+delegate to the Independent Reviewer. The cross-layer feedback contract
+(`.claude/references/cross-layer-coordination.md` §3) plus the user's
+authorization is the standard. A rare case where this Skill might
+delegate is when a downstream layer's verified finding contradicts a
+confirmed Intent item (e.g., the user said "no future-data leakage" but
+the Spec's Targeted Verification shows the constraint cannot be
+satisfied) — that is a cross-layer issue, not a routine Intent review;
+route via the feedback contract, do not invoke the Reviewer directly.
+
 ### Arguments
 
 - `<intent-id>` — the target intent to inspect (required).
