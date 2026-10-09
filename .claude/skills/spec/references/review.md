@@ -92,14 +92,9 @@ Read-only: Read, Glob, Grep, WebFetch, WebSearch. Do not modify any file.
 
 Allowed: objective scope description, e.g. "This Spec concerns historical chain data, NAV calculation, and timing semantics for replay."
 
-### 2.2 The six phases the Reviewer executes
+### 2.2 The phases the Reviewer executes
 
-1. **Authority Discovery** — locate and read each source Intent, related Spec, and verified-fact reference.
-2. **Independent Derivation** — derive required system behavior, boundaries, invariants, failure modes, and acceptance obligations from the authoritative sources **before** reading the target Spec.
-3. **Inspect Target** — read the target Spec and compare against the derivation. Look for missing items, not only inconsistencies among existing items.
-4. **Risk-based Challenge** — for the actual risks of this Spec (money, data integrity, timing, contracts, security, recovery), propose counter-examples and failure scenarios.
-5. **Fact Verification** — for each load-bearing factual claim, cite the source; prefer primary sources; mark `Unknown` when evidence is unavailable. Reuse `.claude/skills/intent/references/research.md` and `.claude/skills/spec/references/fact-verification.md`.
-6. **Findings** — return structured findings per `.claude/agents/independent-reviewer.md` §3.
+See `.claude/agents/independent-reviewer.md` §3 for the full procedure. The Reviewer's reasoning frame is **Derive → Locate**: derive what the authoritative sources require (Necessary Conditions, Design Choices, Unverified Assumptions), then locate where the target Spec misses, weakens, or contradicts a Necessary Condition. This Skill adds the independent triage in §2.7 (Resolve + Verify).
 
 ### 2.3 Checklist (criteria the Reviewer applies)
 
@@ -125,49 +120,32 @@ Suggestions are not defects. Do not promote or demote between these classes with
 
 ### 2.5 Finding ownership and resolution
 
-A finding is a **problem statement**, not yet a decision.
+A finding is a problem statement, not yet a decision. The Reviewer may flag several affected layers; the **Suggested Decision Authority** is one input, not the verdict.
 
-**Multi-layer findings are normal.** A Spec Review finding may surface an issue that lives in Spec, Architecture, Module Design, Implementation, Verification, User, or several of them at once. The Reviewer may tag multiple affected layers in `Potentially Affected Layers`. The Reviewer's `Suggested Decision Authority` is one input; it is not the verdict.
+Each concrete decision has exactly one owner. A multi-layer finding produces multiple single-owner actions, not one shared Spec edit. Apply `cross-layer-coordination.md` §2 (Identify / Escalate / Resolve / Propagate) and §4 (Minimum necessary escalation) — do not redefine them here. The owner table below is a Spec-side reminder.
 
-**Each concrete decision has exactly one owning layer.** Triage may surface that a problem affects several layers; the **resolution work** is then split into one decision per layer, each with its own owner. A Spec Requirement edit is owned by Spec; a contract-gap investigation is owned by Architecture; a default-value choice is owned by User. Do **not** bundle cross-layer edits into one Spec change to make the work look lighter. If the resolution is multi-layer, produce multiple rows in the triage output, not a single shared edit.
-
-| Owner | When |
+| Owner | When (Spec-side reminder) |
 |---|---|
-| Intent | User goal ambiguity, conflicting goals, missing user constraint, decision to revisit. |
-| Spec | Missing / weak system behavior, missing acceptance, weak invariant, weak testability, internal Spec inconsistency that is not a downstream design issue. |
-| Architecture | Module ownership, public contract, dependency direction, cross-module invariant responsibility, Baseline Applicability gap. |
-| Module Design / Contract | API / schema / algorithm design that does not have a Module attached yet; interface-field, default-value, magic-number choices are not Spec Requirements. |
-| Implementation | Code-level issue once you are at the Implementation stage. |
-| Verification / Test | Empirical test not yet performed; observation gap. |
-| User | Genuine trade-off, default value, magic number, product preference that only the user / product owner can decide. |
-
-**Cross-layer discipline:** if a Spec-level finding actually points to Architecture, route it as Architecture feedback; do not ask Spec to redesign the module split. Conversely, do **not** push an Architecture / Module / User decision into Spec just because the Review surfaced it during a Spec Review. The "exactly one owner" rule applies to **each concrete action**, not to the finding's full resolution.
+| Intent | User goal ambiguity, conflict, missing constraint, decision to revisit. |
+| Spec | Missing / weak system behavior, missing acceptance, weak invariant, weak testability, internal Spec-only inconsistency. |
+| Architecture | Module ownership, public contract, dependency direction, Baseline Applicability gap. |
+| Module Design / Contract | API / schema / algorithm design, interface-field, default-value, magic-number choices — none of these are Spec Requirements. |
+| Implementation | Code-level issue at the Implementation stage. |
+| Verification | Empirical test not yet performed; observation gap. |
+| User | Trade-off, default value, magic number — agent cannot decide alone. |
 
 ### 2.6 Output format (Spec Skill presents this to the user)
 
-The Reviewer returns its own structured Markdown report (see `.claude/agents/independent-reviewer.md` §3). The Spec Skill wraps that report and adds its own triage verdicts (see §2.7), not just the Reviewer's classifications:
+Reproduce the Reviewer's report verbatim, then append the Spec Skill's own triage block (see §2.7). Do not silently rewrite the Reviewer's classifications; if this Skill disagrees with a finding, say so explicitly and explain.
 
 ```text
 Independent Review: SPEC-NNN
-
-Review Mode: Independent / Fresh Context / Read-only / No persistent memory
-
-Authoritative Sources Read:
-- INT-NNN: <one-line purpose>
-- SPEC-XXX (related): <one-line purpose>
-
-Review Scope:
-- <in scope>
-- <out of scope>
-
-Findings:
-(reproduced verbatim from the Reviewer's report)
+<Reviewer's report verbatim — see `.claude/agents/independent-reviewer.md` §4>
 
 Spec Skill Triage (independent judgment — see §2.7):
-- F1 → Triage: <Accept | Reject | Request Evidence | Redirect to <layer> | Already Covered>
-       Owner: <layer>; Resolution: <what this Skill recommends>
-       Cross-layer: <yes/no — see .claude/references/cross-layer-coordination.md>
-       Closure: <Review Executed>
+- F1 → <verdict>; Owner: <layer>; Resolution: <one line>
+       Cross-layer: <yes/no — see cross-layer-coordination.md §2>
+       Closure: <state honestly claimable — see §2.7.6>
 
 Coverage:
 - Confirmed coverage: <list>
@@ -175,126 +153,98 @@ Coverage:
 - Unable to assess: <list>
 
 Limitations:
-- <e.g. empirical verification not performed, primary source X not fetched>
-
-Closure Status:
-- Review Executed: yes
-- Authority Resolved: <no — pending owner decisions; partial — X resolved, Y pending; n/a>
-- Implementation Verified: not claimed by this Skill
+- <what this Skill did not verify>
 
 Overall:
 - <Material issues identified | No material issues found | Unable to assess>
 - <Explicit remaining uncertainty>
 ```
 
-The Spec Skill **does not** silently rewrite the Reviewer's classifications. If this Skill disagrees with a finding, it says so explicitly and explains why.
+Scale the triage block to the issue. Plain findings: one-line verdict with cite. Material, contested, or cross-layer findings: brief Derive / Locate / Resolve / Verify reasoning plus verdict.
 
 ### 2.7 Triage procedure
 
-The Spec Skill performs an **independent** triage on each finding. The Reviewer's recommendation is one input. **Triage verdict does not equal Reviewer verdict.** The Reviewer's classification (Confirmed Defect / Probable Risk / Missing Information / Improvement Suggestion), Severity, Sufficiency Bucket, and Proposed Resolution may all be wrong. The Owning Skill re-derives each from the authoritative sources. There is **no required distribution** across verdicts — a batch of N findings may legitimately become N Accepts, N Rejects, N Redirects, or any mix, as long as each verdict is supported below.
+This Skill applies **Derive → Locate → Resolve → Verify** to each Reviewer finding. The Reviewer's classification, severity, proposed fix, and "Gap Character" hint are **inputs** — re-derive each from the authoritative sources. Verdicts are **conclusions of reasoning**, not menu picks. There is no required distribution across verdicts; a batch of N findings may legitimately become N Accepts, N Rejects, N Redirects, or any mix, as long as each verdict is supported below.
 
-For each finding, walk the questions in order. Stop at the first verdict you can defend with evidence.
+Scale to the issue:
 
-1. **Re-derive the evidence.** Re-read the cited evidence. Does it actually support the claim, or did the Reviewer confuse a related-but-different Requirement, misread a section, or extrapolate beyond the source? If the evidence does not support the finding → **Reject with evidence** and stop.
+- **Plain findings** — pick the verdict the reasoning supports and cite one line of evidence. No full Derive/Locate/Resolve/Verify trace required.
+- **Material, complex, contested, or cross-layer findings** — walk the four steps and record brief reasoning. Reserved for cases that touch money, security, data correctness, public contracts, or any layer above/below Spec.
 
-2. **Re-classify the finding's type.** Independently check whether the Reviewer's classification is right.
-   - Is there an authoritative Requirement, contract, or fact that proves a defect? If no, downgrade to **Probable Risk** or **Improvement Suggestion**.
-   - Is the issue actually **Missing Information** because the source Intent or related Spec is silent or ambiguous?
-   - Is the issue an **Improvement Suggestion** the Reviewer mistakenly promoted to Confirmed Defect?
-   Promotion / demotion between these classes requires new evidence; do not do it casually.
+When a follow-up batch revisits similar findings, re-derive from sources, not from the previous triage.
 
-3. **Re-derive the Severity.** Replace the Reviewer's Blocking / Major / Minor / Informational with your own, derived from the actual impact on user goals, system invariants, money / assets / data correctness, and downstream blast radius. A Reviewer's severity is a guess; the triage severity is the one that goes into `# Unknowns and Upstream Feedback`.
+#### 2.7.1 Derive — what does the source require?
 
-4. **Is the existing Spec already sufficient?** Does an existing Requirement / acceptance criterion cover this, **semantically** (not just by reference)? Is the issue actually a verification gap, downstream design gap, or acceptance wording weakness? If yes → **Already Covered** (cite the existing REQ, contract, or downstream guarantee) and stop.
+State the necessary condition the Reviewer claims is violated or missing. Distinguish:
 
-5. **Does the proposed fix introduce new problems?** Read the suggested Possible Resolution and ask:
-   - Does it encode a specific module, API, schema, algorithm, interface field, magic number, or product default that Spec is forbidden from owning? If yes, the **fix is wrong** even if the finding is valid; this is an automatic **Reject with evidence** or **Redirect**, depending on what the actual problem is.
-   - Does it move work from Spec to Architecture / Module Design / Verification without justification?
-   - Would it weaken a different Requirement, contract, or invariant?
-   - Does it require a user / product decision the agent cannot make alone?
-   A finding's validity and its proposed fix's validity are independent judgments. A valid finding can still carry a bad fix.
+- **Necessary Condition** — without it, the confirmed goal cannot be correctly met. This is what Spec is obliged to encode.
+- **Design Choice** — one of several valid ways to meet the goal. Belongs to Architecture / Module Design / Implementation; not a Spec Requirement.
+- **Unverified Assumption** — premise without evidence; cannot be treated as fact.
 
-6. **What is the highest necessary authority whose content must change?** Apply `.claude/references/cross-layer-coordination.md` §4 (Minimum necessary escalation). Do not default to Spec. Do not default to Intent. If the resolution affects multiple layers, plan multiple single-owner decisions (§2.5). If no authority change is needed → **Reject with evidence** (the issue is moot).
+If no Necessary Condition supports the claim → `Reject with evidence`. A Necessary Condition that turns out to be a Design Choice dressed up as a guarantee is also `Reject with evidence` — the agent has no authority to mandate a specific design.
 
-7. **Apply the Requirement Sufficiency Gate.** (See `.claude/agents/independent-reviewer.md` §2 Phase 3.5.) Reclassify the Reviewer's bucket — it may be wrong.
-   - Only bucket 4 (`New Requirement Needed`) justifies a semantic Spec addition. Justify why none of the other five apply.
-   - Bucket 1 (existing Requirement sufficient) → no Spec edit.
-   - Bucket 2 (acceptance needs strengthening) → **Accept with caveat**, edit acceptance only.
-   - Bucket 3 (wording clarification) → **Accept with caveat**.
-   - Bucket 5 (Owner Decision) → route to User; do not edit Spec.
-   - Bucket 6 (Downstream Design / Verification) → **Redirect** to the right layer.
+#### 2.7.2 Locate — where is the gap?
 
-8. **Is this an Owner Decision, not an authority decision?** Default values, product trade-offs, magic numbers, UI defaults, "should we..." trade-offs → **Owner Decision Required** → User / Product Owner. Do not silently fill in a default; the Reviewer and the Spec Skill do not own the decision.
+Against the current authoritative content (this Spec + downstream guarantees + related Specs):
 
-9. **Is the evidence sufficient?** If the Reviewer cited `Unknown` or unverified facts → **Request Evidence**; state what evidence would resolve it. Do not promote to Confirmed Defect on incomplete evidence.
+- A Necessary Condition is missing from Spec → likely Spec gap.
+- An existing Requirement / acceptance criterion already satisfies this **semantically** → `Already Covered` (cite it).
+- A Requirement exists but its acceptance / verification language is weak → acceptance-only edit (`Accept with caveat`).
+- A Requirement is unambiguous only after wording clarification → clarification edit (`Accept with caveat`).
+- The gap is module ownership / public contract / capability attribution → not Spec's job.
+- The gap is actual code / runtime / empirical verification → not Spec's job.
+- The gap is a trade-off / default value / magic number → `Owner Decision Required` (User).
+- The evidence is incomplete or unverified → `Request Evidence` (state what would resolve).
+- Same root cause as another finding → `Merge with F-N`.
 
-10. **Does the issue share a root cause with another finding?** If yes, merge into a single triage row. Preserve the original finding IDs as verification targets. Do not produce duplicate work.
+If the gap touches several layers, locate each independent decision separately; do not bundle cross-layer fixes into one Spec edit.
 
-**Discipline:** there is no "default to Accept" and there is no "default to Reject." Each finding gets its own evidence-based verdict. If the same Reviewer returns a follow-up batch with similar findings, triage is repeated from the sources, not from the previous triage.
+#### 2.7.3 Resolve — minimum necessary change
 
-**Cross-layer propagation in triage:** a finding's resolution may legitimately produce multiple single-owner actions (e.g. add acceptance language in Spec **and** open a Module Design question). Record those as separate actions with separate owners under the same triage row. Do not bundle them into one Spec edit.
+**Authority-boundary check before Accept.** If the proposed fix encodes any of:
 
-#### 2.7.1 Triage verdict options
+- A specific module, API, schema, algorithm, interface field, or storage choice;
+- A magic number, threshold, or product default whose value is not (cited from) the source Intent;
+- An Architecture, Module, Contract, or Verification decision made silently;
+- Acceptance language that is not observable (no clear pass / fail, no measurement for thresholds);
 
-Each verdict is this Skill's own conclusion, not a copy of the Reviewer's. The Reviewer's classification, severity, bucket, and proposed fix are inputs to triage, not the verdict. There is **no required distribution** across verdicts — do not pre-decide how many Accepts or Rejects a batch should contain. Apply only what the questions support.
+the **fix is wrong even if the gap is real**. Reject the fix; resolve at the right authority.
 
-| Verdict | Meaning | Re-classifies the Reviewer? | When |
-|---|---|---|---|
-| **Accept** | The finding is valid; this Skill will modify Spec content as a real semantic addition. | Yes; confirms Reviewer's classification, bucket = 4. | After all prior questions pass; only Sufficiency Gate bucket 4. |
-| **Accept with caveat** | Valid but the modification is bounded (acceptance wording only, clarification only). | Yes; re-buckets to 2 or 3. | Sufficiency Gate bucket 2 or 3. |
-| **Reject with evidence** | The finding's claim is invalid, mis-evidenced, the proposed fix is wrong, or no authority change is needed. Cite what defeats the claim or why the fix is wrong. | Yes; downgrades severity or rejects the fix. | Questions 1, 2, 3, 5, or 6. |
-| **Request Evidence** | The finding may be valid but evidence is insufficient. State what evidence would resolve it. | Implicitly downgrades to Probable Risk. | Question 9. |
-| **Redirect to <layer>** | The finding (or its proposed fix) belongs to another authority. One concrete owner per action. Use the feedback contract in `.claude/references/cross-layer-coordination.md` §3. | Yes; redirects owner. | Question 6 (and possibly 5). |
-| **Already Covered** | The issue is real but covered by an existing Requirement or downstream guarantee. Cite it. | Yes; soft-rejects the proposed edit. | Question 4. |
-| **Owner Decision Required** | The issue requires a user / product decision. Surface to the user; record as Pending until the user answers. | Yes; routes to User. | Question 8. |
-| **Merge with F-N** | Same root cause as another finding; triage once, capture IDs as verification targets. | Combines effects. | Question 10. |
+**Owner layer.** Apply `cross-layer-coordination.md` §4 (Minimum necessary escalation). The fix lives at the highest necessary authority whose content must change. Cross-layer issues produce multiple single-owner actions, not one shared edit. A module-internal algorithm error is not a Spec edit; a User trade-off is not a Requirement.
 
-A batch of N findings may legitimately produce N Accepts, N Rejects, N Redirects, or any mix. The user's prompt explicitly allows this; do not pad verdicts for variety, and do not stretch to Accept just to look cooperative.
+#### 2.7.4 Verify — does the fix restore the guarantee?
 
-#### 2.7.2 What "Accept" produces
+Re-derive the Necessary Condition from the source and check the chosen fix restores it.
 
-An Accept produces a **single** Spec change with:
+- Restored → proceed.
+- Over-constrained (the fix now encodes a Design Choice as if it were a Necessary Condition) → reject the fix; choose a smaller or different fix.
+- Weakens another Requirement, contract, or invariant → reject the fix.
+- Introduces a new Unverified Assumption → `Request Evidence`.
 
-- The Requirement ID (existing or new).
-- The minimal wording change.
-- The acceptance / verification language.
-- The source citation (Intent item ID or existing Requirement).
-- A new `# Resume Notes` entry: "Independent review on YYYY-MM-DD — finding F-N accepted — REQ-NNN modified/added on YYYY-MM-DD."
+A finding's validity and its proposed fix's validity are independent judgments. A valid finding can carry a bad fix; a "valid fix" without a real gap is meaningless work. If no authority change is needed (`Reject with evidence`) or the work belongs elsewhere (`Redirect`), the Verify step is satisfied by the routing decision.
 
-Before recording the Accept, the Skill re-checks the proposed change against Spec's authority boundaries:
+#### 2.7.5 Verdicts
 
-- No new Requirement encodes a specific module, API, schema, algorithm, interface field, or storage choice.
-- No new Requirement encodes a magic number, threshold, or product default without explicit user-side justification. If the source Intent supplies the value, cite it. If not, the change is a User decision — downgrade to **Owner Decision Required** instead of Accept.
-- No new Requirement silently fixes what should be an Architecture, Module Design, Contract, or Verification decision.
-- The Acceptance wording is observable: a test or run can confirm pass / fail; numeric thresholds have measurement methods; internal Spec state is not asserted as Acceptance.
+Each verdict is the named conclusion of Derive → Locate → Resolve → Verify. Pick the verdict whose reasoning check holds; cite the supporting evidence.
 
-If any of these checks fail, the Accept is **downgraded** to one of:
-
-- **Accept with caveat** — keep the edit but trim it to acceptance language only.
-- **Reject with evidence** — the finding's fix is wrong; record what is wrong with the fix.
-- **Redirect to <layer>** — the resolution is owned by Architecture / Module / Verification / User.
-
-The proposed fix is not the verdict. The triage question 5 ("Does the proposed fix introduce new problems?") is the gate.
-
-#### 2.7.3 What "Redirect" produces
-
-A Redirect uses the feedback contract from `.claude/references/cross-layer-coordination.md` §3.1. This Skill:
-
-- Records the redirect in the target's `# Unknowns and Upstream Feedback`.
-- Surfaces the redirect to the user with the Suggested Decision Authority and Required Decision.
-- Does not apply the change itself if the redirect target is outside Spec's authority.
-
-#### 2.7.4 Closure language discipline
-
-After triage, the Skill records only the closure state it can honestly claim:
-
-| Closure state | Who records it |
+| Verdict | Reasoning check that must hold |
 |---|---|
-| **Review Executed** | This Skill, after the Reviewer returns. Always recorded. |
-| **Authority Resolved** | The owning layer, after the authoritative content has been changed or formally rejected. **Not** recorded by the Spec Skill for findings redirected to other layers — those layers record their own Authority Resolved. |
-| **Implementation Verified** | Verification (Test / runtime observation). Never recorded by the Spec Skill. |
+| **Accept** | Necessary Condition real; gap real in this Spec; fix passes boundary check; Verify restores the condition. |
+| **Accept with caveat** | Gap real; edit bounded to acceptance wording or wording clarification; Verify restores. |
+| **Reject with evidence** | No Necessary Condition supports the claim, OR the fix is wrong on boundary / Verify grounds. Cite what defeats the claim or the fix. |
+| **Already Covered** | Derive holds; an existing Requirement or downstream guarantee already satisfies the gap semantically. Cite it. |
+| **Redirect to <layer>** | Derive holds; the gap is in another authority that Spec cannot resolve while preserving confirmed upstream; the receiving authority is the right owner. |
+| **Owner Decision Required** | The gap is a trade-off / default / magic number the agent cannot decide. Surface to the User; record as Pending. |
+| **Request Evidence** | Plausible but evidence insufficient. State what would resolve. |
+| **Merge with F-N** | Same root cause as another finding; triage once, preserve original F-IDs as verification targets. |
 
-Do not write `closed: yes` on a finding. Do not add a new lifecycle state. Use `# Resume Notes` and `# Unknowns and Upstream Feedback` for the language.
+There is no "default to Accept" and no "default to Reject". A follow-up batch re-derives from sources.
+
+#### 2.7.6 Cross-layer routing and closure language
+
+**Routing.** Use the `cross-layer-coordination.md` §3 feedback contract: record the routing in the target's `# Unknowns and Upstream Feedback`, surface to the user with `Suggested Decision Authority` and `Required Decision`. Do not apply the change if the target is outside Spec's authority.
+
+**Closure.** Record only the closure state honestly claimable. See `cross-layer-coordination.md` §5. Never write `closed: yes`; never introduce a new lifecycle state.
 
 ## 3. Coverage Analysis (`/spec coverage <intent-id>`)
 

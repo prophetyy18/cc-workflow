@@ -278,31 +278,17 @@ For trivial wording edits and pure typo fixes, the current Skill may perform a f
   2. A manual review based on [references/review.md](references/review.md#2-spec-review-spec-review-spec-id).
 - Do **not** present a Self-check as an Independent Review.
 
-### 14.3 Summary of what the Reviewer checks
+### 14.3 Reviewer reasoning frame
 
-The Reviewer applies the existing Spec review criteria (see [references/review.md](references/review.md#2-spec-review-spec-review-spec-id) for the full list):
-
-1. **Risk re-check** — user goal clarity, constraint compatibility, fact verification, high-impact risks, Blocking Unknowns.
-2. **Completeness** — every Capability has at least one Requirement; every cross-capability invariant is recorded.
-3. **Traceability** — every Requirement cites a source. No orphan Requirements.
-4. **Conflict** — no Requirement contradicts another in this Spec or a related Spec.
-5. **Testability** — every Requirement can be observed, with clear pass/fail criteria.
-6. **Architecture boundary** — no Requirement names a specific module, API, or schema.
-
-Additionally, the Reviewer performs **upstream-first derivation** (Phase 2 of its protocol) and a **Requirement Sufficiency Gate** (Phase 3.5): when proposing a new Requirement, the Reviewer must justify that none of the other five buckets (Existing Requirement Sufficient / Acceptance Needs Strengthening / Requirement Needs Clarification / Owner Decision Required / Downstream Design / Verification Issue) apply.
+The Reviewer uses a **Derive → Locate** reasoning frame: derive what the authoritative sources require (Necessary Conditions, Design Choices, Unverified Assumptions), then locate where the target Spec misses, weakens, or contradicts a Necessary Condition. See [references/review.md §2.2](references/review.md#22-the-phases-the-reviewer-executes) and `.claude/agents/independent-reviewer.md` §3–§4. This Skill adds the independent triage in [references/review.md §2.7](references/review.md#27-triage-procedure) (Resolve + Verify).
 
 ### 14.4 Output: a structured findings report
 
 No automatic edits; the user decides what to change. The report format and severity rules live in `.claude/agents/independent-reviewer.md` §3.
 
-### 14.5 Reviewer boundary — what the Reviewer does NOT do
+### 14.5 Reviewer boundary
 
-- Does not modify `INTENT.md`, `SPEC.md`, `ARCHITECTURE.md`, `MODULE.md`, formal contracts, or code.
-- Does not approve / reject / archive the Spec.
-- Does not trigger the next phase (Architecture init / impact).
-- Does not propose Spec edits that encode Architecture decisions (e.g. naming a specific module). Findings that point to Architecture are routed back to this Skill, which records them in `# Unknowns and Upstream Feedback` and surfaces them to the user.
-- Does not encode a technical solution (algorithm, default value, schema shape) as an authoritative Requirement.
-- Does not classify `Improvement Suggestion` as `Confirmed Defect`.
+The Reviewer does not modify any authoritative content (`INTENT.md` / `SPEC.md` / `ARCHITECTURE.md` / `MODULE.md` / contracts / code), does not approve or archive the Spec, and does not trigger the next phase. See `.claude/agents/independent-reviewer.md` §0 (IS NOT) for the full boundary. Findings that point at another layer come back to this Skill, which routes them via `# Unknowns and Upstream Feedback` and the existing cross-layer feedback contract.
 
 ## 15. Subcommand: `coverage <intent-id>`
 
