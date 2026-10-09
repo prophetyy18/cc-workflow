@@ -249,16 +249,56 @@ See [references/requirements.md](references/requirements.md) for:
 
 ## 14. Subcommand: `review <spec-id>`
 
-Run a structured review of a Spec. See [references/review.md](references/review.md#2-spec-review-spec-review-spec-id) for the full checklist. Summary:
+Run a structured review of a Spec. The default execution delegates to the read-only `independent-reviewer` subagent (defined in `.claude/agents/independent-reviewer.md`) in a fresh context, so the review does not inherit the author's reasoning. This Skill owns the report presentation, the user-decision loop, and the resolution path; the Reviewer owns the evidence-based findings.
 
-1. **Risk review** — user goal clarity, constraint compatibility, fact verification, high-impact risks, Blocking Unknowns.
+**Trigger policy.** Delegate to the Independent Reviewer when:
+
+- The user runs `/spec review <spec-id>` explicitly, OR
+- A Spec is about to be archived and the Spec touches money / assets / security / core data correctness / public contracts.
+
+For trivial wording edits and pure typo fixes, the current Skill may perform a fast Self-check without delegating. Default to delegation; do not skip it just because the Spec looks small.
+
+### 14.1 Delegation procedure
+
+1. **Confirm the target.** Resolve `<spec-id>` (must exist; load `docs/specs/<spec-id>/SPEC.md`).
+2. **Locate authoritative sources.** Read `source_intents` from the target's frontmatter; load each source Intent's `INTENT.md`. Read any Specs cited as related in `# Scope and Sources`. Note their `status`.
+3. **Load the Review Criteria.** Read [references/review.md](references/review.md#2-spec-review-spec-review-spec-id) so the Reviewer knows the criteria, and so this Skill can interpret findings.
+4. **Build a neutral delegation message.** See the template in [references/review.md §2.1](references/review.md#21-delegation-message-template). The message must contain: Review Type, Target, Authoritative Sources, Review Criteria, Scope, Method, Output, Permissions. **Do not** include author conclusions such as "this Spec looks correct" or pre-baked judgments about facts.
+5. **Launch the Independent Reviewer.** Use the Agent tool with `subagent_type: "independent-reviewer"` and the neutral delegation message as the prompt. This starts a **non-fork subagent** with read-only access (no Edit / Write / Bash) and no persistent memory. Verify the call succeeded.
+6. **Receive the report.** The Reviewer returns a structured Markdown report (see `.claude/agents/independent-reviewer.md` §3).
+7. **Present and triage.** This Skill formats the report for the user, classifies each finding by owner (Intent / Spec / Architecture / Module / Verification / User), and proposes resolution steps. **This Skill does not auto-modify any authoritative file.** All material edits wait for user authorization.
+8. **Record closure.** Append a short entry to the target's `# Resume Notes`: "Independent review on YYYY-MM-DD — N findings (X blocking, Y major, Z minor) — protocol: [references/review.md §2](references/review.md#2-spec-review-spec-review-spec-id)."
+
+### 14.2 If the Independent Reviewer cannot be spawned
+
+- If the Agent tool returns an error or no fresh-context subagent is available, **report that Independent Review was not executed** and offer:
+  1. A Self-check using this Skill's own review criteria (clearly labeled "Self-check, not Independent Review"), OR
+  2. A manual review based on [references/review.md](references/review.md#2-spec-review-spec-review-spec-id).
+- Do **not** present a Self-check as an Independent Review.
+
+### 14.3 Summary of what the Reviewer checks
+
+The Reviewer applies the existing Spec review criteria (see [references/review.md](references/review.md#2-spec-review-spec-review-spec-id) for the full list):
+
+1. **Risk re-check** — user goal clarity, constraint compatibility, fact verification, high-impact risks, Blocking Unknowns.
 2. **Completeness** — every Capability has at least one Requirement; every cross-capability invariant is recorded.
 3. **Traceability** — every Requirement cites a source. No orphan Requirements.
 4. **Conflict** — no Requirement contradicts another in this Spec or a related Spec.
 5. **Testability** — every Requirement can be observed, with clear pass/fail criteria.
 6. **Architecture boundary** — no Requirement names a specific module, API, or schema.
 
-Output: a structured report. No automatic edits; the user decides what to change.
+Additionally, the Reviewer performs **upstream-first derivation** (Phase 2 of its protocol): it reads the source Intents and derives the required system behavior **before** reading the target Spec, so it can catch requirements that are missing from the Spec, not only items that are present but inconsistent.
+
+### 14.4 Output: a structured findings report
+
+No automatic edits; the user decides what to change. The report format and severity rules live in `.claude/agents/independent-reviewer.md` §3.
+
+### 14.5 Reviewer boundary — what the Reviewer does NOT do
+
+- Does not modify `INTENT.md`, `SPEC.md`, `ARCHITECTURE.md`, `MODULE.md`, formal contracts, or code.
+- Does not approve / reject / archive the Spec.
+- Does not trigger the next phase (Architecture init / impact).
+- Does not propose Spec edits that encode Architecture decisions (e.g. naming a specific module). Findings that point to Architecture are routed back to this Skill, which records them in `# Unknowns and Upstream Feedback` and surfaces them to the user.
 
 ## 15. Subcommand: `coverage <intent-id>`
 
