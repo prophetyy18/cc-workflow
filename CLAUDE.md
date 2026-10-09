@@ -15,3 +15,12 @@ Follow project-specific instructions when applicable. Keep documentation consist
 
 11. **Avoid overthinking and AI slop.** Use proportional reasoning and the simplest sufficient approach. Avoid unnecessary analysis, speculative edge cases, boilerplate, excessive abstraction, redundant documentation, and verbose explanations. Do not overengineer solutions or create work without a demonstrated need. Be concise, direct, and substantive without sacrificing correctness.
 12. **Use Chinese for user-facing communication.** When sending results, options, explanations, or asking questions to the user, prefer Chinese. Code, commit messages, file content, technical terms, and identifiers may remain in English.
+
+## Search Rules
+
+Operational tactics for principle 5 (Verify facts). Apply whenever an external fact must be checked before it is recorded as supporting evidence.
+
+- **Web Search:** Use short, high-signal keywords, not natural-language questions. Start with 2–5 keywords: `technology + version + concept/symbol`.
+- **No results:** Remove restrictive terms, try synonyms or related technical terms, then narrow results if needed.
+- **Verification:** Prefer official documentation and source code for critical technical facts. If evidence is insufficient, mark the claim as unverified.
+- **Correction:** When an assumption is disproved, use the existing cross-layer correction process. Do not silently continue with a known false assumption.
