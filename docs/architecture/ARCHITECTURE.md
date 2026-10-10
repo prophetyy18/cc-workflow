@@ -13,12 +13,12 @@ The Baseline adopts `SPEC-001` (status: archived, 2026-10-09) as its sole author
 
 The baseline uses a 4-module structure chosen as the simplest that satisfies the 5 Spec capabilities.
 
-| Module | One-line Responsibility | Related Requirements |
-|---|---|---|
-| **Ingestion** | Acquire V4 events from public Robinhood Chain RPC; reconstruct pool state per event; persist to local cache. | REQ-001, REQ-002, REQ-003, REQ-020(a)(c), REQ-N02, REQ-N03 |
-| **LP Math** | Pure functions for CL conversions, fee math, capital / IL / value computation. | REQ-004, REQ-005, REQ-006 (compute parts), INV-04 |
-| **Strategy Engine** | Event-driven simulation loop; passive strategy; CTA strategy with indicator framework and action dispatcher. | REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015, REQ-D01, REQ-D02, REQ-N01, REQ-N04, INV-02, INV-03, INV-05 |
-| **Dashboard** | Local web UI for input form, strategy visualization, data-coverage indicator, failure surfacing. | REQ-016, REQ-017, REQ-018, REQ-019, REQ-020, REQ-N05 |
+| Module ID | Module | One-line Responsibility | Related Requirements |
+|---|---|---|---|
+| MOD-001 | **Ingestion** | Acquire V4 events from public Robinhood Chain RPC; reconstruct pool state per event; persist to local cache. | REQ-001, REQ-002, REQ-003, REQ-020(a)(c), REQ-N02, REQ-N03 |
+| MOD-002 | **LP Math** | Pure functions for CL conversions, fee math, capital / IL / value computation. | REQ-004, REQ-005, REQ-006 (compute parts), INV-04 |
+| MOD-003 | **Strategy Engine** | Event-driven simulation loop; passive strategy; CTA strategy with indicator framework and action dispatcher. | REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015, REQ-D01, REQ-D02, REQ-N01, REQ-N04, INV-02, INV-03, INV-05 |
+| MOD-004 | **Dashboard** | Local web UI for input form, strategy visualization, data-coverage indicator, failure surfacing. | REQ-016, REQ-017, REQ-018, REQ-019, REQ-020, REQ-N05 |
 
 ## 3. Capability / Requirement Ownership
 
