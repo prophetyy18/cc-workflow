@@ -357,16 +357,15 @@ Condition. Before the next round:
    (independent recomputation, mpmath / sympy comparison, hand-
    derived closed form, a separate derivation route). Do not
    tweak the same weak evidence into alignment.
-3. **Distinguish the fix dimension.**
-   - *Routine correctness* (encoding typo, fixture value off,
-     parameter rename, rounding mode, internal inconsistency
-     between a fixture and the Spec's own formula) does **not**
-     need a fresh user authorization. Continue the cycle with
-     a stronger evidence source.
-   - *Goal / scope / key-constraint* change does need a fresh
-     user authorization — route via
-     `cross-layer-coordination.md` §2.5.b, do not chain it
-     into the same cycle as a routine correctness fix.
+3. **Distinguish the fix dimension** by impact (per
+   `cross-layer-coordination.md` §2.5.b.0) — not by operation
+   name. A fix that the impact factors classify as in-
+   authority for the owning Skill does **not** need a fresh
+   user authorization; continue the cycle with a stronger
+   evidence source. A fix that crosses the factors needs a
+   fresh user authorization — branch into cross-layer
+   coordination §2.5.b.0; do not chain the user-decision loop
+   into the same cycle as a routine correctness fix.
 
 ### 6.3 Stop conditions
 

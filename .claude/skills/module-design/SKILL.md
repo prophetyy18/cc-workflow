@@ -463,10 +463,11 @@ run a project-wide scan for every correction.
 
 After the upstream correction lands and this Skill applies a material
 change as a result, run Targeted Resolution Verification (Mode B)
-per `.claude/references/verification.md` §3 Trigger B. Bound the loop:
-one initial Targeted Verification; at most one additional corrective
-fix + one additional Targeted Verification; beyond that, stop and
-report the unresolved constraint.
+per `.claude/references/verification.md` §3 Trigger B. The cycle
+behavior (when one round is enough, when a second round uses a
+stronger evidence source, when to stop) lives in
+`.claude/references/verification.md` §6 — there is no per-Skill
+counter-cap.
 
 ### Resume
 
@@ -510,11 +511,16 @@ design transition. The split matches
   the implementation.
 - **No entry in `# Blocking Unknowns and Implementation Handoff`
   is flagged Blocking AND is a *design prerequisite*** — i.e.,
-  without resolving this item the contract cannot be stated
-  correctly. Routine correctness items that the design *named* a
-  placeholder for (e.g. "Implementation will verify V4 fee-on-
-  decrease semantics") are handoff obligations, not design
-  prerequisites, and live in §13.2.
+  an unverified fact whose different possible outcomes would
+  change the public contract, an internal design decision, a
+  System Invariant, or another key design choice. Whether a fact
+  is a design prerequisite vs a §13.2 implementation obligation
+  is decided from the design's own contents (`cross-layer-coordination.md`
+  §2.5.e): can the design state its correctness for *every*
+  possible outcome? If yes, §13.2; if any outcome would change
+  the design, §13.1. A document that says "Implementation will
+  verify X" is not by itself sufficient to reclassify X as §13.2
+  when X's outcomes affect the design.
 - **Every Reference in `source_architecture`, `source_spec`,
   "Depends on...", and "Contract location" still matches the
   *current* authoritative state of the cited artifact.** A line
@@ -548,10 +554,13 @@ verify`, etc.) that produces the evidence.
 - Fuzz, property, end-to-end, or performance tests whose
   pass / fail signal comes from running code.
 - Primary-source verification of library / protocol behavior
-  the design *named* but did not need to compute (e.g.
-  `Uniswap/v4-core/src/libraries/Position.sol` fee-on-decrease
-  semantics — the design's contract is consistent with either
-  outcome, but the implementation must pick one and prove it).
+  the design *named* but did not need to compute.
+  See `cross-layer-coordination.md` §2.5.e for the rule that
+  decides whether such a fact is a design prerequisite
+  (different outcomes change the design) or an
+  implementation obligation (outcomes don't change the design).
+  The rule makes the call from the design's own contents, not
+  from a library / protocol name.
 - Cross-module verification paths that need the consumer's
   state (e.g. capital conservation properties tested across
   module boundaries in the integration suite).

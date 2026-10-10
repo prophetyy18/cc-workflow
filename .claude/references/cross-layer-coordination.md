@@ -136,50 +136,73 @@ If any of those reads is not what the originating Skill expects,
 the Fix did not actually land. Treat the return message as
 unverified and re-route.
 
-### 2.5.b Routine correctness vs goal / scope / key-constraint
+### 2.5.b Authorization by impact, not by operation name
 
-The reason a fix loop escalates to the user for authorization is
-typically one of two things, and they are not the same:
+Whether a fix requires fresh user authorization is decided by
+**impact**, not by the operation name. The judgement factors
+are independent of the operation:
 
-- *Routine correctness* — encoding typo, fixture value off,
-  parameter rename, rounding mode, missing unit annotation,
-  internally-inconsistent acceptance case against its own
-  formula, cross-document reference still says "currently draft"
-  after the Provider was promoted, etc. The owning layer's Skill
-  fixes these in its own authority, with no fresh user
-  confirmation. The Spec Skill can correct an internally-
-  inconsistent fixture in an archived Spec without opening a
-  full reopen — it is the Spec's own content, and the user's
-  earlier archive-confirmation covered that artifact's surface;
-  a typo-fix of a fixture line is below that surface.
-- *Goal / scope / key-constraint change* — adding a feature,
-  removing a feature, lifting or tightening a non-functional
-  constraint, choosing between user-meaningful trade-offs,
-  deciding user-visible behavior the Spec was silent on. These
-  are user decisions and need a fresh authorization at the
-  relevant layer (Spec reopen for Spec-level changes, etc.).
+- **What the user already authorized** — the previous completion
+  confirmation covers the artifact's surface for which it was
+  given. A confirmed "implement this Design" authorizes the
+  necessary in-Design changes that follow, including any cross-
+  layer fixes needed to make that Design itself consistent.
+  Already-authorized necessary fixes are executed by the
+  owning Skill and propagated; the user is not re-prompted.
+- **Whether upstream authoritative content determines the fix
+  direction unambiguously** — a Spec formula names the correct
+  expected value, so a fixture mismatch is a Spec typo. A
+  Provider contract names the return shape, so a rounding
+  inconsistency against it is a contract conflict. When
+  upstream sources pin the answer, the owning Skill makes the
+  fix.
+- **Whether the fix changes confirmed semantics, scope, a key
+  constraint, or a compatibility commitment** — a rename that
+  user-visible code documents changes the user-visible surface
+  (if those documents are user-visible behavior). A rounding
+  tweak that contradicts the public contract's "full precision"
+  claim is a contract conflict. A "rename" of an internal
+  identifier visible only inside `impl/` is not.
+- **Whether the fix exposes a trade-off or a user-meaningful
+  choice only the user can make** — choosing between alternatives
+  the user has not expressed a preference on; deciding behavior
+  the upstream artifact was silent on; setting a configurable
+  default that affects user outcomes.
 
-The distinction matters because:
+Operation names ("rename", "rounding mode", "encoding typo")
+do not decide the authorization category. A so-called "rename"
+that changes user-visible surface is goal/scope; a so-called
+"fixture typo" that contradicts an upstream silence is scope.
+The category follows from impact, not from naming.
 
-- Routing every typo / fixture / reference drift up to the user
-  is a different anti-pattern — it burns the verification loop
-  and confuses "I have a problem" with "the user has to choose
-  something".
-- Claiming a goal / scope / key-constraint change is "routine"
-  is the other anti-pattern — it makes an unauthorized call
-  look like a routine fix.
-- Forward feedback messages should mark which dimension the
-  fix belongs to. The receiving layer reads the message and
-  applies the right discipline (reopen + authorization for the
-  one, direct edit for the other).
+**Internal contradiction is not authorization.** When two
+parts of an artifact say different things (Spec formula vs
+acceptance fixture, Provider contract vs Consumer reference),
+the right move is to re-derive which side is correct against
+upstream sources — not to assume the contradiction resolves
+itself or to fabricate a fix. If re-derivation determines the
+answer, the fix is owned by the relevant Skill (no fresh user
+auth). If it cannot determine the answer, surface the specific
+unresolved question with the trade-off named, not a generic
+"approve / decline" binary.
 
-The Main Agent uses the same call: read the conflict against
-authoritative sources (SPEC's own formula, ARCHITECTURE's §2
-status, the Provider's actual contract), decide whether the
-disagreement is *internally inconsistent with its own content*
-or *requires a decision the user has not made*. The first is a
-routine correction owned by that layer; the second requires a
-user decision.
+### 2.5.b.1 Routine correctness (impact-determined)
+
+The same judgement criteria determine what counts as routine
+correctness under §2.5.b.0. Routine correctness is what the
+fix looks like when *all four factors above* fall on the
+"no fresh user auth" side:
+
+- The user's prior authorization covers the artifact's surface.
+- Upstream sources pin the answer.
+- No confirmed semantics / scope / key-constraint / compat are
+  changed.
+- No trade-off the user must decide.
+
+A fix that crosses any factor needs a fresh authorization at
+the relevant layer (reopen for Spec-level, `revise` for
+Architecture-level, etc.). A fix that crosses none is owned by
+the Skill whose authority the fix falls under.
 
 ### 2.5.c Status-gate disciplines (cross-Skill)
 
@@ -362,7 +385,7 @@ The following are **not** cross-layer coordination; they are coordination failur
 - **All suggestions → Confirmed Defect.** Inflating severity to demand a fix.
 - **Tech solution → authoritative Requirement.** Writing "use Redis" into a Spec because a Reviewer proposed it.
 - **Triage rubber-stamps.** The Owning Skill copying the Reviewer's recommendation without independent judgment.
-- **Unconditional loops.** Reviewer → Fix → Reviewer → Fix with no clear stopping condition. The shared loop-bounding rule lives in `.claude/references/verification.md` §6: one initial Targeted Verification per fix; at most one additional corrective fix plus one additional Targeted Verification; beyond that, surface the unresolved constraint and stop. Do not lower the original system guarantee to make a review pass.
+- **Unconditional loops / unbounded cycle.** Treating "Fix → Verify → Fix → Verify" as a budget to spend rather than a state machine with a stop condition. The only source of truth for the cycle's behavior is `.claude/references/verification.md` §6 — the §6 cycle (one Fix ↔ one Targeted Resolution Verification, with stop conditions at §6.3). No Skill restates its own cap; no anti-pattern asserts a different cap. Counting rounds, declaring "one additional" rounds, or letting the User authorize "beyond the cap" are not separate exit ramps — they are the failure mode this anti-pattern names.
 - **Self-closing.** Claiming `Implementation Verified` without empirical evidence.
 - **Decision-talk fatigue.** Creating a feedback record for every micro-issue.
 - **Same-root, duplicate findings.** Producing separate Findings for the same root cause instead of merging them.
@@ -389,13 +412,17 @@ Additional anti-patterns, surfaced by actual run evidence:
   Unknown remains" is true in prose but false in # Unknowns when
   one entry is still flagged Blocking. The check at the gate
   reads the section, not the prose.
-- **Routine correctness escalation.** A rounding-mode tweak, a
-  fixture number, an encoding constant, a parameter rename — none
-  of these is a goal / scope / key-constraint change. Asking the
-  user for a fresh authorization to apply them burns the
-  verification loop and confuses "I have a problem" with "the
-  user has to choose something". Reserve user authorization for
-  the latter.
+- **Routine correctness escalation.** Treating routine correctness
+  as requiring a fresh user authorization — or, equivalently,
+  treating it as not requiring one when the impact factors in
+  §2.5.b.0 don't agree. The category follows from impact, not
+  from operation name. Asking the user to authorize a fix the
+  Skill's impact check would have classified as routine is
+  burning the loop and confusing "I have a problem" with "the
+  user has to choose something"; refusing to authorize a fix
+  the impact check classifies as scope-driven is silently
+  expanding scope. Either failure mode looks the same to the
+  user: a stuck task with an unclear next step.
 - **"Self-verified algebraically" as evidence.** Mentioning an
   algebraic check the author performed is not independent
   evidence. The Reviewer — or an external library — must

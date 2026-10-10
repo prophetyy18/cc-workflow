@@ -311,7 +311,7 @@ When the current Skill has applied an authorized Spec fix that meets any of the 
 2. Build a Mode B delegation message using the template at [references/review.md §2.1](references/review.md#21-delegation-message-template). `Scope` describes the specific change (REQ-ID, Section, Acceptance Criterion). Include the original finding evidence and the authoritative basis for the correct outcome.
 3. Launch the Independent Reviewer in `Targeted Resolution Verification` mode. The Reviewer re-derives the correct outcome independently; this Skill does not pre-bake the verdict.
 4. Triage the `Targeted Verification Executed` report the same way as a Mode A report (§14.1 step 7). If the report shows the change restored the Necessary Condition and introduces no material new defect in scope, record `Authority Resolved` for this finding.
-5. If the report shows the change did NOT restore the Necessary Condition, surface the failing aspects back to the user. One additional corrective fix may justify one additional Targeted Verification (§6 Bound the Loop in `.claude/references/verification.md`). Beyond that, stop and report the unresolved constraint honestly.
+5. If the report shows the change did NOT restore the Necessary Condition, apply the cycle in `.claude/references/verification.md` §6 — re-derive, change the evidence source, or stop with the unresolved constraint honestly. Do not restate the per-round cap here; the §6 cycle is the only source.
 6. **Do not** run Targeted Verification for trivial wording, formatting, or low-risk local edits. The Trigger B criteria above are the gate.
 
 This step is automatic within the current Skill's execution flow — it does not require the user to type `/review` again. See `.claude/references/verification.md` for the shared contract.
@@ -361,30 +361,42 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
 
 ## 17. Subcommand: `reopen <spec-id>`
 
-1. **Determine whether this is a reopen or a routine correction.**
+`reopen` is the single edit path for an archived Spec — used for
+both material changes and routine corrections. The difference between
+them is the dimension of authorization (impact), not the lifecycle
+shape.
+
+1. **Determine the dimension** by impact (per
+   `cross-layer-coordination.md` §2.5.b.0).
    - *Material change* — adds / removes / changes a goal, scope,
      key constraint, or user-visible behavior that was previously
-     approved. Requires the user to authorize the scope change
-     (per `cross-layer-coordination.md` §2.5.b). Warn that
-     downstream Architecture / Module Design / Implementation
-     may have been written against the archived version.
-   - *Routine correction of an archived Spec* — internal
-     inconsistency the Spec Skill can resolve from the Spec's
-     own contents (fixture typo, parameter rename that does
-     not change the requirements' meaning, an acceptance
-     case contradicting the Spec's own formula, etc.). The
-     Spec Skill edits the file directly; no fresh user
-     authorization is required. The change is recorded in
-     `# Resume Notes` with the rationale and the consequent
-     downstream propagation (which layer needs to re-check).
-2. For material changes: set `status: active`, update `updated`,
-   append a note to `# Resume Notes` explaining why it was
-   reopened. Downstream layers re-derive against the new content.
-3. For routine corrections: edit the archived Spec in place, log
-   the change in `# Resume Notes`, route a forward feedback to the
-   downstream layers (Architecture / Module Design /
-   Implementation) so they re-check dependent content. No status
-   change.
+     approved. Requires fresh user authorization of the scope
+     change.
+   - *Routine correction* — an internally inconsistent
+     artifact element that the Spec Skill resolves from the Spec's
+     own contents (fixture typo, parameter rename that does not
+     change the Requirement meaning, an acceptance case
+     contradicting the Spec's own formula, an internally
+     inconsistent cross-document reference). The Spec Skill
+     makes the edit; no fresh user authorization is required.
+2. **Apply the same shape for both**:
+   - Set `status: active`, update `updated`.
+   - Apply the edit.
+   - Set `status: archived` again (it was archived before; closing
+     it again keeps the lifecycle shape narrow — only `archived`
+     is the externally visible state).
+   - Append a note to `# Resume Notes` explaining why it was
+     reopened and what changed. For routine corrections the
+     note records the resolution (e.g. "T1 fixture corrected
+     from `5.00` to `10.00`, consistent with REQ-001 formula").
+   - For material changes, also warn that downstream
+     Architecture / Module Design / Implementation may have
+     been written against the prior archived version.
+3. **Route downstream** — for both dimensions, route a forward
+   feedback to the downstream layers (Architecture / Module
+   Design / Implementation) so they re-check dependent content.
+   Spec does NOT itself modify Architecture / Module Design /
+   Implementation / DESIGN files for either dimension.
 
 ## 18. Architecture Handoff
 

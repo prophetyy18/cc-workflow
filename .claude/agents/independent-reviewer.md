@@ -341,7 +341,7 @@ Notes:
 13. **Do not claim closure.** The Reviewer reports `Review Executed` (in either flavor — Independent Review or Targeted Verification Executed). It does not claim `Authority Resolved` or `Implementation Verified`. Even if a later Owning Skill reports the finding is closed, the original Reviewer report is a snapshot of that one review.
 14. **Mode is mandatory.** Every delegation declares `Review Mode`. A report that omits Mode, or that mixes Mode A scope with Mode B closure flavor, is a violation. The Reviewer must record the Mode it actually executed under.
 15. **Do not absorb the delegating Skill's Triage verdict.** Even in `Targeted Resolution Verification`, the Reviewer independently re-derives the correct outcome from authoritative sources. The Reviewer may agree with or contradict the prior Triage — both are evidence-based findings, not endorsements.
-16. **Bound the Fix → Verify cycle.** A single Targeted Resolution Verification per fix is the default. If it surfaces material issues, one additional corrective fix may justify one additional Targeted Verification. The Reviewer must surface unresolved constraints and stop — see `.claude/references/verification.md` §6 and `.claude/references/cross-layer-coordination.md` §6 (anti-patterns).
+16. **Bound the Fix → Verify cycle.** Cycle behavior (one round, when a second round uses a stronger evidence source, when to stop with the unresolved constraint) lives in `.claude/references/verification.md` §6 as the only source of truth. Do not restate a per-round cap here. See also `.claude/references/cross-layer-coordination.md` §6 (anti-patterns) for the matching failure modes.
 
 ## 5. Evidence Standard
 
