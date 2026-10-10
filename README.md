@@ -21,6 +21,7 @@ Intent 层是用户目标的权威来源。下游发现问题通过 `/intent fee
 | `spec` | 把澄清后的 Intent 转化为可验证、可追溯的系统需求 |
 | `architecture` | 维护系统架构基线，划定模块边界、公共能力归属、依赖方向 |
 | `module-design` | 在已确认的基线之上独立设计一个模块的公共契约与内部设计，并向 Implementation 交付可执行的设计结果 |
+| `implementation` | 在已确认的 DESIGN.md 之上编写可运行代码、可执行测试与运行证据；对重要交付调用 Reviewer；对发现的上游错误跨层回溯修复 |
 
 完整的权限与跨 Skill 协调见各 Skill 与 `.claude/references/` 下的共享规则。
 
