@@ -35,7 +35,7 @@ This document only defines the **cross-layer protocol** — when the Resolve ste
 
 **Discipline:** an issue belongs to the **highest necessary** layer whose authority must change. Not always the layer the Reviewer first inspected. Not always Intent.
 
-## 2. The five coordination stages
+## 2. The six coordination stages
 
 When a problem touches more than one layer, apply these stages in order. Skip any stage that does not apply.
 
@@ -131,6 +131,17 @@ The originating Skill judges whether its own authority problem is now resolved.
 - Implementation Verified.
 
 None implies the others. Do not collapse them.
+
+### 2.6 Resume
+
+Closing the feedback loop is not the end. The Main Agent (not the user) resumes the original task that was paused when the cross-layer issue surfaced.
+
+- After §2.5 returns `Accepted` (or the originating Skill's analogue), load `# Resume Notes` for the originating task — for a module, the module's `DESIGN.md` is the canonical home; the Implementation Skill reads / writes there too (it does not start a separate log).
+- Continue from the recorded position. Do not restart the task from the top.
+- A routine correction (a local fix inside the originating Skill's authority) does not require a fresh user confirmation. Reserved confirmations are for material changes to goal / scope / key constraints / new trade-offs; those still go to the User.
+- If the cycle completed but the original task is now materially different from what the user originally asked for, surface the delta. Otherwise resume silently and report only when the work produces a normal delivery moment.
+
+The shared doc records the rule; each Skill's Cross-layer Triggers section instantiates it for that Skill's authored files.
 
 ## 3. Feedback contract
 

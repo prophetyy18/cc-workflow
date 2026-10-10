@@ -243,9 +243,24 @@ Apply the Architecture changes authorized by a confirmed `impact` result B.
 Run `revise` only when:
 
 - An `impact` result B has been produced and the user has authorized the change scope, OR
-- The user has explicitly asked for a specific Architecture change with sufficient detail.
+- The user has explicitly asked for a specific Architecture change with sufficient detail, OR
+- A Cross-layer Feedback message (per `cross-layer-coordination.md` §3)
+  identifies a real Architecture-level issue (module boundary, public
+  contract ownership, dependency direction, or cross-module
+  invariant attribution), the highest-necessary-authority discipline
+  (§4) places the fix here, and the user has authorized the change
+  scope.
 
-If the user has already confirmed the change in the natural-language completion flow, do not prompt a second time. If the requested change is materially larger than what was authorized, stop and re-confirm.
+If the user has already confirmed the change in the natural-language
+completion flow, do not prompt a second time. If the requested
+change is materially larger than what was authorized, stop and
+re-confirm.
+
+Cross-layer Feedback is the route for non-Spec-change Architecture
+findings (e.g., Implementation discovering that a module boundary is
+wrong). Without this path, downstream Skills have no entry into
+Architecture and would block on the user — which is exactly what
+the user does not want to do.
 
 ### Architecture May Modify
 

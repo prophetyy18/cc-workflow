@@ -84,22 +84,57 @@ when a Consumers / Implementations workflow benefits (typed API
 generation, schema diffing, etc.). Do not duplicate the same content in
 both DESIGN.md and contracts/.
 
+If the consuming project already defines its own module layout
+(monorepo with `packages/<name>/`, language-specific `src/<name>/`,
+etc.), follow that project convention. State the chosen path in `# Resume
+Notes` so a later resume can locate the files. Do not invent a parallel
+layout just because this Skill prefers `docs/modules/`.
+
 Do not create `docs/modules/` in this repo — that is a runtime
 artifact of consuming projects.
 
 ## 5. Subcommand: `new <module-id>`
 
-Run `new` only when:
+### Entry check — confirm before stopping
 
-- The target module ID appears in the current project's Architecture
-  Baseline (the `docs/architecture/ARCHITECTURE.md` Module
-  Responsibility Map), OR
-- The user explicitly wants an ad-hoc module — require the user to
-  confirm the ID and minimal boundary context first.
+Before declaring the target "doesn't exist", normalize the user's
+identifier and surface actual evidence:
+
+1. Normalize `<module-id>`: trim whitespace, case-fold, strip an
+   optional `MOD-` prefix. Try `MOD-<slug>` first, then `<slug>`
+   alone, then case-folded variants. A user who said "foo" or
+   "Foo" or "mod-foo" is asking for the same module as `MOD-foo`.
+2. Look up the candidate in the Baseline's Module Responsibility
+   Map (and, when present, in
+   `docs/architecture/modules/MOD-<name>.md`).
+3. Resolve ambiguities (more than one match) by listing the
+   candidates and asking the user — do not silently pick one.
+4. If still no match: present the Baseline's known module list as
+   evidence and ask the user to confirm or correct. Do not invent
+   a module. Do not stop with "module not found" alone — that
+   leaves the user without a path forward.
 
 If the Baseline is absent (Route A state per `spec/SKILL.md` §19),
-surface the missing Baseline as the primary blocker and point at
-`/architecture init` before starting Module Design.
+surface the missing Baseline as the primary blocker. Independently
+report Architecture Skill invocability:
+
+- If the Architecture Skill is invocable from the current
+  environment, the Main Agent should `/architecture init` itself —
+  do not push the user to type the command. Once a Baseline exists,
+  return to this `new`.
+- If the Architecture Skill is not invocable, report the
+  unavailability explicitly and surface the manual command. Do not
+  pretend to invoke it.
+
+If a single existing entry match is found, proceed. The legacy
+"the module must appear in the Baseline" check still applies — if
+the user has explicitly asked for an ad-hoc module not yet in the
+Baseline, require explicit confirmation of the ID and minimal
+boundary context, record that decision in `# Resume Notes`, and
+note that the Baseline should be amended (a separate `architecture`
+concern).
+
+### Step 1 — Load upstream basis
 
 ### Step 1 — Load upstream basis
 
@@ -452,6 +487,29 @@ without re-reading this Skill's chat history.
 `status: final` means the design is handed off; it does **not** imply
 `Implementation Verified` — that belongs to Verification after
 runtime evidence.
+
+### One explicit confirmation is enough
+
+When the user has explicitly confirmed the current stage's
+completion (`确认，继续` / `设计没问题了` / `MOD-foo 可以交给实现了`)
+in response to a recent completion proposal, that single
+confirmation authorizes:
+
+- Setting `DESIGN.md status: final` for this module.
+- The corresponding Implementation Handoff (`new <module-id>` next).
+
+Do not prompt a second time ("are you sure?") for the same scope.
+Do not extend the authorization to unrelated modules, unrequested
+Spec edits, or Architecture changes. Material changes to the goal,
+scope, or key constraints that surface during a subsequent round
+remain user decisions — they are not covered by the prior
+confirmation.
+
+A new confirmation is required when:
+
+- The user re-opens the module (`reopen`).
+- A subsequent correction changes a Spec REQ or Architecture
+  ownership that the prior confirmation did not cover.
 
 ## 14. Hard Rules
 

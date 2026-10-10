@@ -188,12 +188,19 @@ every trivial change. The Reviewer delegation contract is in
 
 ## 6. Subcommand: `resume <module-id>`
 
-1. Load the `impl/` tree and `# Resume Notes`.
+`# Resume Notes` for a module lives in the module's `DESIGN.md`
+(canonical). This Skill reads and writes there. Do not start a
+separate log — a parallel log drifts from the design and from any
+later Module Design update.
+
+1. Load the `impl/` tree and `# Resume Notes` from the module's
+   `DESIGN.md`.
 2. Continue from the open frontier (Step 2 → 5 as needed).
 3. After any material change satisfying Trigger B criteria
    (`verification.md` §3 Trigger B), run Targeted Resolution
    Verification (Mode B) before resuming normal flow.
-4. Update `# Resume Notes`.
+4. Update `# Resume Notes` in `DESIGN.md` with the new resume
+   position.
 
 ## 7. Subcommand: `test <module-id> [glob]`
 
@@ -361,6 +368,22 @@ Implementation is ready for handoff when:
 `DESIGN.md` final + `impl/` committed does NOT mean
 `Implementation Verified (Production)`. That belongs to downstream
 delivery verification after staging/production evidence.
+
+### One explicit confirmation is enough
+
+When the user has explicitly confirmed the current stage's
+completion (`确认，继续` / `MOD-foo 没问题了` / `可以发布了`) in
+response to a recent completion proposal, that single confirmation
+authorizes recording the handoff state in `DESIGN.md # Resume Notes`
+and surfacing the next-step pointer (delivery, deployment, etc.).
+Do not prompt a second time ("are you sure?") for the same scope.
+Do not extend the authorization to other modules, unrequested test
+changes, or contract edits.
+
+Reserved confirmations (those that still need a fresh "确认，继续"
+from the user) cover material changes to goal, scope, or key
+constraints, plus anything that surfaces a previously unknown
+trade-off the agent cannot decide alone.
 
 ## 14. Hard Rules
 
