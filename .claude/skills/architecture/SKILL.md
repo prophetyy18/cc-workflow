@@ -68,9 +68,19 @@ Optional supporting files (created only when needed):
 ```text
 docs/architecture/
 ├── ARCHITECTURE.md
-├── modules/MODULE-<name>.md    (per-module responsibility + contract summary, one file per module)
+├── modules/MOD-<slug>.md       (per-module responsibility + contract summary, one file per module; the filename MUST use the canonical MOD-<slug> identifier from §2 so downstream Skills can find it by ID)
 └── decisions/ADR-NNN-<topic>.md (Architecture Decision Records, when material decisions need history)
 ```
+
+**Canonical Module Identifier.** Every module that appears anywhere
+in the Baseline — in §2 (Modules and Responsibilities), §3 (Capability
+/ Requirement Ownership), §5 (Public Capabilities and Contract
+Ownership), the dependency map, or any per-module summary file — must
+use the same canonical identifier: `MOD-<slug>`. The `<slug>` is a
+kebab-case slug (lowercase, digits, hyphens; no spaces, no leading /
+trailing hyphens). Display name (e.g. "Calc Core") is a separate
+field. Do not invent a parallel convention; do not reuse
+`MODULE-<name>.md` (different prefix and casing).
 
 Do not create `docs/architecture/` in this repo. It is a runtime artifact of consuming projects. The cc-workflow repo contains only the skill itself.
 
@@ -117,16 +127,39 @@ For each candidate grouping, weigh:
 
 Pick the **simplest structure that satisfies the Requirements**. Compare two candidates only when the choice is genuinely non-obvious. Do not force a multi-candidate comparison for every decision.
 
-### Step 4 — Assign Ownership
+### Step 4 — Assign Ownership and canonical Module IDs
 
-For each Requirement, identify the **Primary Owner** — the single module whose absence makes the Requirement unsatisfiable. Mark **Collaborating Modules** and **Capability Providers/Consumers** when applicable.
+For each module in scope, do **both** of the following — they are not
+optional, and they are what the next layer (Module Design) depends on:
 
-Critical: a Requirement that spans multiple modules still has end-to-end correctness obligations. Record:
+1. **Assign ownership** — for each Requirement, identify the
+   **Primary Owner**, the single module whose absence makes the
+   Requirement unsatisfiable. Mark **Collaborating Modules** and
+   **Capability Providers/Consumers** when applicable.
 
-- The Primary Owner (per module role)
-- The Integration Verifier (often Architecture or a designated E2E owner)
+   Critical: a Requirement that spans multiple modules still has
+   end-to-end correctness obligations. Record:
+   - The Primary Owner (per module role).
+   - The Integration Verifier (often Architecture or a designated
+     E2E owner).
 
-Do not lose system-level accountability just because responsibility is split.
+   Do not lose system-level accountability just because
+   responsibility is split.
+
+2. **Assign a canonical Module ID.** Each module gets one stable
+   identifier: `MOD-<slug>`, where `<slug>` is a kebab-case slug
+   (lowercase, digits, hyphens; no spaces, no leading / trailing
+   hyphens; no capital letters). The slug is derived from the
+   module's role or display name (e.g. "Calc Core" → `MOD-calc-core`).
+   Record this ID in §2 (Modules and Responsibilities) of the
+   Baseline. The same ID then appears everywhere else in the Baseline
+   (Capability / Requirement map, Public Capability Owner, Dependency
+   map) and any per-module summary file uses it as its filename.
+
+   The MOD-* ID is the canonical key that Module Design and
+   Implementation look up by; without it, the next layer cannot
+   start. After Baseline adoption, change an ID only via an explicit
+   `revise` — and propagate to downstream artifacts.
 
 ### Step 5 — Define Dependency Boundaries
 
@@ -371,19 +404,26 @@ When a Baseline is written (typically `docs/architecture/ARCHITECTURE.md`), the 
 <high-level summary of the system, its purpose, the Intent(s) it serves>
 
 ## 2. Modules and Responsibilities
-<per-module: name, one-line responsibility, owner role, related Requirements>
+
+| Module ID (canonical) | Display name | One-line responsibility | Owner role | Related Requirements |
+|-----------------------|--------------|-------------------------|------------|---------------------|
+| MOD-<slug>            | <human name> | <one line>              | Primary Owner / Collaborator / Capability Provider / Consumer | SPEC-NNN/REQ-NNN, ... |
+
+The first column (`Module ID`) is the canonical identifier downstream
+Skills look up by. Do not leave the first column blank; do not let the
+display name stand in for the ID.
 
 ## 3. Capability / Requirement Ownership
-<for each System Capability: which module(s) own it, which Requirements it satisfies>
+<for each System Capability: which module(s) own it, which Requirements it satisfies. Use the MOD-<slug> ID from §2, not a display name.>
 
 ## 4. Dependency Boundaries
-<allowed / forbidden dependencies, authoritative state owners, required direction>
+<allowed / forbidden dependencies, authoritative state owners, required direction. Refer to modules by MOD-<slug>.>
 
 ## 5. Public Capabilities and Contract Ownership
-<per public capability: name, Provider Owner, Known Consumers, related Requirements, behavior summary, contract location or "TBD">
+<per public capability: capability name, Provider Owner (MOD-<slug>), Known Consumers (MOD-<slug>), related Requirements, behavior summary, contract location or "TBD">
 
 ## 6. System Invariant Responsibilities
-<per cross-module invariant: what it guarantees, integration owner, verification path>
+<per cross-module invariant: what it guarantees, integration owner (MOD-<slug>), verification path>
 
 ## 7. Architecture Decisions
 <material decisions with rationale and date. Optional ADR references>
@@ -429,6 +469,7 @@ Architecture does **not** use Intent / Spec's `active` → `archived` lifecycle.
 - Public Capabilities have Providers and at least one recorded Consumer (or "no known consumer yet").
 - Module dependency boundaries are explicit.
 - System Invariants have integration owners and verification paths.
+- **Every module listed anywhere in the Baseline carries a canonical `MOD-<slug>` ID recorded in §2 (Modules and Responsibilities). The same ID appears in §3 / §4 / §5 and in any per-module summary filename.** This is the gating criterion: without it, the next layer (Module Design) cannot look up the module.
 - No Blocking architecture-level Unknowns remain (Non-Blocking may be deferred to "Open Architecture Questions").
 
 When the user confirms ("确认，继续" or equivalent), save the Baseline. Do not prompt a second time. Do not require an `archive` command.
