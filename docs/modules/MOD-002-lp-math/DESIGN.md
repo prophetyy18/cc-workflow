@@ -165,7 +165,7 @@ MOD-002's DESIGN supports this test by guaranteeing:
 - Pure-function semantics (no hidden state).
 - Reproducible byte-identical outputs across runs.
 
-The actual INV-04 property test is owned by the MOD-003 DESIGN (to be authored) and is **out of scope** for this DESIGN.md.
+The actual INV-04 property test is owned by the MOD-003 DESIGN (`docs/modules/MOD-003-strategy-engine/DESIGN.md`, status: final) and is **out of scope** for this DESIGN.md.
 
 # Blocking Unknowns and Implementation Handoff
 
