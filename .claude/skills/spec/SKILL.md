@@ -340,24 +340,51 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
 4. **Completion check before archive.** For the natural-language flow, verify — by reading the actual artifact, not the prose summary:
 
    - saved;
-   - **No entry in `# Unknowns and Upstream Feedback` is still flagged Blocking.** An entry described as resolved but whose status line still says "Blocking" is unresolved. Reclassify or remove first; do not archive over it.
+   - **No entry in `# Unknowns and Upstream Feedback` is still flagged Blocking AND is a *Spec prerequisite*** (per `cross-layer-coordination.md` §2.5.e). An entry described as resolved but whose status line still says "Blocking" is unresolved. Reclassify or remove first; do not archive over it.
    - important Requirements have sources and acceptance;
    - traceability is valid;
    - no major upstream conflict;
    - cross-document References (e.g. `# Architecture Handoff`, "architecture depends on", "out of scope" lists) match the *current* authoritative state — not historical.
 
-   If a Blocking issue exists, surface it and stop — do not silently
-   archive. Non-Blocking issues are recorded in `# Unknowns and
-   Upstream Feedback` and do not block.
+   Handoff obligations that Implementation owns (e.g.
+   primary-source verification of a third-party library the Spec
+   *named* but did not need to compute) are not Spec
+   prerequisites; they are recorded but do not block archive.
+   See `cross-layer-coordination.md` §2.5.e for the split.
+
+   If a Blocking Spec-prerequisite issue exists, surface it and
+   stop — do not silently archive. Non-Blocking issues are
+   recorded in `# Unknowns and Upstream Feedback` and do not block.
 5. Spec can be archived when its Requirements are sufficiently defined for downstream. Architecture / Module Design can proceed in parallel or later.
 6. On confirmation: set `status: archived`, update `updated`. Append a note to `# Resume Notes`.
 7. **Downstream Routing (post-archive).** After successful archive, run the routing check (§19) and surface the recommendation to the user. The routing is informational — the user decides whether to follow.
 
 ## 17. Subcommand: `reopen <spec-id>`
 
-1. Confirm with the user. Warn that any downstream Architecture / Module Design / Implementation may have been written against the archived version.
-2. Set `status: active`, update `updated`.
-3. Append a note to `# Resume Notes` explaining why it was reopened.
+1. **Determine whether this is a reopen or a routine correction.**
+   - *Material change* — adds / removes / changes a goal, scope,
+     key constraint, or user-visible behavior that was previously
+     approved. Requires the user to authorize the scope change
+     (per `cross-layer-coordination.md` §2.5.b). Warn that
+     downstream Architecture / Module Design / Implementation
+     may have been written against the archived version.
+   - *Routine correction of an archived Spec* — internal
+     inconsistency the Spec Skill can resolve from the Spec's
+     own contents (fixture typo, parameter rename that does
+     not change the requirements' meaning, an acceptance
+     case contradicting the Spec's own formula, etc.). The
+     Spec Skill edits the file directly; no fresh user
+     authorization is required. The change is recorded in
+     `# Resume Notes` with the rationale and the consequent
+     downstream propagation (which layer needs to re-check).
+2. For material changes: set `status: active`, update `updated`,
+   append a note to `# Resume Notes` explaining why it was
+   reopened. Downstream layers re-derive against the new content.
+3. For routine corrections: edit the archived Spec in place, log
+   the change in `# Resume Notes`, route a forward feedback to the
+   downstream layers (Architecture / Module Design /
+   Implementation) so they re-check dependent content. No status
+   change.
 
 ## 18. Architecture Handoff
 

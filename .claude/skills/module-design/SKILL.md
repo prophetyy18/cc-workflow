@@ -1,7 +1,7 @@
 ---
 name: module-design
 description: Design a single module's public contract and internal design from an authoritative Architecture Baseline and the Spec Requirements the module owns. Reuses Cross-layer Coordination for upstream errors and the Independent Reviewer for verification. Delivers a DESIGN.md (and optional machine-readable contracts) that Implementation can execute against. Use when the user wants to start a new module design from Architecture (`/module-design new MOD-foo`), resume a paused design, focus only on the public contract, request a full review, or hand off to Implementation. Triggered by phrases like "design MOD-foo", "把 foo 模块设计一下", "看下 foo 的契约", "foo 可以交给实现了".
-allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*)
+allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(python3*), Bash(awk*), Bash(sed*)
 ---
 
 # Module Design Skill
@@ -495,47 +495,81 @@ Do not create a separate task tracker or parallel issue log.
 
 A module design is ready for Implementation Handoff when — and only
 when — **every** gate below holds **at the moment of the status
-transition**:
+transition**, and only the gates in *§13.1* block the transition
+(preconditions for the contract itself). The gates in *§13.2* are
+handoff obligations — they are recorded against the design but
+belong to the Implementation layer; they do **not** block the
+design transition. The split matches
+`cross-layer-coordination.md` §2.5.e.
+
+### 13.1 Design preconditions — these block `status: final`
 
 - Public contracts are complete for every provided Capability.
 - Each assigned Spec Requirement has an observable verification
-  method whose expected result derives from the Requirement, not the
-  implementation.
+  method whose expected result derives from the Requirement, not
+  the implementation.
 - **No entry in `# Blocking Unknowns and Implementation Handoff`
-  is still flagged Blocking.** Read the section at the transition;
-  an entry that is described as resolved but whose status line still
-  says "Blocking" is unresolved. Reclassify or remove first.
+  is flagged Blocking AND is a *design prerequisite*** — i.e.,
+  without resolving this item the contract cannot be stated
+  correctly. Routine correctness items that the design *named* a
+  placeholder for (e.g. "Implementation will verify V4 fee-on-
+  decrease semantics") are handoff obligations, not design
+  prerequisites, and live in §13.2.
 - **Every Reference in `source_architecture`, `source_spec`,
   "Depends on...", and "Contract location" still matches the
-  *current* authoritative state of the cited artifact.** A line like
-  "Depends on MOD-001 (currently draft)" that survives a Provider's
-  promotion to `final` is a default-FAIL — reconcile or surface as
-  Architecture / Spec / Implementation follow-up; do not finalize
-  on stale references.
-- Trigger A evidence declared in this Skill's `verification.md` §3
-  is on hand, not promised by follow-up handoff to Implementation.
-  "Implementation must verify X" is not Trigger A evidence at the
-  Design gate — it is a handoff obligation Implementation owns, and
-  while it is open the Design cannot be `final`.
-- Either a Targeted Resolution Verification has returned clean for
-  material changes since the last verify, or Self-check is sufficient
-  for low-risk modules.
-- Downstream dependencies (other modules' design or implementation)
-  are not silently blocked by missing inputs from this module.
+  *current* authoritative state of the cited artifact.** A line
+  like "Depends on MOD-001 (currently draft)" that survives a
+  Provider's promotion to `final` is a default-FAIL — reconcile
+  before finalizing.
+- Either a Targeted Resolution Verification has returned clean
+  for material changes since the last verify, or Self-check is
+  sufficient for low-risk modules.
+- Downstream dependencies (other modules' design or
+  implementation) are not silently blocked by missing inputs from
+  this module.
 
-If any gate fails, the skill does not set `status: final`; the open
-issue is recorded in `# Resume Notes` with: which gate, what the
-artifact actually says now, what would resolve it, and the next step
-the agent should take (own-skill fix / cross-layer route / user
-decision).
+If any §13.1 gate fails, the skill does not transition
+`status: draft → final`. The open issue is recorded in
+`# Resume Notes` with: which gate, what the artifact actually says
+now, what would resolve it, and the next step the agent should take
+(own-skill fix / cross-layer route / user decision).
+
+### 13.2 Implementation verification obligations — recorded, not blocking
+
+The items below are handoff obligations Implementation owns. They
+do **not** block `status: final` and they do **not** appear in
+§13.1. They are recorded in `# Blocking Unknowns and
+Implementation Handoff` with a clear "this is for Implementation"
+label and the trigger (`/implementation test`, `/implementation
+verify`, etc.) that produces the evidence.
+
+- Type / library / runtime behavior verifications that only an
+  actual implementation can produce.
+- Fuzz, property, end-to-end, or performance tests whose
+  pass / fail signal comes from running code.
+- Primary-source verification of library / protocol behavior
+  the design *named* but did not need to compute (e.g.
+  `Uniswap/v4-core/src/libraries/Position.sol` fee-on-decrease
+  semantics — the design's contract is consistent with either
+  outcome, but the implementation must pick one and prove it).
+- Cross-module verification paths that need the consumer's
+  state (e.g. capital conservation properties tested across
+  module boundaries in the integration suite).
+
+If §13.2 items accumulate beyond what is reasonable to track,
+that is itself a sign the design stayed at a higher level than
+it should have — surface it in `# Resume Notes` for a future
+iteration; do not retroactively relocate them into §13.1 to
+"complete" the design prematurely.
 
 `DESIGN.md` plus optional `contracts/*.yaml` IS the contract for
 Implementation. The Implementation Agent must be able to proceed
 without re-reading this Skill's chat history.
 
-`status: final` means the design is handed off; it does **not** imply
-`Implementation Verified` — that belongs to Verification after
-runtime evidence.
+`status: final` means the design is handed off; it does **not**
+imply `Implementation Verified` — that belongs to Verification
+after runtime evidence. `final` does not authorize skipping
+§13.2 items; it transfers their ownership to Implementation.
 
 ### One explicit confirmation is enough
 

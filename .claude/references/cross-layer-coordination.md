@@ -136,7 +136,52 @@ If any of those reads is not what the originating Skill expects,
 the Fix did not actually land. Treat the return message as
 unverified and re-route.
 
-### 2.5.b Status-gate disciplines (cross-Skill)
+### 2.5.b Routine correctness vs goal / scope / key-constraint
+
+The reason a fix loop escalates to the user for authorization is
+typically one of two things, and they are not the same:
+
+- *Routine correctness* — encoding typo, fixture value off,
+  parameter rename, rounding mode, missing unit annotation,
+  internally-inconsistent acceptance case against its own
+  formula, cross-document reference still says "currently draft"
+  after the Provider was promoted, etc. The owning layer's Skill
+  fixes these in its own authority, with no fresh user
+  confirmation. The Spec Skill can correct an internally-
+  inconsistent fixture in an archived Spec without opening a
+  full reopen — it is the Spec's own content, and the user's
+  earlier archive-confirmation covered that artifact's surface;
+  a typo-fix of a fixture line is below that surface.
+- *Goal / scope / key-constraint change* — adding a feature,
+  removing a feature, lifting or tightening a non-functional
+  constraint, choosing between user-meaningful trade-offs,
+  deciding user-visible behavior the Spec was silent on. These
+  are user decisions and need a fresh authorization at the
+  relevant layer (Spec reopen for Spec-level changes, etc.).
+
+The distinction matters because:
+
+- Routing every typo / fixture / reference drift up to the user
+  is a different anti-pattern — it burns the verification loop
+  and confuses "I have a problem" with "the user has to choose
+  something".
+- Claiming a goal / scope / key-constraint change is "routine"
+  is the other anti-pattern — it makes an unauthorized call
+  look like a routine fix.
+- Forward feedback messages should mark which dimension the
+  fix belongs to. The receiving layer reads the message and
+  applies the right discipline (reopen + authorization for the
+  one, direct edit for the other).
+
+The Main Agent uses the same call: read the conflict against
+authoritative sources (SPEC's own formula, ARCHITECTURE's §2
+status, the Provider's actual contract), decide whether the
+disagreement is *internally inconsistent with its own content*
+or *requires a decision the user has not made*. The first is a
+routine correction owned by that layer; the second requires a
+user decision.
+
+### 2.5.c Status-gate disciplines (cross-Skill)
 
 The same discipline applies to any status transition that
 encodes a completion claim (Spec `archived`, Module Design
@@ -145,7 +190,10 @@ encodes a completion claim (Spec `archived`, Module Design
 - Read the artifact's `# Unknowns` / `# Blocking Unknowns and
   Implementation Handoff` / equivalent sections **at the moment of
   the transition**. The transition is invalid if any item is still
-  flagged Blocking; resolve or reclassify first.
+  flagged Blocking AND that item is a *design prerequisite*
+  (§2.5.e); resolve or reclassify first. Note the distinction
+  below: Implementation-handoff obligations are recorded at the
+  Design transition but do *not* block it.
 - Read the artifact's `Source <other-doc>` / "depends on" /
   cross-module References and confirm they match the **current**
   authoritative state of the cited document (not historical). If
@@ -155,6 +203,35 @@ encodes a completion claim (Spec `archived`, Module Design
   not claimed. "Will be done by Implementation" is not Trigger A
   evidence at the Design gate — it is a follow-up handoff
   obligation that Implementation owns.
+
+### 2.5.e Design prerequisites vs handoff obligations
+
+A `DESIGN.md` cannot reach `final` because of two distinct
+reasons, and only one of them is *this* Skill's gate:
+
+- **Design prerequisite** — without resolving this, the
+  contract itself cannot be stated correctly. Examples: a
+  primary-source verification the design's formulas depend on,
+  a behavior the Spec is silent on, a Required Outcome the
+  design can't support. These must be closed at the Design
+  transition (resolved, reclassified, or surfaced back to
+  the upstream layer through its routine-correction path).
+- **Implementation verification obligation** — a behavior
+  that is correct on the contract surface but only verifiable
+  end-to-end against a running implementation / test suite /
+  library. Examples: type-checking against an actual library,
+  runtime performance, fuzz testing, primary-source verification
+  of library behavior the consumer needs but the design only
+  *named*. The Design transition records these as handoff
+  obligations (in `source_spec` / `# Blocking Unknowns and
+  Implementation Handoff` / equivalent) — they are owned by
+  the next layer, not by Design. They do **not** block Design
+  final; they gate Implementation handoff.
+
+If the §13 mixing rule reads as "any open item blocks Design
+final", the design side and the implementation side fall into
+mutual waiting. They are separated here. Closing the loop on
+either side still goes through §2.5 / §2.5.b.
 
 The downstream Owner returns:
 
@@ -329,6 +406,36 @@ Additional anti-patterns, surfaced by actual run evidence:
   a module implementation-ready. Implementation Handoff
   requires the Trigger A evidence declared in the relevant §13
   to be on hand, not promised by follow-ups.
+- **Treating an internal fixture inconsistency as a scope
+  change.** When the upstream artifact's own content (Spec
+  formula vs acceptance fixture, internal cross-reference vs
+  its current state) contradicts itself, the right move is the
+  owning layer's own routine correction (§2.5.b / Spec §17
+  "routine correction" path), not a reopen + fresh user
+  authorization. Reopen is for material goal / scope / key-
+  constraint changes. Routing a fixture mismatch to the user
+  wastes a round of clarification and conflates two different
+  things.
+- **Stopping at "I noticed and wrote a forward feedback".**
+  Discovered a defect, sent a feedback message, did not act on
+  it, did not resume the original task. That is *partial*
+  coordination, not the coordination the framework expects.
+  The originating Skill either fixes the upstream content
+  itself (when it has the authority and the change is routine
+  correctness) or routes the loop through cross-layer
+  coordination §2.5 such that the original task *resumes*.
+  Forward feedback is not the end of the loop — it is the
+  trigger for the next round.
+- **Verification only on the originally-found assertion.**
+  When a fix passes, the related public contract claims, the
+  internal design rationale, and the downstream consumer's
+  expectations are also part of the truth claim. A `quantize`
+  the public contract did not authorize; a parameter rename
+  the consumer's call-site now mismatches; a rounding mode
+  the acceptance condition contradicts — these are
+  contradictions, not separate unrelated work. The
+  verification must reconcile the related sections (per
+  `verification.md` §4.5 and Implementation §11.4).
 
 ## 7. When this reference is loaded
 

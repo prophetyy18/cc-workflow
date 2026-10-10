@@ -176,6 +176,14 @@ If runtime evidence is required and not provided, mark `Limitation: empirical ve
 
 Quantitative claims that other agents label with confidence but that the Reviewer cannot re-derive from a primary source are not Verified — they are at best `Reasonable Judgment (Unverified)` and at worst `Unknown` (see §5 Evidence Standard).
 
+For numerical claims specifically: "independent" means a **separate
+derivation route** — a different formula, library, or symbolic
+derivation, not a re-run of the same arithmetic and not
+"another model agrees with the author's value". The Reviewer
+verifies the *claim* that the Authoring Skill recomputed with
+the named tool and a different derivation route; the Reviewer's
+own output stays read-only.
+
 ### Phase 5.5 — Acceptance Criteria Verification (when in scope)
 
 When the artifact carries or depends on acceptance obligations, evaluate each acceptance criterion in scope using the following checks. A passing test is not proof that its expected result is correct — that is the Reviewer's job to disconfirm.
@@ -340,8 +348,15 @@ Notes:
 For every material claim that supports a Finding, classify it as one of:
 
 - **Verified** — direct evidence from an authoritative source, a primary
-  document, or empirical observation. The Reviewer's own re-derivation
-  counts as Verified.
+  document, an empirical observation, or an **independent** derivation
+  route. "Independent" means a derivation route the Authoring Skill
+  did not use — a different formula, a different library (mpmath /
+  sympy / closed-form algebra), a hand-derived closed form with
+  independently verified roots — not a re-run of the same arithmetic
+  and not "a second LLM agrees with the Author's value" (the
+  second LLM agrees with the same input). The Reviewer's own
+  re-derivation through such an independent route counts; a
+  re-run of the Author's own script does not.
 - **Reasonable Judgment (Unverified)** — plausible reasoning without
   primary evidence. Useful for surfacing candidate issues; must NOT
   be promoted to `Confirmed Defect`.
