@@ -63,10 +63,17 @@ If the subcommand is unknown, do not guess. Show help and stop.
 
 ## 4. Identity & Storage
 
-**Stable module ID**: `MOD-<name>` (kebab-case slug after `MOD-`).
-The Architecture Baseline's Module Responsibility Map is the source of
-truth for the ID. Module Design does **not** rename modules — that is
-an Architecture change.
+**Canonical module ID**: `MOD-<slug>` (kebab-case slug after `MOD-`).
+Architecture's Baseline §2 (Modules and Responsibilities) is the
+source of truth for the ID — every module that appears anywhere in the
+Baseline must carry this ID, not just a display name. Module Design
+**does not** rename modules, **does not** invent display names, and
+**does not** introduce parallel identifiers. Module Design **may**
+add a missing `MOD-<slug>` row to the Baseline §2 when the module is
+already named by display name and the user's chosen slug is
+unambiguous — this is a mechanical completeness fix, recorded in
+`# Resume Notes` of the resulting DESIGN.md, and is not a design
+decision. See §5's entry check for the lookup order.
 
 **Storage layout** (one directory per module):
 
@@ -84,22 +91,76 @@ when a Consumers / Implementations workflow benefits (typed API
 generation, schema diffing, etc.). Do not duplicate the same content in
 both DESIGN.md and contracts/.
 
+If the consuming project already defines its own module layout
+(monorepo with `packages/<name>/`, language-specific `src/<name>/`,
+etc.), follow that project convention. State the chosen path in `# Resume
+Notes` so a later resume can locate the files. Do not invent a parallel
+layout just because this Skill prefers `docs/modules/`.
+
 Do not create `docs/modules/` in this repo — that is a runtime
 artifact of consuming projects.
 
 ## 5. Subcommand: `new <module-id>`
 
-Run `new` only when:
+### Entry check — confirm before stopping
 
-- The target module ID appears in the current project's Architecture
-  Baseline (the `docs/architecture/ARCHITECTURE.md` Module
-  Responsibility Map), OR
-- The user explicitly wants an ad-hoc module — require the user to
-  confirm the ID and minimal boundary context first.
+Before declaring the target "doesn't exist", normalize the user's
+identifier and surface actual evidence.
+
+The Baseline §2 (Modules and Responsibilities) is the canonical source
+for both `MOD-<slug>` IDs and display names. The lookup order:
+
+1. **Normalize the user's `<module-id>`**: trim whitespace,
+   case-fold, strip an optional `MOD-` prefix to get a `<slug>`.
+   A user who said `foo` / `Foo` / `mod-foo` / `MOD-foo` is
+   asking for the same module as `MOD-foo`.
+
+2. **First pass — exact canonical match.** Look up the candidate
+   in the Baseline §2 Module ID column.
+
+   - If §2 has the row already (idempotent) → proceed.
+   - If §2 has a row keyed by **display name only** (no MOD-*
+     column populated), and the user-supplied slug unambiguously
+     matches that display name (one row, no name collisions):
+     fill the Module ID column with `MOD-<slug>` as a mechanical
+     completeness fix. Record the addition in `# Resume Notes`
+     of the resulting DESIGN.md with a single line citing the
+     source Baseline row. Do not rename an existing ID.
+   - If §2 has no row matching the slug, proceed to step 3.
+
+3. **Second pass — display-name fallback.** Look for any row
+   whose Display name slugifies to `<slug>`. If exactly one row
+   matches, treat it as the same module and proceed (and apply
+   the same auto-fill rule if its Module ID was missing). If
+   multiple rows match, list them as candidates and ask the
+   user — do not silently pick one.
+
+4. **No match.** Present the Baseline's known module list (with
+   whatever IDs and display names it actually carries) as
+   evidence and ask the user to confirm or correct. Do not
+   invent a module. Do not stop with "module not found" alone —
+   that leaves the user without a path forward.
+
+The per-module summary file (`docs/architecture/modules/MOD-<slug>.md`)
+is optional. When present, its filename must match the canonical
+`MOD-<slug>` from §2.
 
 If the Baseline is absent (Route A state per `spec/SKILL.md` §19),
-surface the missing Baseline as the primary blocker and point at
-`/architecture init` before starting Module Design.
+surface the missing Baseline as the primary blocker. Independently
+report Architecture Skill invocability:
+
+- If the Architecture Skill is invocable from the current
+  environment, the Main Agent should `/architecture init` itself —
+  do not push the user to type the command. Once a Baseline exists,
+  return to this `new`.
+- If the Architecture Skill is not invocable, report the
+  unavailability explicitly and surface the manual command. Do not
+  pretend to invoke it.
+
+If the user is asking for an ad-hoc module not yet in the Baseline,
+require explicit confirmation of the ID and minimal boundary
+context, record that decision in `# Resume Notes`, and note that
+the Baseline should be amended (a separate `architecture` concern).
 
 ### Step 1 — Load upstream basis
 
@@ -453,6 +514,29 @@ without re-reading this Skill's chat history.
 `Implementation Verified` — that belongs to Verification after
 runtime evidence.
 
+### One explicit confirmation is enough
+
+When the user has explicitly confirmed the current stage's
+completion (`确认，继续` / `设计没问题了` / `MOD-foo 可以交给实现了`)
+in response to a recent completion proposal, that single
+confirmation authorizes:
+
+- Setting `DESIGN.md status: final` for this module.
+- The corresponding Implementation Handoff (`new <module-id>` next).
+
+Do not prompt a second time ("are you sure?") for the same scope.
+Do not extend the authorization to unrelated modules, unrequested
+Spec edits, or Architecture changes. Material changes to the goal,
+scope, or key constraints that surface during a subsequent round
+remain user decisions — they are not covered by the prior
+confirmation.
+
+A new confirmation is required when:
+
+- The user re-opens the module (`reopen`).
+- A subsequent correction changes a Spec REQ or Architecture
+  ownership that the prior confirmation did not cover.
+
 ## 14. Hard Rules
 
 1. **Provider owns the contract.** Only the unique Provider of a
@@ -467,39 +551,46 @@ runtime evidence.
    (internal design). Internal design may iterate freely after the
    contract is settled; contract changes after Step 4 that affect
    Consumers must go through Cross-layer Coordination.
-4. **No upstream override.** Do not silently edit a Spec, an
+4. **Module ID provenance.** The canonical `MOD-<slug>` ID lives
+   in the Architecture Baseline's §2. This Skill may add a
+   missing ID row (mechanical completeness, when the module is
+   already named by display and the slug is unambiguous); it may
+   not invent new IDs for unnamed modules, rename existing IDs,
+   or introduce a parallel identifier scheme. Renames go through
+   `/architecture revise`.
+5. **No upstream override.** Do not silently edit a Spec, an
    Architecture Baseline, or another module's contract. Route via the
    feedback contract and let the correct Owner decide. An archived
    Spec or an adopted Architecture Baseline require the existing
    reopen / revise flow with user authorization.
-5. **Verified technical premises.** Load-bearing library, protocol,
+6. **Verified technical premises.** Load-bearing library, protocol,
    or state-machine premises must cite a primary source. Use the
    search rules in `CLAUDE.md`. Unverified premises become Unknowns,
    not assumptions.
-6. **No silent business defaults.** Magic numbers, thresholds, and
+7. **No silent business defaults.** Magic numbers, thresholds, and
    library defaults that the user has not chosen do not enter
    `DESIGN.md` without explicit user authorization. Routine internal
    choices (data layout, file naming) do not need user authorization.
-7. **Reuse, don't copy.** Cross-layer rules live in
+8. **Reuse, don't copy.** Cross-layer rules live in
    `cross-layer-coordination.md`; Reviewer rules live in
    `independent-reviewer.md` and `verification.md`. Do not duplicate.
-8. **Reuse existing conventions.** When the project already has coding
+9. **Reuse existing conventions.** When the project already has coding
    conventions, dependency choices, or test patterns, follow them.
    Do not introduce a parallel convention just because this Skill
    runs.
-9. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`. No
-   new approval states. `final` does not imply `Implementation
-   Verified`; that belongs to Verification after runtime evidence.
-10. **No new Subagent.** This Skill does not introduce new Agents. It
+10. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`. No
+    new approval states. `final` does not imply `Implementation
+    Verified`; that belongs to Verification after runtime evidence.
+11. **No new Subagent.** This Skill does not introduce new Agents. It
     reuses the existing Independent Reviewer and operates within the
     Main Agent.
-11. **Bind the loop on cross-layer correction.** When applying a
+12. **Bind the loop on cross-layer correction.** When applying a
     corrective change in response to upstream feedback, do not start
     an unbounded Fix → Verify cycle. The cap is in
     `.claude/references/verification.md` §6.
-12. **Persist the resume position.** Do not assume chat history
+13. **Persist the resume position.** Do not assume chat history
     carries state across sessions; persist the open frontier.
-13. **Lightweight.** Don't over-table. Don't add decision records
+14. **Lightweight.** Don't over-table. Don't add decision records
     unless the decision is materially novel and recurring.
 
 ## 15. References
