@@ -379,16 +379,31 @@ shape.
      contradicting the Spec's own formula, an internally
      inconsistent cross-document reference). The Spec Skill
      makes the edit; no fresh user authorization is required.
-2. **Apply the same shape for both**:
+2. **Apply the shape**:
    - Set `status: active`, update `updated`.
    - Apply the edit.
-   - Set `status: archived` again (it was archived before; closing
-     it again keeps the lifecycle shape narrow — only `archived`
-     is the externally visible state).
-   - Append a note to `# Resume Notes` explaining why it was
-     reopened and what changed. For routine corrections the
-     note records the resolution (e.g. "T1 fixture corrected
-     from `5.00` to `10.00`, consistent with REQ-001 formula").
+   - **Run the applicable completion checks** before closing:
+     - Read the artifact's `# Unknowns and Upstream Feedback`
+       section; if any entry is still flagged Blocking AND is
+       a Spec prerequisite (§2.5.e), the gate fails.
+     - Read every Reference to other authoritative content; if
+       any is now stale, reconcile or surface.
+     - For material changes, the additional review /
+       verification step that the user authorized (impact-
+       specific) still produces the evidence the gate expects.
+     - The check reads the actual artifact, not the prose
+       summary.
+   - If the gate fails, *keep `status: active`*; record the
+     failing gate, what the artifact says now, and the resume
+     position in `# Resume Notes`. Do not write a final
+     confirmation until the gate passes.
+   - If the gate passes, set `status: archived`, append a
+     note to `# Resume Notes` explaining why it was reopened
+     and what changed (`T1 fixture corrected from `5.00`
+     to `10.00`, consistent with REQ-001 formula` is the kind
+     of note a routine correction should write; a material
+     change should also record what shifted in scope and
+     which downstream layer is affected).
    - For material changes, also warn that downstream
      Architecture / Module Design / Implementation may have
      been written against the prior archived version.

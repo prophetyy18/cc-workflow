@@ -438,9 +438,11 @@ Additional anti-patterns, surfaced by actual run evidence:
   formula vs acceptance fixture, internal cross-reference vs
   its current state) contradicts itself, the right move is the
   owning layer's own routine correction (§2.5.b / Spec §17
-  "routine correction" path), not a reopen + fresh user
-  authorization. Reopen is for material goal / scope / key-
-  constraint changes. Routing a fixture mismatch to the user
+  single reopen path), not an in-place edit that skips the
+  reopen flow and not a reopen claimed as a "material change"
+  for authorization. Whether the change requires fresh user
+  authorization is decided by impact (§2.5.b.0), not by the
+  reopen command. Routing a fixture mismatch to the user
   wastes a round of clarification and conflates two different
   things.
 - **Stopping at "I noticed and wrote a forward feedback".**
