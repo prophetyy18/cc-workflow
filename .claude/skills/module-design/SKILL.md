@@ -493,18 +493,41 @@ Do not create a separate task tracker or parallel issue log.
 
 ## 13. Completion and Handoff Criteria
 
-A module design is ready for Implementation Handoff when:
+A module design is ready for Implementation Handoff when — and only
+when — **every** gate below holds **at the moment of the status
+transition**:
 
 - Public contracts are complete for every provided Capability.
 - Each assigned Spec Requirement has an observable verification
   method whose expected result derives from the Requirement, not the
   implementation.
-- No Blocking Unknown remains. Non-Blocking Unknowns are recorded in
-  `# Blocking Unknowns and Implementation Handoff`.
+- **No entry in `# Blocking Unknowns and Implementation Handoff`
+  is still flagged Blocking.** Read the section at the transition;
+  an entry that is described as resolved but whose status line still
+  says "Blocking" is unresolved. Reclassify or remove first.
+- **Every Reference in `source_architecture`, `source_spec`,
+  "Depends on...", and "Contract location" still matches the
+  *current* authoritative state of the cited artifact.** A line like
+  "Depends on MOD-001 (currently draft)" that survives a Provider's
+  promotion to `final` is a default-FAIL — reconcile or surface as
+  Architecture / Spec / Implementation follow-up; do not finalize
+  on stale references.
+- Trigger A evidence declared in this Skill's `verification.md` §3
+  is on hand, not promised by follow-up handoff to Implementation.
+  "Implementation must verify X" is not Trigger A evidence at the
+  Design gate — it is a handoff obligation Implementation owns, and
+  while it is open the Design cannot be `final`.
 - Either a Targeted Resolution Verification has returned clean for
-  material changes, or Self-check is sufficient for low-risk modules.
+  material changes since the last verify, or Self-check is sufficient
+  for low-risk modules.
 - Downstream dependencies (other modules' design or implementation)
   are not silently blocked by missing inputs from this module.
+
+If any gate fails, the skill does not set `status: final`; the open
+issue is recorded in `# Resume Notes` with: which gate, what the
+artifact actually says now, what would resolve it, and the next step
+the agent should take (own-skill fix / cross-layer route / user
+decision).
 
 `DESIGN.md` plus optional `contracts/*.yaml` IS the contract for
 Implementation. The Implementation Agent must be able to proceed
@@ -567,30 +590,51 @@ A new confirmation is required when:
    or state-machine premises must cite a primary source. Use the
    search rules in `CLAUDE.md`. Unverified premises become Unknowns,
    not assumptions.
-7. **No silent business defaults.** Magic numbers, thresholds, and
+
+7. **Numerical expectations must be independently re-derivable.**
+   When a finding, fixture, or closed-form IL/value is asserted as
+   "the correct answer", the Reviewer MUST independently
+   recompute it (mpmath / sympy / algebraic identity / separate
+   derivation). Author-self-verified arithmetic without an
+   independent check is `Reasonable Judgment (Unverified)`, not
+   `Verified`. Several iterations with wrong self-verified numeric
+   until the verification loop bound gives out are the failure
+   mode this rule prevents.
+
+8. **Separate necessary from improvement.** A finding that
+   addresses a real defect (a Necessary Condition or missing
+   observable behavior) is *necessary*; a finding that proposes a
+   defensible enhancement without a corresponding violation is
+   *improvement*. A single revision is not a vehicle for both —
+   pair a necessary fix with one of: queue the improvement for a
+   separate revision, reject it with evidence, or escalate only
+   when the improvement would change goal / scope / a key
+   constraint.
+
+9. **No silent business defaults.** Magic numbers, thresholds, and
    library defaults that the user has not chosen do not enter
    `DESIGN.md` without explicit user authorization. Routine internal
    choices (data layout, file naming) do not need user authorization.
-8. **Reuse, don't copy.** Cross-layer rules live in
-   `cross-layer-coordination.md`; Reviewer rules live in
-   `independent-reviewer.md` and `verification.md`. Do not duplicate.
-9. **Reuse existing conventions.** When the project already has coding
-   conventions, dependency choices, or test patterns, follow them.
-   Do not introduce a parallel convention just because this Skill
-   runs.
-10. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`. No
+10. **Reuse, don't copy.** Cross-layer rules live in
+    `cross-layer-coordination.md`; Reviewer rules live in
+    `independent-reviewer.md` and `verification.md`. Do not duplicate.
+11. **Reuse existing conventions.** When the project already has coding
+    conventions, dependency choices, or test patterns, follow them.
+    Do not introduce a parallel convention just because this Skill
+    runs.
+12. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`. No
     new approval states. `final` does not imply `Implementation
     Verified`; that belongs to Verification after runtime evidence.
-11. **No new Subagent.** This Skill does not introduce new Agents. It
+13. **No new Subagent.** This Skill does not introduce new Agents. It
     reuses the existing Independent Reviewer and operates within the
     Main Agent.
-12. **Bind the loop on cross-layer correction.** When applying a
+14. **Bind the loop on cross-layer correction.** When applying a
     corrective change in response to upstream feedback, do not start
     an unbounded Fix → Verify cycle. The cap is in
     `.claude/references/verification.md` §6.
-13. **Persist the resume position.** Do not assume chat history
+15. **Persist the resume position.** Do not assume chat history
     carries state across sessions; persist the open frontier.
-14. **Lightweight.** Don't over-table. Don't add decision records
+16. **Lightweight.** Don't over-table. Don't add decision records
     unless the decision is materially novel and recurring.
 
 ## 15. References

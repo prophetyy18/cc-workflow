@@ -186,6 +186,24 @@ A claim of the form `X == Y` must be supported by derivation, code, or
 a verified external source — not by analogy or pattern. Numbers
 without sources are Unverified.
 
+**Numerical expectations** in test fixtures, expected outputs, asserted
+values, or hand-computed intermediates are a special case of `X == Y`:
+
+- The Reviewer that asserts a numeric expectation is correct must
+  re-derive it from primary sources (formula + arithmetic) **or
+  independently recompute it with a separate tool** (mpmath,
+  sympy, an algebraic identity, a closed-form with verified
+  roots). Author-self-verified algebra without independent
+  recomputation is `Reasonable Judgment (Unverified)`, not
+  `Verified`. Using a wrong self-verified numeric in a fixture
+  for several iterations until the loop bound gives out is
+  exactly the failure mode this principle prevents.
+- When independent recomputation is impossible (no symbolic
+  library, no closed form derivable), the Finding is
+  `Reasonable Judgment (Unverified)`, and the Main Agent must
+  surface the Unknown — not paper over it with another fix
+  iteration.
+
 ### 4.3 External / Protocol Facts
 
 Claims about external systems, protocols, APIs, libraries, or standards
@@ -261,7 +279,49 @@ authoritative sources.
 A fix that just shipped is verified once by Targeted Resolution
 Verification. A Targeted Verification finding that surfaces new material
 issues may justify one additional corrective fix and one additional
-Targeted Verification. Beyond that:
+Targeted Verification. Beyond that the Skill runs **convergence
+analysis** before any further fix:
+
+1. **Re-derive the original Necessary Condition** that the cycle
+   is supposed to restore. A finding whose original NC was
+   "the expected IL value at p=1.1 is `-0.001134430...`" must
+   still derive from the same source after every iteration; if
+   it cannot, the test was authored incorrectly, not the
+   implementation.
+2. **Compare each iteration's evidence quality.** A fix that
+   "passed review" by author-self-verified algebra is not the
+   same as a fix that passed because the Reviewer recomputed
+   the expected value with an independent tool. If a previous
+   iteration's evidence was lower quality, that is *why* it
+   did not hold — change the evidence source (independent
+   recomputation, mpmath / sympy comparison, hand-derived
+   closed form), do not tweak the same lower-quality evidence.
+3. **Distinguish fix dimensions**:
+   - *Routine correctness* (encoding typo, fixture value off,
+     parameter rename, rounding mode, missing unit annotation)
+     does **not** need a fresh user authorization. Continue
+     inside the loop.
+   - *Goal / scope / key-constraint* change (new feature, new
+     trade-off, lifted constraint) does need a fresh user
+     authorization — re-route via Cross-layer Coordination, do
+     not chain it into the same loop as routine correctness.
+4. **Stop conditions** that require surfacing the constraint,
+   not a fresh fix:
+   - Same Necessary Condition fails to verify across two or
+     more iterations despite independent recomputation — the
+     approach is wrong, not the iteration count.
+   - The Fix requires changing an upstream authoritative content
+     the current cycle did not authorize.
+   - The remaining gap is now a goal / scope / key-constraint
+     decision the Main Agent cannot make alone.
+
+Surface the stop with evidence: what was tried, what was
+independently verified, what remains failing. Do not invite the
+user to choose between "keep the known error" and "guess at
+Implementation"; that choice has no empirical basis — close the
+gap properly or hold the status at `draft`.
+
+Beyond that:
 
 - Stop. Preserve the actual evidence (what was tried, what was checked,
   what still fails).

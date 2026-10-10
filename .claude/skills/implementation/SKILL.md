@@ -347,23 +347,45 @@ the resume position.
 
 ## 13. Completion and Handoff Criteria
 
-Implementation is ready for handoff when:
+Implementation is ready for handoff when — and only when — **every**
+gate below holds at the moment of the transition:
 
-- `DESIGN.md` is `final` (Provider is the unique publisher of the
-  public contract; this Skill did not modify it unless this module
-  IS the Provider and the contract edit was authorized).
-- Each public capability in `DESIGN.md` § Provided Public Contracts
-  has at least one observable test.
+- `DESIGN.md` is `final` — read frontmatter and `# Blocking
+  Unknowns`, not the prose. If either says the design still
+  carries a Blocking item, handoff is invalid; the open item is
+  a handoff obligation this Skill must fulfill or have
+  documented in `# Resume Notes`.
+- Each public capability in `DESIGN.md` § Provided Public
+  Contracts has at least one observable test.
 - Each assigned Spec REQ has an observable test whose expected
-  outcome derives from the Spec, not the implementation.
+  outcome derives from the Spec, not the implementation
+  bookkeeping. A test that asserts on a private helper cannot
+  serve as the REQ's verification.
 - Test suite is PASS (no FAIL; no NOT RUN left over from initial
-  collection issues).
-- No Blocking Unknown from `DESIGN.md` § Blocking Unknowns remains
-  open against this module.
-- Either a Trigger A review returned clean, or Self-check is
-  sufficient for low-risk modules.
-- A Trigger B verification ran clean for material changes since the
-  last verify.
+  collection issues) under the recorded `run` command. Recording
+  PASS from a stale or different command does not satisfy this
+  gate.
+- No Blocking Unknown from `DESIGN.md` § Blocking Unknowns
+  remains open against this module.
+- Trigger A evidence declared in `verification.md` §3 is on hand,
+  or the gate is satisfied by Self-check for low-risk modules.
+  "Will be done in production" is not Trigger A evidence at the
+  handoff gate.
+- A Trigger B verification ran clean for material changes since
+  the last verify.
+
+A Targeted Verification that clears one local fix does **not**
+by itself make the module implementation-ready. The Trigger A
+evidence list for the module's contract surface — not just the
+last fix's test — must be present. If any item is missing, the
+open obligation goes into `# Resume Notes` and blocks the
+handoff closure language.
+
+If any gate fails, the skill does not finalize the handoff. It
+records which gate is blocking, what the artifact currently says,
+what evidence would resolve it, and — for gates that are not
+within the skill's authority to close — routes the gate forward
+via the Cross-layer Coordination.
 
 `DESIGN.md` final + `impl/` committed does NOT mean
 `Implementation Verified (Production)`. That belongs to downstream
@@ -409,25 +431,33 @@ trade-off the agent cannot decide alone.
 6. **Verified premises.** Load-bearing library / protocol /
    state-machine premises cite a primary source per `CLAUDE.md`
    Search Rules.
-7. **Reuse, don't copy.** Cross-layer rules live in
+7. **Numerical expectations must be independently re-derivable.**
+   When a Test's expected value is asserted as "the correct
+   answer", the Reviewer MUST independently recompute it. A
+   self-verified expected value that does not match an
+   independent recomputation is `Reasonable Judgment (Unverified)`,
+   not `Verified`; the skill does not reach `PASS` on Tests with
+   such expected values until the value is recomputed or
+   re-derived.
+8. **Reuse, don't copy.** Cross-layer rules live in
    `cross-layer-coordination.md`; Reviewer rules live in
    `independent-reviewer.md` and `verification.md`. Do not
    duplicate.
-8. **Reuse project conventions.** Follow the project's existing
+9. **Reuse project conventions.** Follow the project's existing
    test framework, package layout, dependency manager. Do not
    introduce a parallel convention just because this Skill runs.
-9. **No new Subagent.** This Skill does not introduce new Agents.
-   It uses the existing Independent Reviewer and operates within
-   the Main Agent.
-10. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`.
+10. **No new Subagent.** This Skill does not introduce new Agents.
+    It uses the existing Independent Reviewer and operates within
+    the Main Agent.
+11. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`.
     Implementation does not introduce `passing / merged / released`
     or other statuses.
-11. **Bind the loop.** When applying a corrective change in
+12. **Bind the loop.** When applying a corrective change in
     response to upstream feedback, do not start an unbounded Fix →
     Verify cycle. The cap is in `verification.md` §6.
-12. **Persist resume position.** Cross-session resume depends on
+13. **Persist resume position.** Cross-session resume depends on
     `# Resume Notes`.
-13. **Lightweight.** Avoid heavyweight frameworks, monorepo
+14. **Lightweight.** Avoid heavyweight frameworks, monorepo
     sprawl, or any "release pipeline" that is not part of the
     project's existing convention.
 

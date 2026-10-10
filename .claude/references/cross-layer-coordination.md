@@ -111,6 +111,51 @@ Rules:
 
 ### 2.5 Verify and Return
 
+Before the originating Skill accepts a returned Fix and proceeds, it
+**re-checks the authoritative artifact against the resolution** — it
+does not rely on the returner's claim alone. The check is small but
+strict:
+
+- Did the targeted authoritative content actually change in the
+  expected way (read the file / state the return message references,
+  not just the prose summary)?
+- Does the artifact now satisfy every Necessary Condition the
+  Fix was supposed to restore? A Necessary Condition introduced by
+  the Fix must be checked the same way a Necessary Condition
+  introduced by original authoring is checked.
+- Do cross-document References in the artifact (e.g. "depends on
+  `<other-doc>` (`<status>`)") still match the **current** state
+  of the cited document, or do they survive only as historical
+  context? If stale (e.g., a Provider was promoted from `draft`
+  to `final` after a reopen but the Consumer still says
+  "currently draft"), the originating Skill notes the drift and
+  fixes it in the same loop or routes it forward via the same
+  feedback contract — never silently let the drift persist.
+
+If any of those reads is not what the originating Skill expects,
+the Fix did not actually land. Treat the return message as
+unverified and re-route.
+
+### 2.5.b Status-gate disciplines (cross-Skill)
+
+The same discipline applies to any status transition that
+encodes a completion claim (Spec `archived`, Module Design
+`final`, Implementation `handoff`):
+
+- Read the artifact's `# Unknowns` / `# Blocking Unknowns and
+  Implementation Handoff` / equivalent sections **at the moment of
+  the transition**. The transition is invalid if any item is still
+  flagged Blocking; resolve or reclassify first.
+- Read the artifact's `Source <other-doc>` / "depends on" /
+  cross-module References and confirm they match the **current**
+  authoritative state of the cited document (not historical). If
+  stale, update or surface as Architecture-completeness, Spec, or
+  Implementation follow-up — do not finalize on stale references.
+- Trigger evidence declared in the Skill's §13 must be on hand,
+  not claimed. "Will be done by Implementation" is not Trigger A
+  evidence at the Design gate — it is a follow-up handoff
+  obligation that Implementation owns.
+
 The downstream Owner returns:
 
 ```text
@@ -245,6 +290,45 @@ The following are **not** cross-layer coordination; they are coordination failur
 - **Decision-talk fatigue.** Creating a feedback record for every micro-issue.
 - **Same-root, duplicate findings.** Producing separate Findings for the same root cause instead of merging them.
 - **Auto-delegation of trivial edits.** Routing every Spec / Architecture edit to a full Independent Review regardless of impact. The Trigger rules in `.claude/references/verification.md` §3 — not the user's `/review` input — decide when an automatic review fires.
+
+Additional anti-patterns, surfaced by actual run evidence:
+
+- **Bundle unrelated findings in one revision.** A single fix
+  revision that addresses a necessary defect AND a list of
+  Improvements loses the necessary-vs-optional distinction. Pair
+  the necessary fix with one of: queuing the Improvement for a
+  separate revision; rejecting it with evidence; or asking the
+  user only when the Improvement changes goal / scope / a key
+  constraint. Do not let Improvements piggyback on a necessary
+  fix to ride past triage.
+- **Stale cross-document references at the status gate.** A
+  Spec / Architecture / Module Design doc that still cites
+  `currently draft` for a Provider that has since been promoted
+  to `final` (or any analogous drift) is a default-FAIL on the
+  status transition. Reconcile the references against current
+  state at the moment of the transition — not in a "later
+  cleanup" pass.
+- **Status gates that read intent, not content.** "No Blocking
+  Unknown remains" is true in prose but false in # Unknowns when
+  one entry is still flagged Blocking. The check at the gate
+  reads the section, not the prose.
+- **Routine correctness escalation.** A rounding-mode tweak, a
+  fixture number, an encoding constant, a parameter rename — none
+  of these is a goal / scope / key-constraint change. Asking the
+  user for a fresh authorization to apply them burns the
+  verification loop and confuses "I have a problem" with "the
+  user has to choose something". Reserve user authorization for
+  the latter.
+- **"Self-verified algebraically" as evidence.** Mentioning an
+  algebraic check the author performed is not independent
+  evidence. The Reviewer — or an external library — must
+  recompute. See `verification.md` §4.2 / §4.4 and
+  `independent-reviewer.md` §4 / §5.
+- **Local fix → module-ready inference.** A single Targeted
+  Verification that clears a local fix does not, by itself, make
+  a module implementation-ready. Implementation Handoff
+  requires the Trigger A evidence declared in the relevant §13
+  to be on hand, not promised by follow-ups.
 
 ## 7. When this reference is loaded
 

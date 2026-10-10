@@ -337,7 +337,18 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
 1. Load `SPEC.md`.
 2. Render a final summary: capabilities, Requirements, invariants, acceptance conditions, handoff items.
 3. **Confirmation rule.** When called as a slash command, confirm with the user explicitly. When called via the natural-language completion flow (the user just said "确认，继续" / "SPEC-001 没问题了" / "需求已经确定" in response to a recent completion proposal), reuse that confirmation — do not prompt a second time. If the response is ambiguous, ask for clarification rather than assume.
-4. **Completion check before archive.** For the natural-language flow, verify: saved, no Blocking Unknown, important Requirements have sources and acceptance, traceability valid, no major upstream conflict. If a Blocking issue exists, surface it and stop — do not silently archive. Non-Blocking issues are recorded in `# Unknowns and Upstream Feedback` and do not block.
+4. **Completion check before archive.** For the natural-language flow, verify — by reading the actual artifact, not the prose summary:
+
+   - saved;
+   - **No entry in `# Unknowns and Upstream Feedback` is still flagged Blocking.** An entry described as resolved but whose status line still says "Blocking" is unresolved. Reclassify or remove first; do not archive over it.
+   - important Requirements have sources and acceptance;
+   - traceability is valid;
+   - no major upstream conflict;
+   - cross-document References (e.g. `# Architecture Handoff`, "architecture depends on", "out of scope" lists) match the *current* authoritative state — not historical.
+
+   If a Blocking issue exists, surface it and stop — do not silently
+   archive. Non-Blocking issues are recorded in `# Unknowns and
+   Upstream Feedback` and do not block.
 5. Spec can be archived when its Requirements are sufficiently defined for downstream. Architecture / Module Design can proceed in parallel or later.
 6. On confirmation: set `status: archived`, update `updated`. Append a note to `# Resume Notes`.
 7. **Downstream Routing (post-archive).** After successful archive, run the routing check (§19) and surface the recommendation to the user. The routing is informational — the user decides whether to follow.
