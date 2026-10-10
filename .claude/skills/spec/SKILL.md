@@ -455,6 +455,8 @@ When the routing evidence itself is incomplete (Baseline exists but Owner / cont
 
 Recommendation: proceed directly to Module Design for the relevant module. No new Architecture work required. Skill invocability is not required to recommend Route C — it changes only who performs the Module Design, not the routing verdict.
 
+When the Module Design Skill is invocable from the current environment, surface `/module-design new <module-id>` for each affected module (the module ID comes from the Baseline's Module Responsibility Map). When the Skill is not invocable, report the unavailability explicitly and surface the manual command — do not pretend to invoke it.
+
 ### 19.3 Routing evidence
 
 The routing conclusion must cite the minimum evidence:

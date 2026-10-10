@@ -424,6 +424,10 @@ When the user confirms ("确认，继续" or equivalent), save the Baseline. Do 
 - Result B: present the Revision plan. If the user confirms, run `revise` (or stay in the same turn if already authorized). Hand off to Module Design after Revision.
 - Result C: explain the missing evidence. Do not pretend to have completed the impact.
 
+### Handoff to Module Design
+
+When an `init`, `revise`, or Impact result A / B hands off to Module Design, surface `/module-design new <module-id>` for each affected module — the module ID comes from the Baseline's Module Responsibility Map. When the Module Design Skill is invocable from the current environment, use it. When it is not invocable, report the unavailability explicitly and surface the manual command; do not pretend to invoke it. The Module Design Skill takes the Baseline + the assigned Spec Requirements and produces `DESIGN.md` plus optional machine-readable contracts; it does not modify Baseline or Spec content.
+
 ### Handoff Content (to Module Design or downstream)
 
 Always include:
