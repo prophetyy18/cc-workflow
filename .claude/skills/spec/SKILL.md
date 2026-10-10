@@ -311,7 +311,7 @@ When the current Skill has applied an authorized Spec fix that meets any of the 
 2. Build a Mode B delegation message using the template at [references/review.md §2.1](references/review.md#21-delegation-message-template). `Scope` describes the specific change (REQ-ID, Section, Acceptance Criterion). Include the original finding evidence and the authoritative basis for the correct outcome.
 3. Launch the Independent Reviewer in `Targeted Resolution Verification` mode. The Reviewer re-derives the correct outcome independently; this Skill does not pre-bake the verdict.
 4. Triage the `Targeted Verification Executed` report the same way as a Mode A report (§14.1 step 7). If the report shows the change restored the Necessary Condition and introduces no material new defect in scope, record `Authority Resolved` for this finding.
-5. If the report shows the change did NOT restore the Necessary Condition, surface the failing aspects back to the user. One additional corrective fix may justify one additional Targeted Verification (§6 Bound the Loop in `.claude/references/verification.md`). Beyond that, stop and report the unresolved constraint honestly.
+5. If the report shows the change did NOT restore the Necessary Condition, apply the cycle in `.claude/references/verification.md` §6 — re-derive, change the evidence source, or stop with the unresolved constraint honestly. Do not restate the per-round cap here; the §6 cycle is the only source.
 6. **Do not** run Targeted Verification for trivial wording, formatting, or low-risk local edits. The Trigger B criteria above are the gate.
 
 This step is automatic within the current Skill's execution flow — it does not require the user to type `/review` again. See `.claude/references/verification.md` for the shared contract.
@@ -337,16 +337,81 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
 1. Load `SPEC.md`.
 2. Render a final summary: capabilities, Requirements, invariants, acceptance conditions, handoff items.
 3. **Confirmation rule.** When called as a slash command, confirm with the user explicitly. When called via the natural-language completion flow (the user just said "确认，继续" / "SPEC-001 没问题了" / "需求已经确定" in response to a recent completion proposal), reuse that confirmation — do not prompt a second time. If the response is ambiguous, ask for clarification rather than assume.
-4. **Completion check before archive.** For the natural-language flow, verify: saved, no Blocking Unknown, important Requirements have sources and acceptance, traceability valid, no major upstream conflict. If a Blocking issue exists, surface it and stop — do not silently archive. Non-Blocking issues are recorded in `# Unknowns and Upstream Feedback` and do not block.
+4. **Completion check before archive.** For the natural-language flow, verify — by reading the actual artifact, not the prose summary:
+
+   - saved;
+   - **No entry in `# Unknowns and Upstream Feedback` is still flagged Blocking AND is a *Spec prerequisite*** (per `cross-layer-coordination.md` §2.5.e). An entry described as resolved but whose status line still says "Blocking" is unresolved. Reclassify or remove first; do not archive over it.
+   - important Requirements have sources and acceptance;
+   - traceability is valid;
+   - no major upstream conflict;
+   - cross-document References (e.g. `# Architecture Handoff`, "architecture depends on", "out of scope" lists) match the *current* authoritative state — not historical.
+
+   Handoff obligations that Implementation owns (e.g.
+   primary-source verification of a third-party library the Spec
+   *named* but did not need to compute) are not Spec
+   prerequisites; they are recorded but do not block archive.
+   See `cross-layer-coordination.md` §2.5.e for the split.
+
+   If a Blocking Spec-prerequisite issue exists, surface it and
+   stop — do not silently archive. Non-Blocking issues are
+   recorded in `# Unknowns and Upstream Feedback` and do not block.
 5. Spec can be archived when its Requirements are sufficiently defined for downstream. Architecture / Module Design can proceed in parallel or later.
 6. On confirmation: set `status: archived`, update `updated`. Append a note to `# Resume Notes`.
 7. **Downstream Routing (post-archive).** After successful archive, run the routing check (§19) and surface the recommendation to the user. The routing is informational — the user decides whether to follow.
 
 ## 17. Subcommand: `reopen <spec-id>`
 
-1. Confirm with the user. Warn that any downstream Architecture / Module Design / Implementation may have been written against the archived version.
-2. Set `status: active`, update `updated`.
-3. Append a note to `# Resume Notes` explaining why it was reopened.
+`reopen` is the single edit path for an archived Spec — used for
+both material changes and routine corrections. The difference between
+them is the dimension of authorization (impact), not the lifecycle
+shape.
+
+1. **Determine the dimension** by impact (per
+   `cross-layer-coordination.md` §2.5.b.0).
+   - *Material change* — adds / removes / changes a goal, scope,
+     key constraint, or user-visible behavior that was previously
+     approved. Requires fresh user authorization of the scope
+     change.
+   - *Routine correction* — an internally inconsistent
+     artifact element that the Spec Skill resolves from the Spec's
+     own contents (fixture typo, parameter rename that does not
+     change the Requirement meaning, an acceptance case
+     contradicting the Spec's own formula, an internally
+     inconsistent cross-document reference). The Spec Skill
+     makes the edit; no fresh user authorization is required.
+2. **Apply the shape**:
+   - Set `status: active`, update `updated`.
+   - Apply the edit.
+   - **Run the applicable completion checks** before closing:
+     - Read the artifact's `# Unknowns and Upstream Feedback`
+       section; if any entry is still flagged Blocking AND is
+       a Spec prerequisite (§2.5.e), the gate fails.
+     - Read every Reference to other authoritative content; if
+       any is now stale, reconcile or surface.
+     - For material changes, the additional review /
+       verification step that the user authorized (impact-
+       specific) still produces the evidence the gate expects.
+     - The check reads the actual artifact, not the prose
+       summary.
+   - If the gate fails, *keep `status: active`*; record the
+     failing gate, what the artifact says now, and the resume
+     position in `# Resume Notes`. Do not write a final
+     confirmation until the gate passes.
+   - If the gate passes, set `status: archived`, append a
+     note to `# Resume Notes` explaining why it was reopened
+     and what changed (`T1 fixture corrected from `5.00`
+     to `10.00`, consistent with REQ-001 formula` is the kind
+     of note a routine correction should write; a material
+     change should also record what shifted in scope and
+     which downstream layer is affected).
+   - For material changes, also warn that downstream
+     Architecture / Module Design / Implementation may have
+     been written against the prior archived version.
+3. **Route downstream** — for both dimensions, route a forward
+   feedback to the downstream layers (Architecture / Module
+   Design / Implementation) so they re-check dependent content.
+   Spec does NOT itself modify Architecture / Module Design /
+   Implementation / DESIGN files for either dimension.
 
 ## 18. Architecture Handoff
 

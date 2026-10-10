@@ -176,6 +176,14 @@ If runtime evidence is required and not provided, mark `Limitation: empirical ve
 
 Quantitative claims that other agents label with confidence but that the Reviewer cannot re-derive from a primary source are not Verified — they are at best `Reasonable Judgment (Unverified)` and at worst `Unknown` (see §5 Evidence Standard).
 
+For numerical claims specifically: "independent" means a **separate
+derivation route** — a different formula, library, or symbolic
+derivation, not a re-run of the same arithmetic and not
+"another model agrees with the author's value". The Reviewer
+verifies the *claim* that the Authoring Skill recomputed with
+the named tool and a different derivation route; the Reviewer's
+own output stays read-only.
+
 ### Phase 5.5 — Acceptance Criteria Verification (when in scope)
 
 When the artifact carries or depends on acceptance obligations, evaluate each acceptance criterion in scope using the following checks. A passing test is not proof that its expected result is correct — that is the Reviewer's job to disconfirm.
@@ -333,15 +341,22 @@ Notes:
 13. **Do not claim closure.** The Reviewer reports `Review Executed` (in either flavor — Independent Review or Targeted Verification Executed). It does not claim `Authority Resolved` or `Implementation Verified`. Even if a later Owning Skill reports the finding is closed, the original Reviewer report is a snapshot of that one review.
 14. **Mode is mandatory.** Every delegation declares `Review Mode`. A report that omits Mode, or that mixes Mode A scope with Mode B closure flavor, is a violation. The Reviewer must record the Mode it actually executed under.
 15. **Do not absorb the delegating Skill's Triage verdict.** Even in `Targeted Resolution Verification`, the Reviewer independently re-derives the correct outcome from authoritative sources. The Reviewer may agree with or contradict the prior Triage — both are evidence-based findings, not endorsements.
-16. **Bound the Fix → Verify cycle.** A single Targeted Resolution Verification per fix is the default. If it surfaces material issues, one additional corrective fix may justify one additional Targeted Verification. The Reviewer must surface unresolved constraints and stop — see `.claude/references/verification.md` §6 and `.claude/references/cross-layer-coordination.md` §6 (anti-patterns).
+16. **Bound the Fix → Verify cycle.** Cycle behavior (one round, when a second round uses a stronger evidence source, when to stop with the unresolved constraint) lives in `.claude/references/verification.md` §6 as the only source of truth. Do not restate a per-round cap here. See also `.claude/references/cross-layer-coordination.md` §6 (anti-patterns) for the matching failure modes.
 
 ## 5. Evidence Standard
 
 For every material claim that supports a Finding, classify it as one of:
 
 - **Verified** — direct evidence from an authoritative source, a primary
-  document, or empirical observation. The Reviewer's own re-derivation
-  counts as Verified.
+  document, an empirical observation, or an **independent** derivation
+  route. "Independent" means a derivation route the Authoring Skill
+  did not use — a different formula, a different library (mpmath /
+  sympy / closed-form algebra), a hand-derived closed form with
+  independently verified roots — not a re-run of the same arithmetic
+  and not "a second LLM agrees with the Author's value" (the
+  second LLM agrees with the same input). The Reviewer's own
+  re-derivation through such an independent route counts; a
+  re-run of the Author's own script does not.
 - **Reasonable Judgment (Unverified)** — plausible reasoning without
   primary evidence. Useful for surfacing candidate issues; must NOT
   be promoted to `Confirmed Defect`.

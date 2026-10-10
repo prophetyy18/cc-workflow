@@ -282,6 +282,34 @@ bookkeeping (e.g., asserts on a private counter). Such tests cannot
 catch wrong implementations; the Reviewer will surface them per
 `verification.md` §4.4.
 
+### 11.4 Related-consistency check (reconciliation, not re-audit)
+
+Before declaring a fix complete, re-derive the *related* invariant
+claims across the public contract, internal design rationale, and
+acceptance conditions — not just the originally-found test. A
+fix that makes T1 pass while the public contract requires
+`quantize-free full precision` (and the implementation quietly
+applies `quantize(0.01)`) only ships the broken T1 and hides the
+deeper wrong.
+
+For each fix:
+
+- Re-read the public contract; identify every claim that the
+  implementation has changed in tone or shape (parameter
+  ordering, type coercion, defaulting, failure-mode narrowing).
+- For each such claim, ask whether the contract's correctness
+  still holds. If the contract requires A and the
+  implementation returns some quantized-from-A, the contract
+  is violated even when the originally-found test passes.
+- Extend the test set if needed; do not delete or relax tests
+  to make a fix pass.
+
+This is **the same reconciliation discipline** as Module Design's
+DESIGN.md reconciliation after Provider reopen (cross-layer §2.5.b).
+It is not a project-wide audit; it covers only the area changed by
+the current fix. It is also not a once-per-fix check — it is the
+minimum to claim `Verified` on the fix.
+
 ## 12. Cross-layer Triggers
 
 When implementation reveals an upstream error (Provider contract
@@ -347,23 +375,90 @@ the resume position.
 
 ## 13. Completion and Handoff Criteria
 
-Implementation is ready for handoff when:
+Implementation is ready for handoff when — and only when —
+**every** gate below holds at the moment of the transition.
+The gates in *§13.1* are preconditions this Skill must satisfy.
+The gates in *§13.2* are evidence the implementation must produce
+**itself** before handoff. The split matches
+`cross-layer-coordination.md` §2.5.e: design prerequisites vs
+handoff obligations.
 
-- `DESIGN.md` is `final` (Provider is the unique publisher of the
-  public contract; this Skill did not modify it unless this module
-  IS the Provider and the contract edit was authorized).
-- Each public capability in `DESIGN.md` § Provided Public Contracts
-  has at least one observable test.
+### 13.1 Preconditions this Skill must satisfy
+
+- `DESIGN.md` is `final` — read frontmatter and `# Resume Notes`,
+  not the prose. If the design carries an open Blocking
+  *prerequisite*, handoff is invalid.
+- Each public capability in `DESIGN.md` § Provided Public
+  Contracts has at least one observable test.
+- The implementation matches the public contract field by field:
+  parameter order / type / semantics, return type and unit,
+  state-change posture, timing, failure semantics. A rename,
+  `quantize`, or other coercion in the implementation that
+  the public contract did not authorize is a contract conflict
+  — fix the implementation (or surface the contract gap to
+  Module Design); do not paper over it with a test that
+  asserts the wrong shape.
 - Each assigned Spec REQ has an observable test whose expected
-  outcome derives from the Spec, not the implementation.
-- Test suite is PASS (no FAIL; no NOT RUN left over from initial
-  collection issues).
-- No Blocking Unknown from `DESIGN.md` § Blocking Unknowns remains
-  open against this module.
-- Either a Trigger A review returned clean, or Self-check is
-  sufficient for low-risk modules.
-- A Trigger B verification ran clean for material changes since the
-  last verify.
+  outcome derives from the Spec, not the implementation
+  bookkeeping. A test that asserts on a private helper cannot
+  serve as the REQ's verification. When the Spec contains a
+  numerical expectation (fixture, expected output, asserted
+  constant), the test's expected value must match an
+  *independent recomputation*; if it doesn't, surface as a
+  Spec-side error per the Spec §17 routine-correction flow.
+- Test suite is PASS (no FAIL; no NOT RUN left over from
+  initial collection issues) under the recorded `run` command.
+  Recording PASS from a stale or different command does not
+  satisfy this gate.
+- The related consistency check (§11.4) has passed against
+  the *current* public contract, internal design rationale, and
+  acceptance conditions. A single passing test set does not
+  prove the implementation honors the contract's broader
+  invariants — re-derive the cross-section claims.
+
+If any §13.1 gate fails, the skill does not finalize handoff.
+It records which gate is blocking, what the artifact currently
+says, what evidence would resolve it, and — for gates that are
+not within the skill's authority to close — routes the gate
+forward via Cross-layer Coordination.
+
+### 13.2 Implementation-produced evidence required at handoff
+
+The items below are evidence Implementation produces *itself*.
+They are recorded in `# Blocking Unknowns and Implementation
+Handoff` (and the §6 Trigger A list this Skill maintains)
+**before** handoff closes.
+
+- Each Spec REQ assigned to this module has a passing
+  observable test with an independent-recomputation check on
+  numerical expected values.
+- The Trigger A / Trigger B verification entries that the
+  module's contract surface requires (per `verification.md` §3
+  — money / assets / security / data correctness / public
+  contract criteria) are met.
+- The module's `impl/` is committed; the recorded `run_tests`
+  command reflects that state and exits cleanly under
+  `python3 -m unittest` (or project-equivalent).
+- A Targeted Resolution Verification (Mode B) ran clean for
+  material changes since the last verify.
+
+If §13.2 items accumulate beyond what is reasonable to track,
+that is itself a sign the implementation's surface was larger
+than the recorded handoff obligations; surface it in
+`# Resume Notes` — do not retroactively relocate them into
+§13.1 to "complete" the implementation prematurely.
+
+A Targeted Verification that clears one local fix does **not** by
+itself make the module implementation-ready. The Trigger A
+evidence list for the module's contract surface — not just the
+last fix's test — must be present. If any item is missing, the
+open obligation goes into `# Resume Notes` and blocks the
+handoff closure language.
+
+`DESIGN.md` final + `impl/` committed does NOT mean
+`Implementation Verified (Production)`. That belongs to
+downstream delivery verification after staging/production
+evidence.
 
 `DESIGN.md` final + `impl/` committed does NOT mean
 `Implementation Verified (Production)`. That belongs to downstream
@@ -409,25 +504,33 @@ trade-off the agent cannot decide alone.
 6. **Verified premises.** Load-bearing library / protocol /
    state-machine premises cite a primary source per `CLAUDE.md`
    Search Rules.
-7. **Reuse, don't copy.** Cross-layer rules live in
+7. **Numerical expectations must be independently re-derivable.**
+   When a Test's expected value is asserted as "the correct
+   answer", the Reviewer MUST independently recompute it. A
+   self-verified expected value that does not match an
+   independent recomputation is `Reasonable Judgment (Unverified)`,
+   not `Verified`; the skill does not reach `PASS` on Tests with
+   such expected values until the value is recomputed or
+   re-derived.
+8. **Reuse, don't copy.** Cross-layer rules live in
    `cross-layer-coordination.md`; Reviewer rules live in
    `independent-reviewer.md` and `verification.md`. Do not
    duplicate.
-8. **Reuse project conventions.** Follow the project's existing
+9. **Reuse project conventions.** Follow the project's existing
    test framework, package layout, dependency manager. Do not
    introduce a parallel convention just because this Skill runs.
-9. **No new Subagent.** This Skill does not introduce new Agents.
-   It uses the existing Independent Reviewer and operates within
-   the Main Agent.
-10. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`.
+10. **No new Subagent.** This Skill does not introduce new Agents.
+    It uses the existing Independent Reviewer and operates within
+    the Main Agent.
+11. **No parallel lifecycle.** `DESIGN.md` uses `draft | final`.
     Implementation does not introduce `passing / merged / released`
     or other statuses.
-11. **Bind the loop.** When applying a corrective change in
+12. **Bind the loop.** When applying a corrective change in
     response to upstream feedback, do not start an unbounded Fix →
     Verify cycle. The cap is in `verification.md` §6.
-12. **Persist resume position.** Cross-session resume depends on
+13. **Persist resume position.** Cross-session resume depends on
     `# Resume Notes`.
-13. **Lightweight.** Avoid heavyweight frameworks, monorepo
+14. **Lightweight.** Avoid heavyweight frameworks, monorepo
     sprawl, or any "release pipeline" that is not part of the
     project's existing convention.
 

@@ -356,7 +356,7 @@ When the current Skill has applied an authorized `revise` that meets any of the 
 2. Build a Mode B delegation message: see `.claude/references/verification.md` §2 for the contract; the reviewer's reasoning frame lives in `.claude/agents/independent-reviewer.md`. `Scope` describes the specific section (e.g., "Module Responsibility Map §3 — added module X"). Include the original Impact finding's evidence and the authoritative basis for the correct outcome (the Spec Requirement / Capability being satisfied).
 3. Launch the Independent Reviewer in `Targeted Resolution Verification` mode. The Reviewer re-derives the correct outcome; the Skill does not pre-bake the verdict.
 4. Triage the `Targeted Verification Executed` report. If the change satisfies the upstream Spec Requirement and introduces no material new defect in scope, record `Authority Resolved` for this architecture finding. If it does not, surface the failing aspects back to the user.
-5. Bound the loop: one additional corrective revise may justify one additional Targeted Verification (see `.claude/references/verification.md` §6). Beyond that, stop and report the unresolved constraint honestly.
+5. Cycle behavior — when one round is enough, when a second round uses a stronger evidence source, and when to stop with the unresolved constraint — lives in `.claude/references/verification.md` §6. Do not restate a per-round cap here.
 6. **Do not** run Targeted Verification for trivial wording, formatting, or low-risk local Baseline edits. The Trigger B criteria above are the gate.
 
 This step is automatic within the current Skill's execution flow — it does not require the user to run `/architecture review` again. See `.claude/references/verification.md` for the shared contract and loop bounding.

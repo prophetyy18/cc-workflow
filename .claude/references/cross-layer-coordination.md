@@ -111,6 +111,151 @@ Rules:
 
 ### 2.5 Verify and Return
 
+Before the originating Skill accepts a returned Fix and proceeds, it
+**re-checks the authoritative artifact against the resolution** — it
+does not rely on the returner's claim alone. The check is small but
+strict:
+
+- Did the targeted authoritative content actually change in the
+  expected way (read the file / state the return message references,
+  not just the prose summary)?
+- Does the artifact now satisfy every Necessary Condition the
+  Fix was supposed to restore? A Necessary Condition introduced by
+  the Fix must be checked the same way a Necessary Condition
+  introduced by original authoring is checked.
+- Do cross-document References in the artifact (e.g. "depends on
+  `<other-doc>` (`<status>`)") still match the **current** state
+  of the cited document, or do they survive only as historical
+  context? If stale (e.g., a Provider was promoted from `draft`
+  to `final` after a reopen but the Consumer still says
+  "currently draft"), the originating Skill notes the drift and
+  fixes it in the same loop or routes it forward via the same
+  feedback contract — never silently let the drift persist.
+
+If any of those reads is not what the originating Skill expects,
+the Fix did not actually land. Treat the return message as
+unverified and re-route.
+
+### 2.5.b Authorization by impact, not by operation name
+
+Whether a fix requires fresh user authorization is decided by
+**impact**, not by the operation name. The judgement factors
+are independent of the operation:
+
+- **What the user already authorized** — the previous completion
+  confirmation covers the artifact's surface for which it was
+  given. A confirmed "implement this Design" authorizes the
+  necessary in-Design changes that follow, including any cross-
+  layer fixes needed to make that Design itself consistent.
+  Already-authorized necessary fixes are executed by the
+  owning Skill and propagated; the user is not re-prompted.
+- **Whether upstream authoritative content determines the fix
+  direction unambiguously** — a Spec formula names the correct
+  expected value, so a fixture mismatch is a Spec typo. A
+  Provider contract names the return shape, so a rounding
+  inconsistency against it is a contract conflict. When
+  upstream sources pin the answer, the owning Skill makes the
+  fix.
+- **Whether the fix changes confirmed semantics, scope, a key
+  constraint, or a compatibility commitment** — a rename that
+  user-visible code documents changes the user-visible surface
+  (if those documents are user-visible behavior). A rounding
+  tweak that contradicts the public contract's "full precision"
+  claim is a contract conflict. A "rename" of an internal
+  identifier visible only inside `impl/` is not.
+- **Whether the fix exposes a trade-off or a user-meaningful
+  choice only the user can make** — choosing between alternatives
+  the user has not expressed a preference on; deciding behavior
+  the upstream artifact was silent on; setting a configurable
+  default that affects user outcomes.
+
+Operation names ("rename", "rounding mode", "encoding typo")
+do not decide the authorization category. A so-called "rename"
+that changes user-visible surface is goal/scope; a so-called
+"fixture typo" that contradicts an upstream silence is scope.
+The category follows from impact, not from naming.
+
+**Internal contradiction is not authorization.** When two
+parts of an artifact say different things (Spec formula vs
+acceptance fixture, Provider contract vs Consumer reference),
+the right move is to re-derive which side is correct against
+upstream sources — not to assume the contradiction resolves
+itself or to fabricate a fix. If re-derivation determines the
+answer, the fix is owned by the relevant Skill (no fresh user
+auth). If it cannot determine the answer, surface the specific
+unresolved question with the trade-off named, not a generic
+"approve / decline" binary.
+
+### 2.5.b.1 Routine correctness (impact-determined)
+
+The same judgement criteria determine what counts as routine
+correctness under §2.5.b.0. Routine correctness is what the
+fix looks like when *all four factors above* fall on the
+"no fresh user auth" side:
+
+- The user's prior authorization covers the artifact's surface.
+- Upstream sources pin the answer.
+- No confirmed semantics / scope / key-constraint / compat are
+  changed.
+- No trade-off the user must decide.
+
+A fix that crosses any factor needs a fresh authorization at
+the relevant layer (reopen for Spec-level, `revise` for
+Architecture-level, etc.). A fix that crosses none is owned by
+the Skill whose authority the fix falls under.
+
+### 2.5.c Status-gate disciplines (cross-Skill)
+
+The same discipline applies to any status transition that
+encodes a completion claim (Spec `archived`, Module Design
+`final`, Implementation `handoff`):
+
+- Read the artifact's `# Unknowns` / `# Blocking Unknowns and
+  Implementation Handoff` / equivalent sections **at the moment of
+  the transition**. The transition is invalid if any item is still
+  flagged Blocking AND that item is a *design prerequisite*
+  (§2.5.e); resolve or reclassify first. Note the distinction
+  below: Implementation-handoff obligations are recorded at the
+  Design transition but do *not* block it.
+- Read the artifact's `Source <other-doc>` / "depends on" /
+  cross-module References and confirm they match the **current**
+  authoritative state of the cited document (not historical). If
+  stale, update or surface as Architecture-completeness, Spec, or
+  Implementation follow-up — do not finalize on stale references.
+- Trigger evidence declared in the Skill's §13 must be on hand,
+  not claimed. "Will be done by Implementation" is not Trigger A
+  evidence at the Design gate — it is a follow-up handoff
+  obligation that Implementation owns.
+
+### 2.5.e Design prerequisites vs handoff obligations
+
+A `DESIGN.md` cannot reach `final` because of two distinct
+reasons, and only one of them is *this* Skill's gate:
+
+- **Design prerequisite** — without resolving this, the
+  contract itself cannot be stated correctly. Examples: a
+  primary-source verification the design's formulas depend on,
+  a behavior the Spec is silent on, a Required Outcome the
+  design can't support. These must be closed at the Design
+  transition (resolved, reclassified, or surfaced back to
+  the upstream layer through its routine-correction path).
+- **Implementation verification obligation** — a behavior
+  that is correct on the contract surface but only verifiable
+  end-to-end against a running implementation / test suite /
+  library. Examples: type-checking against an actual library,
+  runtime performance, fuzz testing, primary-source verification
+  of library behavior the consumer needs but the design only
+  *named*. The Design transition records these as handoff
+  obligations (in `source_spec` / `# Blocking Unknowns and
+  Implementation Handoff` / equivalent) — they are owned by
+  the next layer, not by Design. They do **not** block Design
+  final; they gate Implementation handoff.
+
+If the §13 mixing rule reads as "any open item blocks Design
+final", the design side and the implementation side fall into
+mutual waiting. They are separated here. Closing the loop on
+either side still goes through §2.5 / §2.5.b.
+
 The downstream Owner returns:
 
 ```text
@@ -240,11 +385,86 @@ The following are **not** cross-layer coordination; they are coordination failur
 - **All suggestions → Confirmed Defect.** Inflating severity to demand a fix.
 - **Tech solution → authoritative Requirement.** Writing "use Redis" into a Spec because a Reviewer proposed it.
 - **Triage rubber-stamps.** The Owning Skill copying the Reviewer's recommendation without independent judgment.
-- **Unconditional loops.** Reviewer → Fix → Reviewer → Fix with no clear stopping condition. The shared loop-bounding rule lives in `.claude/references/verification.md` §6: one initial Targeted Verification per fix; at most one additional corrective fix plus one additional Targeted Verification; beyond that, surface the unresolved constraint and stop. Do not lower the original system guarantee to make a review pass.
+- **Unconditional loops / unbounded cycle.** Treating "Fix → Verify → Fix → Verify" as a budget to spend rather than a state machine with a stop condition. The only source of truth for the cycle's behavior is `.claude/references/verification.md` §6 — the §6 cycle (one Fix ↔ one Targeted Resolution Verification, with stop conditions at §6.3). No Skill restates its own cap; no anti-pattern asserts a different cap. Counting rounds, declaring "one additional" rounds, or letting the User authorize "beyond the cap" are not separate exit ramps — they are the failure mode this anti-pattern names.
 - **Self-closing.** Claiming `Implementation Verified` without empirical evidence.
 - **Decision-talk fatigue.** Creating a feedback record for every micro-issue.
 - **Same-root, duplicate findings.** Producing separate Findings for the same root cause instead of merging them.
 - **Auto-delegation of trivial edits.** Routing every Spec / Architecture edit to a full Independent Review regardless of impact. The Trigger rules in `.claude/references/verification.md` §3 — not the user's `/review` input — decide when an automatic review fires.
+
+Additional anti-patterns, surfaced by actual run evidence:
+
+- **Bundle unrelated findings in one revision.** A single fix
+  revision that addresses a necessary defect AND a list of
+  Improvements loses the necessary-vs-optional distinction. Pair
+  the necessary fix with one of: queuing the Improvement for a
+  separate revision; rejecting it with evidence; or asking the
+  user only when the Improvement changes goal / scope / a key
+  constraint. Do not let Improvements piggyback on a necessary
+  fix to ride past triage.
+- **Stale cross-document references at the status gate.** A
+  Spec / Architecture / Module Design doc that still cites
+  `currently draft` for a Provider that has since been promoted
+  to `final` (or any analogous drift) is a default-FAIL on the
+  status transition. Reconcile the references against current
+  state at the moment of the transition — not in a "later
+  cleanup" pass.
+- **Status gates that read intent, not content.** "No Blocking
+  Unknown remains" is true in prose but false in # Unknowns when
+  one entry is still flagged Blocking. The check at the gate
+  reads the section, not the prose.
+- **Routine correctness escalation.** Treating routine correctness
+  as requiring a fresh user authorization — or, equivalently,
+  treating it as not requiring one when the impact factors in
+  §2.5.b.0 don't agree. The category follows from impact, not
+  from operation name. Asking the user to authorize a fix the
+  Skill's impact check would have classified as routine is
+  burning the loop and confusing "I have a problem" with "the
+  user has to choose something"; refusing to authorize a fix
+  the impact check classifies as scope-driven is silently
+  expanding scope. Either failure mode looks the same to the
+  user: a stuck task with an unclear next step.
+- **"Self-verified algebraically" as evidence.** Mentioning an
+  algebraic check the author performed is not independent
+  evidence. The Reviewer — or an external library — must
+  recompute. See `verification.md` §4.2 / §4.4 and
+  `independent-reviewer.md` §4 / §5.
+- **Local fix → module-ready inference.** A single Targeted
+  Verification that clears a local fix does not, by itself, make
+  a module implementation-ready. Implementation Handoff
+  requires the Trigger A evidence declared in the relevant §13
+  to be on hand, not promised by follow-ups.
+- **Treating an internal fixture inconsistency as a scope
+  change.** When the upstream artifact's own content (Spec
+  formula vs acceptance fixture, internal cross-reference vs
+  its current state) contradicts itself, the right move is the
+  owning layer's own routine correction (§2.5.b / Spec §17
+  single reopen path), not an in-place edit that skips the
+  reopen flow and not a reopen claimed as a "material change"
+  for authorization. Whether the change requires fresh user
+  authorization is decided by impact (§2.5.b.0), not by the
+  reopen command. Routing a fixture mismatch to the user
+  wastes a round of clarification and conflates two different
+  things.
+- **Stopping at "I noticed and wrote a forward feedback".**
+  Discovered a defect, sent a feedback message, did not act on
+  it, did not resume the original task. That is *partial*
+  coordination, not the coordination the framework expects.
+  The originating Skill either fixes the upstream content
+  itself (when it has the authority and the change is routine
+  correctness) or routes the loop through cross-layer
+  coordination §2.5 such that the original task *resumes*.
+  Forward feedback is not the end of the loop — it is the
+  trigger for the next round.
+- **Verification only on the originally-found assertion.**
+  When a fix passes, the related public contract claims, the
+  internal design rationale, and the downstream consumer's
+  expectations are also part of the truth claim. A `quantize`
+  the public contract did not authorize; a parameter rename
+  the consumer's call-site now mismatches; a rounding mode
+  the acceptance condition contradicts — these are
+  contradictions, not separate unrelated work. The
+  verification must reconcile the related sections (per
+  `verification.md` §4.5 and Implementation §11.4).
 
 ## 7. When this reference is loaded
 

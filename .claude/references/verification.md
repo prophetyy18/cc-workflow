@@ -186,6 +186,42 @@ A claim of the form `X == Y` must be supported by derivation, code, or
 a verified external source — not by analogy or pattern. Numbers
 without sources are Unverified.
 
+**Numerical expectations** in test fixtures, expected outputs, asserted
+values, or hand-computed intermediates are a special case of `X == Y`:
+
+- The Reviewer that asserts a numeric expectation is correct must
+  re-derive it from primary sources (formula + arithmetic) **or
+  independently recompute it with a separate tool** (mpmath,
+  sympy, an algebraic identity, a closed-form with verified
+  roots). "Independent" means a **separate derivation route** —
+  not a re-run of the same arithmetic, and not "another model
+  confirms the author's value". Calling a library that uses
+  the same formula the author used does not constitute
+  independent recomputation; the library would agree with
+  the same wrong input.
+- Author-self-verified algebra without independent recomputation
+  is `Reasonable Judgment (Unverified)`, not `Verified`. Using
+  a wrong self-verified numeric in a fixture for several
+  iterations until the loop bound gives out is exactly the
+  failure mode this principle prevents.
+- **Who does the recomputation.** The Reviewer Subagent is
+  read-only — it cannot run Python, mpmath, or sympy. When
+  numerical verification requires execution, the *Authoring
+  Skill* (the one proposing the design or the change) runs
+  it as part of producing the verification evidence. The
+  Authoring Skill's allowed-tools must include the necessary
+  execution tool (e.g. `Bash(python3*)` for `decimal` /
+  `mpmath` / `sympy` experiments). Independent Reviewer
+  verifies the *claim* ("the agent re-derived the expected
+  value via mpmath with input X using a closed-form for p=1.1
+  whose roots are 1.0 and 1.1/1.0; the value matches"), not
+  by re-running the code itself.
+- When independent recomputation is impossible (no symbolic
+  library, no closed form derivable), the Finding is
+  `Reasonable Judgment (Unverified)`, and the Main Agent must
+  surface the Unknown — not paper over it with another fix
+  iteration.
+
 ### 4.3 External / Protocol Facts
 
 Claims about external systems, protocols, APIs, libraries, or standards
@@ -223,6 +259,36 @@ boundaries, or cross-module invariants, the Reviewer must:
 - Verify the Required Behavior, Failure Semantics, and Timing / State
   Semantics of the contract match authoritative sources.
 
+**Related-consistency check** (cross-cutting; applicable to
+*every* layer's verification, not just Architecture):
+
+When a fix is verified on a specific test case, that single
+test passing is *not* evidence of contract compliance. The
+Reviewer (or the Authoring Skill at the gate) must also
+reconcile the fix against:
+
+- The public contract's claims that the fix's implementation
+  touches (parameter shape, return shape, coercion posture,
+  failure-mode narrowing). A `quantize` the contract did not
+  authorize, a default value the contract did not document, a
+  reordered argument — any of these is a contract conflict
+  even when the originally-found test passes.
+- The acceptance conditions for the affected Requirement.
+  Does the implementation still satisfy each one?
+- The downstream consumer's expectations, when the consumer's
+  contract location is known. A change that satisfies the
+  Producer's REQ but breaks the Consumer's call shape is a
+  regression.
+- The internal design rationale. If the rationale was "use
+  Decimal throughout" and the implementation coerces to two
+  decimals, the rationale is contradicted.
+
+This is the same discipline `cross-layer-coordination.md` §2.5
+applies to Provider reopen / Consumer follow — the verification
+is the matching discipline on the Implementation side. It is
+not a project-wide audit; it covers only the area changed by
+the current fix.
+
 ### 4.6 Implementation
 
 When the artifact is code, tests, or runtime behavior, the Reviewer
@@ -258,23 +324,98 @@ authoritative sources.
 
 ## 6. Bound the Loop
 
-A fix that just shipped is verified once by Targeted Resolution
-Verification. A Targeted Verification finding that surfaces new material
-issues may justify one additional corrective fix and one additional
-Targeted Verification. Beyond that:
+A Targeted Resolution Verification finding surfaces a fix-needed
+item. The cycle has a **single, consistent state machine** —
+there is no separate "continue inside" rule that can be read in
+opposition to a stop rule.
 
-- Stop. Preserve the actual evidence (what was tried, what was checked,
-  what still fails).
-- Surface the unresolved constraint explicitly — to the user, into the
-  artifact's `# Unknowns and Upstream Feedback`, and into
-  `# Resume Notes`.
-- Do NOT claim the fix is complete.
-- Do NOT continue generating fix / review pairs to force a pass.
-- Do NOT lower the original system guarantee just to make a review
-  pass.
+### 6.1 The cycle
 
-The Reviewer may surface a problem the Main Agent cannot resolve in the
-current authorization. That is a feature, not a failure mode.
+```
+Fix  ↔  Targeted Resolution Verification
+```
+
+A fix that just shipped is verified once. If the verification
+surfaces a new finding, that finding enters the same cycle
+below.
+
+### 6.2 When the same finding needs more than one round
+
+A finding may persist across rounds only when each round
+produces **new evidence** about the finding's Necessary
+Condition. Before the next round:
+
+1. **Re-derive the original Necessary Condition.** If the
+   fixture's expected value is `-0.001134430...`, the value
+   must derive from the same source after every iteration. If
+   it cannot, the *test* was authored incorrectly, not the
+   implementation.
+2. **Compare each iteration's evidence quality.** Author-self-
+   verified algebra and a separate-tool recomputation are not
+   the same evidence. If a previous round's evidence was weak,
+   that is *why* it did not hold — change the evidence source
+   (independent recomputation, mpmath / sympy comparison, hand-
+   derived closed form, a separate derivation route). Do not
+   tweak the same weak evidence into alignment.
+3. **Distinguish the fix dimension** by impact (per
+   `cross-layer-coordination.md` §2.5.b.0) — not by operation
+   name. A fix that the impact factors classify as in-
+   authority for the owning Skill does **not** need a fresh
+   user authorization; continue the cycle with a stronger
+   evidence source. A fix that crosses the factors needs a
+   fresh user authorization — branch into cross-layer
+   coordination §2.5.b.0; do not chain the user-decision loop
+   into the same cycle as a routine correctness fix.
+
+### 6.3 Stop conditions
+
+The cycle stops, with surface to the user, when any of these holds:
+
+- **Necessary Condition not converging under independent
+  evidence.** The same NC fails to verify across two rounds
+  despite a fresh evidence source. Two independent attempts
+  that both disagree with the NC mean the *approach* is wrong,
+  not the value. Iteration count is not a budget to spend.
+- **The fix requires an upstream authoritative change the
+  current cycle did not authorize** (e.g. a Spec reopen, an
+  Architecture revise) — branch into cross-layer coordination.
+- **The remaining gap is a goal / scope / key-constraint
+  decision the Main Agent cannot make alone.**
+
+When stopping, surface the evidence: what was tried, what was
+independently verified, what remains failing. Stop with a
+decision requirement, not a "continue or stop" choice — the
+caller chooses between a real decision (scope change /
+authorization / more work) and more work; the framework
+presents the open constraint, not a handwave.
+
+### 6.4 Anti-patterns within the cycle
+
+These are the looping-discipline failures the cycle is designed
+to prevent. They are named so they are not absorbed back into
+"continue vs. stop" rhetoric:
+
+- **Tweaking the same evidence source.** Two rounds of
+  "author verifies their own fix" is the failure mode. If the
+  fix did not hold, change the evidence source.
+- **Continuing past a stop condition.** An iteration that
+  needs a goal / scope decision is not a routine correctness
+  fix; routing to cross-layer coordination is mandatory, not
+  optional. A "user-authorized beyond the cap" bypass does not
+  buy correctness, only continued iteration.
+- **Lowering the original guarantee** to make the cycle pass
+  (renaming the problem, accepting a smaller subset, deleting
+  the failing test). The guarantee is the cycle's reason for
+  existing.
+- **Asking the user to choose between known-broken and
+  Implementation-guessing.** Both options are unfaithful to
+  the cycle; surface the constraint with evidence and let the
+  user choose between a real decision and more work, not
+  between two forms of failing.
+
+The Reviewer may surface a problem the Main Agent cannot resolve
+in the current authorization. That is a feature, not a failure
+mode.
 
 ## 7. Closure Language Discipline
 
