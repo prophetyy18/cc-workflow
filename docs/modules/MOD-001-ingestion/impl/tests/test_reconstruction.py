@@ -127,8 +127,15 @@ class TestReconstruction(unittest.TestCase):
             # State-propagation: sqrtPriceX96/tick from most recent Swap.
             self.assertEqual(post.sqrt_price_x96, sqrt_price_x96)
             self.assertEqual(post.tick, tick)
-            # Liquidity = previous + delta = 10**18 + 5*10**17 = 1.5*10**18.
-            self.assertEqual(post.liquidity, 10 ** 18 + 5 * 10 ** 17)
+            # Liquidity stays at last Swap's pool-total value (V4
+            # `liquidityDelta` is per-position; pool-total active liquidity
+            # only changes when the position is in-range, which we cannot
+            # determine from the event alone — the next Swap event's
+            # `liquidity` field is authoritative and re-anchors the
+            # running total). `current_liquidity = None` propagates to
+            # `post_state.liquidity` so subsequent processing knows the
+            # value is pending re-anchoring.
+            self.assertEqual(post.liquidity, 10 ** 18)
             # Fee = None (ModifyLiquidity doesn't carry fee per REQ-002).
             self.assertIsNone(post.fee)
 

@@ -26,7 +26,7 @@ Drives the simulation for both strategy modes on the same event stream, producin
 ### Input semantics
 
 - `SimulationRequest`
-  - `pool_address: str` — V4 pool address (REQ-001 / MOD-001 contract).
+  - `pool_id: str` — 0x-prefixed 32-byte hex (`bytes32`) V4 PoolId (per MOD-001 reopen rev 5). NOT a per-pool contract address — V4 is a singleton PoolManager; per-pool filtering uses the PoolId in `topics[1]`.
   - `start_block: int` — inclusive lower bound (REQ-001).
   - `end_block: int` — inclusive upper bound (REQ-001).
   - `passive: Optional[PassiveSpec]` — if present, run the passive simulation.
@@ -358,7 +358,7 @@ The ledger is owned by MOD-003 (no MOD-002 helper exists); per MOD-002's "Out-of
 ## Logger (REQ-N04; F10 fix)
 
 At the end of each `run_simulation` call, log a structured record containing:
-- `pool_address`, `start_block`, `end_block`, `event_count`, `cache_hits` (from MOD-001).
+- `pool_id`, `start_block`, `end_block`, `event_count`, `cache_hits` (from MOD-001).
 - `cta_action_counts: Dict[action_type, int]` — count of `cta_action_log` entries per `action_type` (INCLUSIVE of no-ops; matches the consumer-precondition that `cta_action_log` is the complete record).
 - `cta_realized_action_counts: Dict[action_type, int]` — same but EXCLUDING entries with `reason in {"position_open", "no_open_position", "threshold_not_breached"}` (state-changing actions only).
 - `final_position_state`: CTA position state at end of window (open / no_position + ranges / cash).

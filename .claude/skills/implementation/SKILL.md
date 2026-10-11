@@ -430,8 +430,8 @@ Consumer's tests against the new contract).
 
 After the correction and the local re-implementation, run Targeted
 Resolution Verification (Mode B) for material changes per
-`verification.md` §3 Trigger B. Bound the loop:
-`verification.md` §6 (1 + 1 + 1 cap).
+`verification.md` §3 Trigger B. The cycle's stop conditions live in
+`verification.md` §6.3 — do not restate or override them here.
 
 ### Resume
 

@@ -1,19 +1,34 @@
 # MOD-001 Live-RPC Verification
 
-**Date**: 2026-10-11
-**Status**: ✅ All 19 tests pass, including the live RPC test against Robinhood Chain mainnet.
+**Date**: 2026-10-11 / 2026-10-12 (followup)
+**Status**: ✅ All 19 mock tests + 3 live tests PASS against Robinhood Chain mainnet,
+including the live RPC test that uses the DEFAULT public entry (no `skip_init_precheck`
+escape hatch).
 
 ## Live Test Outcome
 
-`tests/test_known_pool.py::TestKnownPoolLive::test_live_fetch_returns_non_empty_event_stream`
-**PASS** in ~72 sec (one fetch, then cached for subsequent runs). Verified that:
+`tests/test_known_pool.py::TestKnownPoolLive::test_default_entry_fetches_event_stream`
+**PASS** in ~74 sec (first run does brute-force Initialize scan + persist to
+`PoolInitIndex`; subsequent fetches use the index in O(1)). The default public
+entry WORKS end-to-end with the persistent index. The test:
+- fetches events from the real RPC;
+- decodes events end-to-end (raw logs → typed `DecodedEvent` records);
+- runs reconstruction (REQ-002) — every event has a non-None `post_state` matching
+  the event's own data fields where applicable (Swap.sqrt_price_x96 / tick /
+  liquidity / fee; Initialize.sqrt_price_x96 / tick / fee with liquidity=0;
+  ModifyLiquidity.sqrt_price_x96 / tick inherited from prior Swap);
+- populates `FetchStats` (`avg_block_time_seconds`, `last_event_block_timestamp`,
+  `cache_hit_count`, `cache_corruption_events`).
 
-- `fetch_event_stream` actually fetches V4 events from the real RPC.
-- Event decode succeeds end-to-end (raw logs → typed `DecodedEvent` records).
-- Reconstruction runs without errors.
-- `FetchStats.avg_block_time_seconds` and `last_event_block_timestamp` populate correctly.
+`tests/test_reconstruction_sampling.py`:
+- `test_cross_run_determinism_req_001` — partial REQ-001 empirical acceptance: two
+  fetches of the same window return the identical set of events (cross-run
+  determinism proxy until external explorer API is wired in).
+- `test_post_state_per_event_sampling_req_002` — REQ-002 partial empirical
+  acceptance: every event's reconstructed `post_state` matches the event's own
+  data fields where applicable; V4's liquidity=0 on Initialize invariant holds.
 
-## Bugs Found and Fixed (Live-RPC-Driven)
+## Bugs Found and Fixed (Live-RPC-Driven + 2026-10-12 user-feedback round)
 
 Running the live test uncovered **6 real defects** that the mock-RPC test suite
 had been silently passing over. This is exactly the §11.5 risk-driven reason real
@@ -51,13 +66,16 @@ The pool has been actively trading for several months on Robinhood Chain.
 
 | First observed Swap | Activity density | Initialize event location |
 | --- | --- | --- |
-| ~1.0M blocks before current (~Sep 2026 by timestamp) | 100+ Swap/ModifyLiquidity events across the window | Not found in any 1.5M+ block scanned window — likely before scan range, or in a range the RPC's 30k-block limit cannot reach efficiently |
+| ~1.0M blocks before current (~Sep 2026 by timestamp) | 100+ Swap/ModifyLiquidity events across the window | block **54,946,237** (empirically located via 100k-block brute-force scan, 2026-10-12) — persisted to `PoolInitIndex` for O(1) future pre-checks |
 
-The pre-check (REQ-020(b)) requires finding this pool's Initialize event.
-Because exhaustive scanning would take ~30 min per fetch and the Initialize
-block is not findable with the 30k-block per-query window, the live test uses
-`skip_init_precheck=True` (a test-only convenience parameter; production
-callers MUST leave it False). REQ-020(b) is still exercised by
+The pre-check (REQ-020(b)) now uses a 3-tier lookup:
+1. **PoolInitIndex** (`./cache/pool_init/<pool_id>/init.json`) — O(1) for any pool we've fetched before.
+2. **Cache hit** on a sub-range containing an Initialize event — saves a side-effect index update.
+3. **RPC narrow scan** (slowest) — only when (1) and (2) miss.
+
+The default public entry WORKS for this pool because (1) pre-populates on first run.
+REQ-020(b) is still exercised by mocked tests for the negative path
+(`test_no_initialize.py::test_no_initialize_in_window_raises_validation_error`).
 `test_no_initialize.py::test_no_initialize_in_window_raises_validation_error`
 against mocked RPC.
 

@@ -40,6 +40,7 @@ from .exceptions import (
     EventStreamFetchError,
     ValidationError,
 )
+from .pool_init_index import PoolInitIndex
 from .reconstruct import reconstruct_states
 from .timestamps import BlockTimestampCache
 from .types import (
@@ -224,16 +225,23 @@ def fetch_event_stream(
         event_cache = EventCache(root=f"{cache_root}/events")
     if timestamp_cache is None:
         timestamp_cache = BlockTimestampCache(root=f"{cache_root}/block_timestamps")
+    pool_init_index = PoolInitIndex(root=f"{cache_root}/pool_init")
 
-    # ---- STEP 1 (F2 / reopen rev 5): REQ-020(b) pre-check — pool must have an
-    # Initialize event in window. The pre-check uses `address=PoolManager +
-    # topics[0]=Initialize + topics[1]=pool_id` so the RPC returns at most one
-    # event (this pool's), and is cached.
+    # ---- STEP 1 (F2 / reopen rev 5 + 2026-10-12 followup): REQ-020(b) pre-check.
+    # Pool must have an Initialize event at-or-before end_block. Three sources,
+    # in priority order:
+    #   (a) persistent PoolInitIndex (O(1), survives across fetches);
+    #   (b) cache hit on a sub-range whose `topics[0]` is Initialize;
+    #   (c) RPC narrow pre-check (most expensive; can be slow for pools whose
+    #       Initialize is older than easily-scannable RPC windows).
     cache_corruption_events: List[CacheCorruptionRecord] = []
     cache_hit_count = 0
     corruption_recorded_for: set = set()  # block_range tuples — dedupe across pre-check + main loop.
 
-    # Cache-first pre-check: any cached sub-range with an Initialize event?
+    # Fast path (a): persistent index.
+    init_block_indexed = pool_init_index.get(pool_id)
+
+    # Cache-first pre-check (b): any cached sub-range with an Initialize event?
     has_init_in_cache = False
     from .client import MAX_BLOCKS_PER_CALL
     cursor = start_block
@@ -250,6 +258,21 @@ def fetch_event_stream(
                 decoded = json.loads(cached_bytes.decode("utf-8"))
                 if any(_topic0_matches_init(t.get("topics")) for t in decoded):
                     has_init_in_cache = True
+                    # Cache hit also acts as a side-effect index update: the
+                    # earliest sub-range containing an Initialize tells us the
+                    # exact block (decode events below if we found the first
+                    # one); capture it for the index.
+                    if init_block_indexed is None:
+                        for log in decoded:
+                            if _topic0_matches_init(log.get("topics")):
+                                try:
+                                    pool_init_index.put(
+                                        pool_id, int(log.get("blockNumber", "0x0"), 16)
+                                    )
+                                    init_block_indexed = int(log.get("blockNumber", "0x0"), 16)
+                                except (TypeError, ValueError):
+                                    pass
+                                break
                     break
             except (json.JSONDecodeError, UnicodeDecodeError):
                 if (cursor, window_end) not in corruption_recorded_for:
@@ -261,8 +284,18 @@ def fetch_event_stream(
                 # malformed → not usable for pre-check
         cursor = window_end + 1
 
+    # If the index knows the Initialize block AND it is at-or-before end_block,
+    # pre-check passes (O(1)).
+    if (
+        not has_init_in_cache
+        and init_block_indexed is not None
+        and init_block_indexed <= end_block
+    ):
+        has_init_in_cache = True  # treated as known
+
     if not has_init_in_cache and not skip_init_precheck:
-        # Narrow RPC pre-check: any Initialize for this pool_id in window?
+        # Slow path (c): narrow RPC pre-check. May be expensive for pools
+        # whose Initialize is older than the RPC's per-query window ceiling.
         try:
             init_logs = rpc_client.get_logs_paginated_init(pool_id, start_block, end_block)
         except RuntimeError as e:
@@ -273,7 +306,15 @@ def fetch_event_stream(
                 failed_range=(start_block, end_block),
                 message=f"Initialize pre-check failed: {e}",
             )
-        if not init_logs:
+        if init_logs:
+            # Persist to the index for next time.
+            try:
+                first_init = min(init_logs, key=lambda l: _to_int(l.get("blockNumber", 0)))
+                init_block_indexed = _to_int(first_init.get("blockNumber", 0))
+                pool_init_index.put(pool_id, init_block_indexed)
+            except (TypeError, ValueError):
+                pass
+        else:
             raise ValidationError(
                 reason="no_initialize_in_window",
                 message=pool_id,
@@ -367,6 +408,26 @@ def fetch_event_stream(
         dataclasses.replace(e, post_state=ps) for e, ps in paired
     ]
 
+    # ---- STEP 4.5: Reorg invalidation pass on event cache.
+    # A reorg detected at the timestamp-cache level (block_hash mismatch)
+    # means events emitted in that block may also differ. Invalidate the
+    # event cache for the affected sub-ranges so the next fetch re-acquires
+    # them. The corruption_records already collected in step 1/2 (sha256
+    # mismatches) and step 3.5 (block_hash mismatches) carry block_range
+    # tuples; walk them and invalidate the event cache for the matching
+    # event-cache sub-range.
+    for record in cache_corruption_events:
+        b0, b1 = record.block_range
+        # Per-block records from the timestamp cache use (block, block);
+        # event-cache sub-ranges use (cursor, window_end). Find any
+        # sub-range that contains the affected block.
+        for cursor in range(start_block, end_block + 1, MAX_BLOCKS_PER_CALL):
+            window_end = min(cursor + MAX_BLOCKS_PER_CALL - 1, end_block)
+            if cursor <= b0 <= window_end:
+                event_cache.invalidate(pool_id, cursor, window_end)
+            if cursor <= b1 <= window_end:
+                event_cache.invalidate(pool_id, cursor, window_end)
+
     # ---- STEP 5: Per-block timestamp + block_hash (with F2 reorg detection).
     unique_blocks = sorted({e.event.block_number for e in entries})
     block_timestamps: dict = {}
@@ -398,14 +459,13 @@ def fetch_event_stream(
             block_timestamps[block_number] = cached_timestamp
 
     # ---- STEP 6: avg_block_time_seconds (F6 ignore non-positive).
+    # Compute as (total time span) / (total block span) so gaps in the event
+    # distribution don't skew the average. Mean of consecutive deltas is wrong
+    # when event blocks are not contiguous (one would think 1-block gaps and
+    # 100-block gaps contribute the same weight, but per-block time should be
+    # window-total-time / window-total-blocks).
     sorted_blocks = sorted(unique_blocks)
-    deltas: List[int] = []
-    for i in range(1, len(sorted_blocks)):
-        b_prev, b_curr = sorted_blocks[i - 1], sorted_blocks[i]
-        d = block_timestamps[b_curr] - block_timestamps[b_prev]
-        if d > 0:
-            deltas.append(d)
-    if not deltas:
+    if len(sorted_blocks) < 2:
         raise EventStreamFetchError(
             cause="timestamp_no_pairs",
             cache_corruption_events=cache_corruption_events,
@@ -413,7 +473,26 @@ def fetch_event_stream(
             failed_range=(start_block, end_block),
             message=f"unique_blocks={sorted_blocks} yielded no positive deltas",
         )
-    avg_block_time = sum(deltas) / len(deltas)
+    first_block, last_block = sorted_blocks[0], sorted_blocks[-1]
+    block_span = last_block - first_block
+    if block_span <= 0:
+        raise EventStreamFetchError(
+            cause="timestamp_no_pairs",
+            cache_corruption_events=cache_corruption_events,
+            partial_entries=entries,
+            failed_range=(start_block, end_block),
+            message=f"unique_blocks={sorted_blocks} block_span<=0",
+        )
+    time_span = block_timestamps[last_block] - block_timestamps[first_block]
+    if time_span <= 0:
+        raise EventStreamFetchError(
+            cause="timestamp_no_pairs",
+            cache_corruption_events=cache_corruption_events,
+            partial_entries=entries,
+            failed_range=(start_block, end_block),
+            message=f"unique_blocks={sorted_blocks} time_span<=0",
+        )
+    avg_block_time = time_span / block_span
 
     last_event_block_timestamp = block_timestamps[entries[-1].event.block_number]
 
