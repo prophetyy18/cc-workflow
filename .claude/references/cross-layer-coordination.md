@@ -466,6 +466,28 @@ Additional anti-patterns, surfaced by actual run evidence:
   verification must reconcile the related sections (per
   `verification.md` §4.5 and Implementation §11.4).
 
+- **Mocked SDK as fake "real integration".** A test that calls a
+  "real SDK" method but intercepts its inputs / outputs in the
+  test is `mock` on the data-source axis (per `verification.md`
+  §4.7), even if the call site looks authentic on the
+  interface. Reporting it as "real integration verified" without
+  flagging the substitution is the failure mode. Boundary and
+  fault tests are valid uses of mocks; they are not
+  acceptance-of-correctness evidence.
+- **Skipped test counted as passed.** "All tests passed" is
+  not a claim that the acceptance criterion holds when some
+  tests were skipped because real conditions were unavailable.
+  A skipped real test is a real condition to surface — record
+  what was not run and why, not a green checkmark. See
+  `verification.md` §4.7 (Not run / skipped / failed) and §4.8
+  (real by default).
+- **Implementation + test sharing the wrong assumption.** When
+  the test input, expected value, or fixture all derive from the
+  same arithmetic the implementation performed, a real
+  numerical error in the implementation is mirrored in the
+  test, and the test is "real integration" in name only. See
+  `verification.md` §4.2 and §4.7.
+
 ## 7. When this reference is loaded
 
 Load this file when a Skill:
