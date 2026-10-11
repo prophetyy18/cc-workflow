@@ -322,8 +322,16 @@ name. The categories:
   external boundary with synthetic data (an in-process mock, a
   hand-typed JSON, a stubbed method that returns canned bytes,
   or the test was written by reading documentation rather than
-  capturing live behavior). Useful for boundary, fault, and
-  schema-shape tests; **not** real-integration evidence.
+  capturing live behavior). Mocks and stubs are valid for
+  boundary / fault / schema-shape tests, and the test of a
+  fault-recovery path can also be mock-based *if* the mock
+  exercises the real fault-recovery code; what mock-based tests
+  cannot prove is **the live compatibility / current network /
+  auth / schema of the dependency** — that requires real
+  integration. Boundary and fault-recovery are not "the parts
+  that don't matter" — they are core behavior the mock is
+  covering, and the report must say so. **Not** real-integration
+  evidence on the data-source axis.
 - **Not run / skipped / failed** — the test file exists or the
   assertion code was written but the test did not run, was
   skipped, or failed; record what was *not* verified rather than
@@ -373,6 +381,41 @@ Skipping a real test because conditions are unavailable is
 allowed; that skip must be reported. Calling a "real test"
 accepted because all tests passed when real tests did not run is
 **not** permitted.
+
+When the task's required real acceptance has not been performed,
+the Main Agent does **not** announce the task closed. The artifact's
+status field does not transition to "complete" / "final" /
+"handoff closed" on the basis of mock-only or skipped real-acceptance
+evidence. The Main Agent records what was *not* verified (the
+missing pre-condition, the test that would have run, and what kind
+of test it would be) and saves the resume position in the
+artifact's `# Resume Notes` (or equivalent). Re-classifying an
+unsatisfied necessary acceptance as "Consumer follow-up" or
+"production-time validation" to close the task is the same
+anti-pattern: the task's own completion discipline set the gate,
+and the gate is the gate.
+
+Three gap classes — config / credential / execution pre-condition
+(1), real protocol / OAuth / response schema uninvestigated (2),
+implementation matches known contract but no runtime evidence (3)
+— are distinct:
+
+- (1) is the lightest: surface the missing config, ask the user
+  for what's out of reach, save state. The implementation may
+  already be correct against the spec; the gate is the missing
+  input.
+- (2) is heavier: the implementation may need a design /
+  re-investigation. The "user just provides config" path is not
+  safe to assume; the missing primary-source verification may
+  reveal a contract gap the impl has not anticipated.
+- (3) means the implementation looks right against authoritative
+  contract, but no real run has been observed. Surface which
+  gap class the unsatisfied real test belongs to before closing.
+
+## 5. Evidence Standard
+
+The Reviewer distinguishes three levels of confidence and must label
+each material claim with one:
 
 The Reviewer distinguishes three levels of confidence and must label
 each material claim with one:

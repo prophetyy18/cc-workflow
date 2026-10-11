@@ -464,7 +464,7 @@ Additional anti-patterns, surfaced by actual run evidence:
   the acceptance condition contradicts — these are
   contradictions, not separate unrelated work. The
   verification must reconcile the related sections (per
-  `verification.md` §4.5 and Implementation §11.4).
+  `verification.md` §4.5 and Implementation §11.6).
 
 - **Mocked SDK as fake "real integration".** A test that calls a
   "real SDK" method but intercepts its inputs / outputs in the
