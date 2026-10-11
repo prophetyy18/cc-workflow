@@ -302,7 +302,120 @@ A passing test suite is necessary but not sufficient:
   `Limitation: empirical verification not performed`; do not promote
   `Implementation Verified`.
 
+### 4.7 Real Acceptance Reporting
+
+For any test that targets an external dependency (network, chain,
+data source, database, third-party SDK), the result report must
+classify the **actual call path and data source**, not the test
+name. The categories:
+
+- **Real integration** — the test exercised the real external
+  dependency in real time with real auth / data, the call path
+  went outside the process boundary, and the assertions checked
+  the live response.
+- **Offline replay** — the test ran real code on a captured or
+  pre-recorded response (a fixture file, a stored snapshot). The
+  code path is real, but the data is from an earlier interaction.
+  Useful; does not prove current network / auth / schema
+  compatibility.
+- **Mock / stub / manual-input** — the test replaced at least one
+  external boundary with synthetic data (an in-process mock, a
+  hand-typed JSON, a stubbed method that returns canned bytes,
+  or the test was written by reading documentation rather than
+  capturing live behavior). Mocks and stubs are valid for
+  boundary / fault / schema-shape tests, and the test of a
+  fault-recovery path can also be mock-based *if* the mock
+  exercises the real fault-recovery code; what mock-based tests
+  cannot prove is **the live compatibility / current network /
+  auth / schema of the dependency** — that requires real
+  integration. Boundary and fault-recovery are not "the parts
+  that don't matter" — they are core behavior the mock is
+  covering, and the report must say so. **Not** real-integration
+  evidence on the data-source axis.
+- **Not run / skipped / failed** — the test file exists or the
+  assertion code was written but the test did not run, was
+  skipped, or failed; record what was *not* verified rather than
+  substituting "should work later".
+
+A test calling a "real SDK" but mocking its inputs and outputs
+entirely is `mock / stub / manual-input` on the data-source axis.
+A test replaying a real captured response is `offline replay`,
+even if the SDK call path is real. Classification is by what
+actually happened at the boundary, not by the test name.
+
+For each test targeting an external boundary, the result report
+records, at minimum, the **target boundary / environment /
+data source / execution result / coverage scope / unverified
+parts**. A passing result is necessary, not sufficient: the
+report must say what was *checked* against the live response, not
+just that a call succeeded.
+
+### 4.8 Real by default
+
+Test planning defaults to real acceptance at the boundaries the
+task actually needs. Mocks are for the parts that don't matter —
+boundary shape, fault paths, schema round-trips — not for the parts
+that would otherwise prove the integration.
+
+When the real dependency is not currently accessible:
+
+- Name the specific test that was not run.
+- State what is missing: connection address, real object
+  identifier, time window, dependency version, network access,
+  credential, paid-tier permission, write-side-effect
+  authorization, or other.
+- Self-investigate first: public docs, the project's existing
+  configuration, captured-but-stale fixtures, sandbox endpoints,
+  read-only mirrors. Only ask the user for what is genuinely
+  out of reach.
+- Tell the user exactly what to provide and where the work
+  resumes once provided.
+- Sensitive credentials: local config / secret management. Do
+  not paste credentials into chat / log.
+- Real tests with side effects (write, on-chain transaction,
+  paid API call) require explicit authorization before they run.
+  Prefer read-only paths that can satisfy the same acceptance
+  criterion.
+
+Skipping a real test because conditions are unavailable is
+allowed; that skip must be reported. Calling a "real test"
+accepted because all tests passed when real tests did not run is
+**not** permitted.
+
+When the task's required real acceptance has not been performed,
+the Main Agent does **not** announce the task closed. The artifact's
+status field does not transition to "complete" / "final" /
+"handoff closed" on the basis of mock-only or skipped real-acceptance
+evidence. The Main Agent records what was *not* verified (the
+missing pre-condition, the test that would have run, and what kind
+of test it would be) and saves the resume position in the
+artifact's `# Resume Notes` (or equivalent). Re-classifying an
+unsatisfied necessary acceptance as "Consumer follow-up" or
+"production-time validation" to close the task is the same
+anti-pattern: the task's own completion discipline set the gate,
+and the gate is the gate.
+
+Three gap classes — config / credential / execution pre-condition
+(1), real protocol / OAuth / response schema uninvestigated (2),
+implementation matches known contract but no runtime evidence (3)
+— are distinct:
+
+- (1) is the lightest: surface the missing config, ask the user
+  for what's out of reach, save state. The implementation may
+  already be correct against the spec; the gate is the missing
+  input.
+- (2) is heavier: the implementation may need a design /
+  re-investigation. The "user just provides config" path is not
+  safe to assume; the missing primary-source verification may
+  reveal a contract gap the impl has not anticipated.
+- (3) means the implementation looks right against authoritative
+  contract, but no real run has been observed. Surface which
+  gap class the unsatisfied real test belongs to before closing.
+
 ## 5. Evidence Standard
+
+The Reviewer distinguishes three levels of confidence and must label
+each material claim with one:
 
 The Reviewer distinguishes three levels of confidence and must label
 each material claim with one:

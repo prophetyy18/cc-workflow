@@ -370,9 +370,31 @@ assertion, or another Reviewer's earlier verdict) as independent
 evidence. This discipline applies in both `Independent Review` and
 `Targeted Resolution Verification`.
 
+"Independence" for test-evidence reviews also means the test's
+expected value is **not derived from the same source the
+implementation used**. A test that asserts `impl.foo()` where
+`foo` is the function under review is not independent — it would
+pass if the implementation returned the same wrong value to
+itself. "Didn't call a private helper" is also not independence.
+What counts:
+
+- expected value hand-computed from the Spec formula or a
+  captured real response, recomputed via a separate tool
+  (§4.2);
+- test input shape matching the source dependency's actual
+  schema (captured or per a primary-source doc), not a
+  hand-typed JSON that happens to fit the SDK;
+- failure-mode test whose expected behavior comes from the
+  Spec or a primary source, not the Author's claim.
+
+When a test's expected value cannot be tied to one of those, the
+Finding is `Reasonable Judgment (Unverified)`. The class of
+"empty assertion", "calling self", or "mocked test passing as
+real" is a Finding in its own right, not a label.
+
 The Evidence Standard for a Finding is reported on the
 `Evidence Standard:` line in the output. See also
-`.claude/references/verification.md` §5.
+`.claude/references/verification.md` §5, §4.7, §4.8.
 
 ## 6. Failure modes
 

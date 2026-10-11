@@ -282,15 +282,83 @@ bookkeeping (e.g., asserts on a private counter). Such tests cannot
 catch wrong implementations; the Reviewer will surface them per
 `verification.md` §4.4.
 
-### 11.4 Related-consistency check (reconciliation, not re-audit)
+### 11.5 Test design that can fail
 
-Before declaring a fix complete, re-derive the *related* invariant
-claims across the public contract, internal design rationale, and
-acceptance conditions — not just the originally-found test. A
-fix that makes T1 pass while the public contract requires
-`quantize-free full precision` (and the implementation quietly
-applies `quantize(0.01)`) only ships the broken T1 and hides the
-deeper wrong.
+A test that always passes — by sharing the implementation's
+algorithm, constants, or wrong assumption — protects nothing.
+The independence question is **what is the implementation
+risk being defended against**, not "is the test source different
+from the impl source". The test source can be the same
+authoritative document (the Spec, a primary-source RFC, a
+captured real response); what must differ is the
+risk-decoupling: the test must not propagate the *same wrong
+assumption* the impl did, and must not derive its expected
+value by calling the impl.
+
+Concretely, required of every acceptance-class test:
+
+- **The expected value does not come from the implementation's
+  own output.** `assertEqual(impl.thing(x), impl.thing(x))` is
+  circular. Pin the expected value, do not derive it from the
+  impl's return.
+- **The test does not copy the implementation's algorithm or
+  constants where the implementation is what the test is
+  supposed to verify.** The test reading the same authoritative
+  Spec / primary source is fine; the test re-using the impl's
+  formula / constants / library-without-cross-check is not.
+- **The test's input represents the real interface shape.** JSON
+  shape / field names / required / nullable should match the
+  source dependency's contract or the captured real response.
+  A test that uses `name="foo"` when the real resource uses
+  `name_en` doesn't validate the integration.
+- **Mocks don't bypass what should be tested.** A "real SDK"
+  test that intercepts the SDK at every method is, on the
+  data-source axis, a mock test. Per `verification.md` §4.7,
+  classify it by what actually happened at the boundary. Mocks
+  and stubs are also valid for fault-recovery / failure-mode
+  tests where the real path can't be reproduced — what they
+  cannot prove is the live compatibility / current network /
+  auth / schema of the dependency, not the significance of
+  the behavior under test.
+- **Empty / always-true assertions don't count.** `assertTrue
+  (True)`, `assertIsNotNone(...)` without further check,
+  `pass` bodies before `assert ...`, expected values derived
+  from "the implementation is consistent with itself" — none
+  of these catch a wrong implementation. The Reviewer should
+  flag them on sight (§4.4).
+
+When the risk being defended is non-trivial, prove the test
+fails by injecting a targeted wrong implementation (an
+off-by-one, a swapped sign, the wrong library, a hard-coded
+stub returned through the right interface, a wrong-field read)
+and confirming the test catches it. Mutation testing as a
+blanket ritual is not required; one targeted negative-control
+test per non-trivial risk is enough.
+
+Per risk class choose evidence (these are risk-driven
+choices, not "different library per risk" requirements):
+
+- **External protocol** — applicable-version primary source
+  (RFC, official doc), separate decoder (a script that reads
+  captured bytes and reproduces the schema), or a traceable
+  capture of a real call. Do not trust the SDK alone.
+- **SDK / library adapter** — actual return types, serialization
+  shapes, exception classes from a live run. Assert the field
+  set / types the consumer relies on.
+- **Numerical / state reconstruction** — independent derivation
+  (mpmath / sympy / closed form); boundary cases; known-state
+  round trips.
+- **Cache / fault-recovery** — controlled fault injection
+  (network drop, auth expiry, schema drift). Confirm recovery
+  produces the same observable state.
+
+The same-authoritative-source test (`spec.expected_value` from
+the same `Spec.md` the impl was written against) is a valid
+test: the decoupling is at the algorithm-copy level, not at
+the document level. A "second hand" is not what makes a test
+independent; the test's *wrong-assumption* propagation is.
+
+### 11.6 Related-consistency check (reconciliation, not re-audit)
 
 For each fix:
 
@@ -410,7 +478,7 @@ handoff obligations.
   initial collection issues) under the recorded `run` command.
   Recording PASS from a stale or different command does not
   satisfy this gate.
-- The related consistency check (§11.4) has passed against
+- The related consistency check (§11.6) has passed against
   the *current* public contract, internal design rationale, and
   acceptance conditions. A single passing test set does not
   prove the implementation honors the contract's broader
