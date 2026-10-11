@@ -1,9 +1,13 @@
 """RPC client wrapper with pagination policy.
 
-Per DESIGN.md Internal Design:
+Per DESIGN.md Internal Design (reopen rev 5):
 - web3.py: Web3(Web3.HTTPProvider(rpc_url))
-- Pagination: respect 10_000 logs per eth_getLogs and 10_000_000 blocks per query range
-- ABI: V4 PoolManager events (Initialize, Swap, ModifyLiquidity)
+- Pagination: respect 10_000 logs per eth_getLogs; 30_000-block per-query ceiling
+  observed on Robinhood Chain mainnet (we use 10_000-block sub-windows to stay
+  safely under it).
+- ABI: V4 PoolManager events (Initialize, Swap, ModifyLiquidity).
+- `eth_getLogs` filter pattern: `address=POOL_MANAGER + topics[1]=pool_id` (V4
+  is a singleton PoolManager; per-pool filtering uses PoolId in topics[1]).
 """
 from __future__ import annotations
 
@@ -18,10 +22,15 @@ try:
 except ImportError:
     _WEB3_AVAILABLE = False
 
+# V4 PoolManager on Robinhood Chain (reopen rev 5, empirically verified 2026-10-11
+# via `eth_getLogs` topic0 cross-reference against canonical V4 ABIs).
+# Source: `docs/verification/MOD-001-v4-contracts.md`. Module-internal constant
+# — consumers do NOT pass it; per-pool filtering uses PoolId in topics[1].
+# EIP-55 checksum format required by web3.py's address validation.
+POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951"
+
 # V4 PoolManager event ABIs — canonical Uniswap v4-core IPoolManager.sol primary source
 # (https://raw.githubusercontent.com/Uniswap/v4-core/main/src/interfaces/IPoolManager.sol)
-# Per SPEC-001 § Unknowns and Upstream Feedback acceptance obligation: Implementation MUST verify
-# against primary source. Verified 2026-10-11.
 #
 # Custom V4 types: PoolId = bytes32; Currency = address; IHooks = address.
 ABI_INITIALIZE_EVENT = {
@@ -78,15 +87,23 @@ def _topic0_matches_init_payload(log: dict) -> bool:
         return False
     return topics[0] == _topic_to_hex(ABI_LIST[0])
 
-# Pagination policy (per SPEC-001 Unknowns-and-Upstream-Feedback empirical verification 2026-10-08)
+# Pagination policy (per SPEC-001 Unknowns empirical verification 2026-10-08 and
+# live evidence on Robinhood Chain 2026-10-11).
 MAX_LOGS_PER_CALL = 10_000
-MAX_BLOCKS_PER_CALL = 10_000_000
+MAX_BLOCKS_PER_CALL = 10_000  # 30k per-query ceiling observed; 10k is the conservative sub-window.
 
 
 def _topic_to_hex(event_abi: dict) -> str:
-    """Compute keccak topic0 from event ABI; lazy import eth_utils to keep import light."""
+    """Compute keccak topic0 from event ABI; lazy import eth_utils to keep import light.
+
+    Per Ethereum event signature spec, the signature includes ALL inputs
+    (indexed + non-indexed). Filtering by `i.get("indexed", False)` only
+    produces the WRONG topic0 (this was the bug uncovered by live RPC tests
+    2026-10-11 — mock RPC tests passed because they don't actually filter by
+    topic0 on the wire; live eth_getLogs with the buggy topic0 returns empty).
+    """
     from eth_utils import keccak
-    types = ",".join(i["type"] for i in event_abi["inputs"] if i.get("indexed", False))
+    types = ",".join(i["type"] for i in event_abi["inputs"])
     sig = f"{event_abi['name']}({types})"
     return "0x" + keccak(text=sig).hex()
 
@@ -96,6 +113,11 @@ class RpcClient:
 
     Injectable for tests: pass `raw_get_logs` / `raw_get_block_by_number` callables
     that return raw JSON-shaped responses (mimicking web3.py).
+
+    Per reopen rev 5: the per-pool eth_getLogs filter is constructed as
+    `address=POOL_MANAGER + topics[0]=<event_signature> + topics[1]=<pool_id>`.
+    PoolId in topics[1] is what isolates a single pool's events from the
+    PoolManager singleton.
     """
 
     def __init__(
@@ -125,38 +147,34 @@ class RpcClient:
 
     def get_logs_paginated(
         self,
-        pool_address: str,
+        pool_id: str,
         start_block: int,
         end_block: int,
     ) -> List[dict]:
-        """Paginated eth_getLogs across [start_block, end_block].
+        """Paginated eth_getLogs across [start_block, end_block] for one V4 pool.
 
-        Returns list of raw log dicts (as JSON-RPC would return).
-        Respects 10_000 logs / 10_000_000 blocks per call (split into sub-queries).
+        Per reopen rev 5: filter is `address=POOL_MANAGER + topics[0]=<event> +
+        topics[1]=pool_id`. PoolId is 0x-prefixed 32-byte hex. Splits the block
+        range into MAX_BLOCKS_PER_CALL sub-windows. Issues one eth_getLogs call
+        per (event, sub-window). Returns list of raw log dicts.
         """
         if self._raw_get_logs is not None:
-            return list(self._raw_get_logs(pool_address, start_block, end_block))
+            return list(self._raw_get_logs(pool_id, start_block, end_block))
 
         self._ensure_web3()
-        # Compute topic0 for each event (to filter).
-        topics = [[_topic_to_hex(abi)] for abi in ABI_LIST]
-
-        # Pagination: split block range if exceeds MAX_BLOCKS_PER_CALL.
-        # For simplicity: split into MAX_BLOCKS_PER_CALL windows.
         results: List[dict] = []
         cursor = start_block
         while cursor <= end_block:
             window_end = min(cursor + MAX_BLOCKS_PER_CALL - 1, end_block)
-            for topic in topics:
+            for abi in ABI_LIST:
                 flt = {
-                    "address": pool_address,
+                    "address": POOL_MANAGER,
                     "fromBlock": hex(cursor),
                     "toBlock": hex(window_end),
-                    "topics": topic,
+                    "topics": [_topic_to_hex(abi), pool_id],
                 }
                 batch = self._web3.eth.get_logs(flt)
                 if len(batch) >= MAX_LOGS_PER_CALL:
-                    # Caller should have used a smaller window — surface as truncation.
                     raise RuntimeError(
                         f"eth_getLogs returned {len(batch)} logs at boundary "
                         f"[{cursor}, {window_end}]; exceeds MAX_LOGS_PER_CALL"
@@ -167,49 +185,47 @@ class RpcClient:
 
     def get_logs_paginated_init(
         self,
-        pool_address: str,
+        pool_id: str,
         start_block: int,
         end_block: int,
     ) -> List[dict]:
-        """Narrow eth_getLogs filtered to Initialize events only (F2 pre-check).
+        """Narrow eth_getLogs filtered to Initialize events only (REQ-020(b) pre-check).
 
-        Used to verify REQ-020(b) "no Initialize in window" without paying for
-        a full pagination.
+        Filter: `address=POOL_MANAGER + topics[0]=Initialize_topic + topics[1]=pool_id`.
+        Returns at most one Initialize event per pool — the RPC's Indexed-topic
+        filter on topic[1] (the PoolId) isolates this pool's Initialize event.
         """
         if self._raw_get_logs_init is not None:
-            # Paginate via the mock — issue per sub-range so the mock can fail
-            # per-subrange (matching the real eth_getLogs truncation semantics).
             results: List[dict] = []
             cursor = start_block
             while cursor <= end_block:
                 window_end = min(cursor + MAX_BLOCKS_PER_CALL - 1, end_block)
                 results.extend(
-                    list(self._raw_get_logs_init(pool_address, cursor, window_end))
+                    list(self._raw_get_logs_init(pool_id, cursor, window_end))
                 )
                 cursor = window_end + 1
             return results
         if self._raw_get_logs is not None:
-            # No dedicated init-only mock — fall back to full pagination and filter.
             results = []
             cursor = start_block
             while cursor <= end_block:
                 window_end = min(cursor + MAX_BLOCKS_PER_CALL - 1, end_block)
-                full = list(self._raw_get_logs(pool_address, cursor, window_end))
+                full = list(self._raw_get_logs(pool_id, cursor, window_end))
                 results.extend(l for l in full if _topic0_matches_init_payload(l))
                 cursor = window_end + 1
             return results
 
         self._ensure_web3()
-        init_topic = [_topic_to_hex(ABI_LIST[0])]  # ABI_LIST[0] = Initialize
+        init_topic = [_topic_to_hex(ABI_LIST[0])]
         results: List[dict] = []
         cursor = start_block
         while cursor <= end_block:
             window_end = min(cursor + MAX_BLOCKS_PER_CALL - 1, end_block)
             flt = {
-                "address": pool_address,
+                "address": POOL_MANAGER,
                 "fromBlock": hex(cursor),
                 "toBlock": hex(window_end),
-                "topics": init_topic,
+                "topics": [init_topic, pool_id],
             }
             batch = self._web3.eth.get_logs(flt)
             if len(batch) >= MAX_LOGS_PER_CALL:
@@ -227,7 +243,6 @@ class RpcClient:
             return self._raw_get_block_by_number(block_number)
         self._ensure_web3()
         block = self._web3.eth.get_block(block_number, full_transactions=False)
-        # Normalize to plain dict with hex string fields.
         return {
             "timestamp": int(block.get("timestamp", 0)),
             "hash": block.get("hash").hex() if block.get("hash") is not None else "0x",

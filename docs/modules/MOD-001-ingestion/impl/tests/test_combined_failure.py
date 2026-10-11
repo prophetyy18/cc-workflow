@@ -1,4 +1,4 @@
-"""REQ-020(c) combined-failure path (F-B / F3 fix; F5 Independent Reviewer fix).
+"""REQ-020(c) combined-failure path (F-B / F3 fix).
 
 Per DESIGN.md Verification § REQ-020(c) combined-failure test:
 "With a populated cache where one file is corrupted AND the RPC re-fetch
@@ -7,9 +7,10 @@ EventStreamFetchError whose cache_corruption_events field carries the
 corruption records — REQ-020(c) surfacing obligation is honored on every
 exit path."
 
-F5 fix: tests MUST actually call fetch_event_stream with mocked RPC and
-assert the exception's fields. Constructing the exception class directly is
-a tautology that does not verify the implementation's failure-handling path.
+Per Implementation SKILL §11.5: tests MUST actually exercise the public
+failure-handling path. Constructing the exception class directly is a
+tautology and does NOT verify the implementation's behavior — such a test
+was previously present and has been removed.
 """
 import os
 import tempfile
@@ -21,7 +22,7 @@ from ingestion.client import MAX_LOGS_PER_CALL
 
 class TestCombinedFailure(unittest.TestCase):
     def test_cache_corruption_plus_rpc_truncation_surfaces_corruption_records(self):
-        """F5 / F6: combined-failure path — populated cache (one sub-range tampered) +
+        """Combined-failure path: populated cache (one sub-range tampered) +
         RPC that fails with truncation on the re-fetch must raise EventStreamFetchError
         whose cache_corruption_events list contains the corrupted sub-range's record.
 
@@ -45,8 +46,6 @@ class TestCombinedFailure(unittest.TestCase):
         }
 
         def fail_on_get_logs(s, e):
-            # Run 2 only — pagination calls (10, 30) as one sub-range
-            # (MAX_BLOCKS_PER_CALL >> window); fail that call to trigger truncation.
             return RuntimeError(f"truncation at [{s}, {e}]")
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -84,44 +83,15 @@ class TestCombinedFailure(unittest.TestCase):
                 )
             err = ctx.exception
             self.assertEqual(err.cause, "rpc_truncation")
-            # F6 fix: truncation path carries cache_corruption_events too.
+            # Combined-failure path carries cache_corruption_events too.
             self.assertGreaterEqual(len(err.cache_corruption_events), 1)
             causes = {r.cause for r in err.cache_corruption_events}
             self.assertIn("sha256_mismatch", causes)
-            # failed_range should point at the truncated sub-range (MAX_BLOCKS_PER_CALL
-            # > window so pagination is a single sub-range).
+            # failed_range points at the truncated sub-range.
             self.assertEqual(err.failed_range, (10, 30))
-            # F8 fix: partial_entries field MUST exist on the exception (verified by
-            # the assertion below on every entry — empty list passes trivially when the
-            # failure occurred before any pagination could accumulate raw_logs, which is
-            # acceptable per DESIGN's failure semantics).
+            # partial_entries: each carries a non-None post_state (REQ-002 reconstruction ran).
             for entry in err.partial_entries:
                 self.assertIsNotNone(entry.post_state)
-
-    def test_event_stream_fetch_error_carries_cache_corruption_events_field(self):
-        """Static type check: cache_corruption_events MUST be present on every
-        EventStreamFetchError instantiation (F-B / F3 fix discipline)."""
-        from ingestion.exceptions import CacheCorruptionRecord, EventStreamFetchError
-
-        record = CacheCorruptionRecord(block_range=(100, 200), cause="sha256_mismatch")
-        err = EventStreamFetchError(
-            cause="rpc_truncation",
-            cache_corruption_events=[record],
-            partial_entries=[],
-            failed_range=(100, 200),
-            message="test",
-        )
-        self.assertEqual(len(err.cache_corruption_events), 1)
-        self.assertEqual(err.cache_corruption_events[0], record)
-
-        err2 = EventStreamFetchError(
-            cause="timestamp_unavailable",
-            cache_corruption_events=[record],
-            partial_entries=[],
-            failed_range=(5, 5),
-            message="test",
-        )
-        self.assertEqual(len(err2.cache_corruption_events), 1)
 
 
 if __name__ == "__main__":

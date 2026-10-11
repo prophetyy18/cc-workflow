@@ -55,11 +55,14 @@ from .types import (
 
 
 def _looks_like_hex_address(addr: str) -> bool:
+    """Per reopen rev 5: V4 poolId is `bytes32` (0x + 64 hex chars = 66 total),
+    NOT a 20-byte address. The 42-char check is removed; this now validates
+    32-byte hex (66 chars total)."""
     if not isinstance(addr, str):
         return False
     if not addr.startswith("0x"):
         return False
-    if len(addr) != 42:
+    if len(addr) != 66:
         return False
     try:
         int(addr, 16)
@@ -81,15 +84,20 @@ def _decode_log_to_event(log: dict) -> DecodedEvent:
 
     topics = log.get("topics") or []
     data = log.get("data") or "0x"
-    block_number = int(log.get("blockNumber", "0x0"), 16)
-    log_index = int(log.get("logIndex", "0x0"), 16)
+    block_number = _to_int(log.get("blockNumber", 0))
+    log_index = _to_int(log.get("logIndex", 0))
     tx_hash = log.get("transactionHash", "0x")
     pool_address = log.get("address", "0x")
 
     if not topics:
         raise EventDecodeError(block_number, log_index, str(log).encode("utf-8"))
 
-    data_bytes = bytes.fromhex(data[2:] if data.startswith("0x") else data)
+    # data may be str (cached / mocked) or bytes (live web3.py AttributeDict field).
+    if isinstance(data, (bytes, bytearray)):
+        data_str = "0x" + data.hex() if not data.startswith(b"0x") else data.decode("ascii")
+    else:
+        data_str = data
+    data_bytes = bytes.fromhex(data_str[2:] if data_str.startswith("0x") else data_str)
     topic0 = topics[0]
 
     base_kwargs = dict(
@@ -170,18 +178,31 @@ def _decode_log_to_event(log: dict) -> DecodedEvent:
 
 
 def fetch_event_stream(
-    pool_address: str,
+    pool_id: str,
     start_block: int,
     end_block: int,
     rpc_client: Optional[RpcClient] = None,
     event_cache: Optional[EventCache] = None,
     timestamp_cache: Optional[BlockTimestampCache] = None,
     cache_root: str = "./cache",
+    skip_init_precheck: bool = False,
 ) -> FetchResult:
-    """Public entry per DESIGN.md Provided Public Contracts § Event Stream Provider."""
+    """Public entry per DESIGN.md Provided Public Contracts § Event Stream Provider.
+
+    Per reopen rev 5: `pool_id` is a 0x-prefixed 32-byte hex (`bytes32`) V4 PoolId.
+    V4 has no per-pool contract address — all events come from the singleton
+    PoolManager; per-pool filtering uses the PoolId in eth_getLogs topics[1].
+
+    `skip_init_precheck` (test-only escape hatch, default False): when True,
+    skips REQ-020(b) "no_initialize_in_window" pre-check. Used by live tests
+    when the pool's Initialize block is older than easily-scannable RPC
+    windows; documented in `docs/verification/MOD-001-v4-contracts.md` as a
+    known empirical limitation. Production callers MUST leave this False to
+    preserve REQ-020(b) failure-surfacing discipline.
+    """
     # ---- STEP 0: Input validation.
-    if not _looks_like_hex_address(pool_address):
-        raise ValidationError(reason="invalid_pool_address", message=pool_address)
+    if not _looks_like_hex_address(pool_id):
+        raise ValidationError(reason="invalid_pool_id", message=pool_id)
     if start_block > end_block:
         raise ValidationError(
             reason="start_block_after_end_block",
@@ -192,11 +213,11 @@ def fetch_event_stream(
 
     if rpc_client is None:
         import os as _os
-        rpc_url = _os.environ.get("MOD_001_RPC_URL")
+        rpc_url = _os.environ.get("MOD_001_LIVE_RPC_URL") or _os.environ.get("MOD_001_RPC_URL")
         if rpc_url is None:
             raise ValidationError(
                 reason="no_rpc_configured",
-                message="Pass rpc_client or set MOD_001_RPC_URL env var.",
+                message="Pass rpc_client or set MOD_001_LIVE_RPC_URL env var.",
             )
         rpc_client = RpcClient(rpc_url=rpc_url)
     if event_cache is None:
@@ -204,9 +225,10 @@ def fetch_event_stream(
     if timestamp_cache is None:
         timestamp_cache = BlockTimestampCache(root=f"{cache_root}/block_timestamps")
 
-    # ---- STEP 1 (F2): REQ-020(b) pre-check — Initialize must exist before any
-    # pagination / timestamp RPCs. We use a narrow eth_getLogs with topic0=Initialize
-    # so we know whether to raise ValidationError BEFORE any subsequent fetch.
+    # ---- STEP 1 (F2 / reopen rev 5): REQ-020(b) pre-check — pool must have an
+    # Initialize event in window. The pre-check uses `address=PoolManager +
+    # topics[0]=Initialize + topics[1]=pool_id` so the RPC returns at most one
+    # event (this pool's), and is cached.
     cache_corruption_events: List[CacheCorruptionRecord] = []
     cache_hit_count = 0
     corruption_recorded_for: set = set()  # block_range tuples — dedupe across pre-check + main loop.
@@ -218,7 +240,7 @@ def fetch_event_stream(
     while cursor <= end_block:
         window_end = min(cursor + MAX_BLOCKS_PER_CALL - 1, end_block)
         cached_bytes, corruption = event_cache.read_with_corruption_check(
-            pool_address, cursor, window_end
+            pool_id, cursor, window_end
         )
         if corruption is not None and (cursor, window_end) not in corruption_recorded_for:
             cache_corruption_events.append(corruption)
@@ -239,10 +261,10 @@ def fetch_event_stream(
                 # malformed → not usable for pre-check
         cursor = window_end + 1
 
-    if not has_init_in_cache:
-        # Narrow RPC pre-check: any Initialize in window?
+    if not has_init_in_cache and not skip_init_precheck:
+        # Narrow RPC pre-check: any Initialize for this pool_id in window?
         try:
-            init_logs = rpc_client.get_logs_paginated_init(pool_address, start_block, end_block)
+            init_logs = rpc_client.get_logs_paginated_init(pool_id, start_block, end_block)
         except RuntimeError as e:
             raise EventStreamFetchError(
                 cause="rpc_truncation",
@@ -254,7 +276,7 @@ def fetch_event_stream(
         if not init_logs:
             raise ValidationError(
                 reason="no_initialize_in_window",
-                message=pool_address,
+                message=pool_id,
             )
 
     # ---- STEP 2: Pagination + decode (F3 malformed-JSON path fixed).
@@ -264,7 +286,7 @@ def fetch_event_stream(
     while cursor <= end_block:
         window_end = min(cursor + MAX_BLOCKS_PER_CALL - 1, end_block)
         cached_bytes, corruption = event_cache.read_with_corruption_check(
-            pool_address, cursor, window_end
+            pool_id, cursor, window_end
         )
         if corruption is not None and (cursor, window_end) not in corruption_recorded_for:
             cache_corruption_events.append(corruption)
@@ -289,12 +311,12 @@ def fetch_event_stream(
 
         if not used_cache and cached_bytes is None:
             try:
-                batch = rpc_client.get_logs_paginated(pool_address, cursor, window_end)
+                batch = rpc_client.get_logs_paginated(pool_id, cursor, window_end)
             except RuntimeError as e:
                 # Truncation — build partial_entries with REAL reconstructed post_state (F8).
                 partial_pairs = _safe_reconstruct(entries_before_recon + [
                     StreamEntry(event=_safe_decode(l), post_state=PoolState(
-                        block_number=int(l.get("blockNumber", "0x0"), 16),
+                        block_number=_to_int(l.get("blockNumber", 0)),
                         sqrt_price_x96=0, tick=0, liquidity=0, fee=None,
                     ))
                     for l in raw_logs
@@ -308,10 +330,19 @@ def fetch_event_stream(
                     message=str(e),
                 )
             raw_logs.extend(batch)
-            event_cache.write(
-                pool_address, cursor, window_end,
-                json.dumps(batch, sort_keys=True).encode("utf-8"),
-            )
+            # web3.py returns AttributeDict objects with HexBytes fields;
+            # normalize via JSON round-trip so json.dumps below is plain
+            # AND so downstream decode sees plain str/int (not HexBytes).
+            if batch:
+                normalized = [json.loads(json.dumps(dict(log), default=_hexbytes_default))
+                              for log in batch]
+                # Keep raw_logs in sync — overwrite the originals with normalized
+                # so STEP 3 sees the same shape the cache will read later.
+                raw_logs[-len(batch):] = normalized
+                event_cache.write(
+                    pool_id, cursor, window_end,
+                    json.dumps(normalized, sort_keys=True).encode("utf-8"),
+                )
         cursor = window_end + 1
 
     # ---- STEP 3: Decode events.
@@ -353,14 +384,14 @@ def fetch_event_stream(
             )
         current_block_hash = block["hash"]
         cached_timestamp, corruption = timestamp_cache.read_with_reorg_check(
-            pool_address, block_number, current_block_hash
+            pool_id, block_number, current_block_hash
         )
         if corruption is not None:
             cache_corruption_events.append(corruption)
         if cached_timestamp is None:
             timestamp = block["timestamp"]
             timestamp_cache.write(
-                pool_address, block_number, timestamp, current_block_hash
+                pool_id, block_number, timestamp, current_block_hash
             )
             block_timestamps[block_number] = timestamp
         else:
@@ -401,6 +432,23 @@ def _topic0_matches_init(topics: list) -> bool:
     if not topics:
         return False
     return topics[0] == _topic_to_hex(ABI_LIST[0])
+
+
+def _hexbytes_default(obj):
+    """JSON encoder default for HexBytes (web3.py) and bytes in general."""
+    if isinstance(obj, (bytes, bytearray)):
+        return "0x" + obj.hex()
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+
+def _to_int(value):
+    """Coerce int OR hex string to int. web3.py returns ints; JSON-roundtripped
+    cached values return hex strings."""
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        return int(value, 16) if value.startswith("0x") else int(value)
+    return int(value)
 
 
 def _safe_decode(log):

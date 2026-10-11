@@ -49,7 +49,7 @@ class TestNoInitialize(unittest.TestCase):
                     event_cache=ev_cache, timestamp_cache=ts_cache,
                     cache_root=cache_root,
                 )
-            self.assertEqual(ctx.exception.reason, "invalid_pool_address")
+            self.assertEqual(ctx.exception.reason, "invalid_pool_id")
 
 
 if __name__ == "__main__":

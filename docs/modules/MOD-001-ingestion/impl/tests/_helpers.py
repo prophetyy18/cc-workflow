@@ -6,6 +6,11 @@ Per Implementation SKILL Hard Rule §5 (tests independent of bookkeeping):
   (https://raw.githubusercontent.com/Uniswap/v4-core/main/src/interfaces/IPoolManager.sol)
   so the test corpus is mutually consistent with on-chain V4 reality, not
   with a mirror of the implementation's ABIs.
+
+Per DESIGN reopen rev 5:
+- `POOL` is a 32-byte (66 hex char) V4 PoolId, NOT a per-pool address.
+- All V4 events come from `POOL_MANAGER`; per-pool filtering uses PoolId
+  in `topics[1]`.
 """
 from __future__ import annotations
 
@@ -20,6 +25,32 @@ _IMPL_SRC = os.path.abspath(
 )
 if _IMPL_SRC not in sys.path:
     sys.path.insert(0, _IMPL_SRC)
+
+
+def _load_dotenv() -> None:
+    """Load `impl/.env` (KEY=VALUE lines) into os.environ if not already set.
+
+    Per Implementation SKILL §14 Hard Rule 14 (Lightweight): no python-dotenv;
+    ~12 lines of stdlib. Shell env takes precedence so CI overrides stay
+    authoritative. Run once at module import; idempotent.
+    """
+    env_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), os.pardir, ".env")
+    )
+    if not os.path.isfile(env_path):
+        return
+    with open(env_path, "r", encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            os.environ.setdefault(key, value)
+
+
+_load_dotenv()
 
 import eth_abi
 from eth_utils import keccak
@@ -75,7 +106,15 @@ ADDR_SIZE = 20
 
 
 def topic0(abi: dict) -> str:
-    types = ",".join(i["type"] for i in abi["inputs"] if i.get("indexed", False))
+    """Compute keccak topic0 from event ABI.
+
+    Per Ethereum event signature spec, the signature includes ALL inputs
+    (indexed + non-indexed). The previous impl mistakenly filtered by
+    `indexed` only — that produced a wrong topic0 that the mock RPC didn't
+    care about (mock returns canned data), but live eth_getLogs would have
+    returned empty. Caught by live integration 2026-10-11.
+    """
+    types = ",".join(i["type"] for i in abi["inputs"])
     sig = f"{abi['name']}({types})"
     return "0x" + keccak(text=sig).hex()
 
@@ -90,7 +129,7 @@ def hex_addr(addr: str) -> str:
 
 
 def encode_log(
-    pool_address: str,
+    pool_id: str,
     block_number: int,
     log_index: int,
     abi: dict,
@@ -98,7 +137,13 @@ def encode_log(
     indexed_args: Optional[list] = None,
     tx_hash: Optional[str] = None,
 ) -> dict:
-    """Build a raw eth_getLogs entry for a V4 event."""
+    """Build a raw eth_getLogs entry for a V4 event from the canonical PoolManager.
+
+    `pool_id` is the V4 PoolId (66-char hex); it goes in `topics[1]`. The
+    `address` field of the returned log dict is the PoolManager (NOT the
+    poolId) — every V4 event is emitted from the singleton PoolManager.
+    """
+    from ingestion.client import POOL_MANAGER
     if indexed_args is None:
         indexed_args = []
     non_indexed_types = [i["type"] for i in abi["inputs"] if not i.get("indexed", False)]
@@ -107,13 +152,14 @@ def encode_log(
     data_bytes = eth_abi.encode(non_indexed_types, list(non_indexed_args))
     indexed_topics = [
         topic0(abi),
+        pool_id.lower(),
         *[
             "0x" + eth_abi.encode([t], [v])[2:].hex().rjust(64, "0")
-            for t, v in zip(indexed_types, indexed_args)
+            for t, v in zip(indexed_types[1:], indexed_args[1:])  # skip poolId (already in topics[1])
         ],
     ]
     return {
-        "address": hex_addr(pool_address),
+        "address": POOL_MANAGER,  # singleton contract (reopen rev 5)
         "blockHash": "0x" + ("00" * 32),
         "blockNumber": hex(block_number),
         "data": "0x" + data_bytes.hex(),
@@ -125,7 +171,7 @@ def encode_log(
     }
 
 
-def _init_log_for_window(*, pool_address, start, end):
+def _init_log_for_window(*, pool_id, start, end):
     """Filter all logs in `mock_rpc_log_data` whose (key_start, key_end) window
     is contained within [start, end], to only those whose topic0 is Initialize.
     """
@@ -150,13 +196,12 @@ def mock_rpc(
     """Build a mock RpcClient whose get_logs_paginated / get_block_by_number / get_logs_paginated_init
     return canned responses.
 
-    logs_by_window: {(start, end): [raw log dicts], ...}
-        If a window is missing from the dict, an empty list is returned.
-        If cap_get_logs is set and a window returns more than cap_get_logs entries,
-        RuntimeError is raised (simulates truncation).
+    `logs_by_window` keys are `(start_block, end_block)` tuples; values are lists
+    of raw log dicts (already with PoolId in topics[1]). The mock does NOT
+    filter by topic[1] — it trusts the caller to supply logs for the right pool.
 
-    block_timestamps: {block_number: timestamp_seconds}; default 1s/block.
-    block_hashes: {block_number: "0x..."}; default deterministic.
+    `block_timestamps`: {block_number: timestamp_seconds}; default 1s/block.
+    `block_hashes`: {block_number: "0x..."}; default deterministic.
     """
     from ingestion.client import MAX_BLOCKS_PER_CALL, MAX_LOGS_PER_CALL, RpcClient
 
@@ -167,20 +212,15 @@ def mock_rpc(
     mock_rpc_log_data.clear()
     mock_rpc_log_data.update(logs_by_window)
 
-    def _get_logs(pool_address: str, start: int, end: int) -> List[dict]:
+    def _get_logs(pool_id: str, start: int, end: int) -> List[dict]:
         if fail_on_get_logs is not None:
             exc = fail_on_get_logs(start, end)
             if exc is not None:
                 raise exc
-        # Collect logs from all (key_start, key_end) windows whose range is
-        # contained within [start, end]. Matches real eth_getLogs semantics
-        # when test data is split into multiple sub-ranges.
         results: list = []
         for (key_start, key_end), logs in mock_rpc_log_data.items():
             if key_start >= start and key_end <= end:
                 results.extend(logs)
-        # Pagination simulation: caller may pass windows of varying sizes.
-        # If cap_get_logs set, simulate truncation.
         if cap_get_logs is not None and len(results) >= cap_get_logs:
             raise RuntimeError(
                 f"eth_getLogs returned {len(results)} logs at [{start}, {end}]; "
@@ -188,8 +228,8 @@ def mock_rpc(
             )
         return results
 
-    def _get_logs_init(pool_address: str, start: int, end: int) -> List[dict]:
-        return _init_log_for_window(pool_address=pool_address, start=start, end=end)
+    def _get_logs_init(pool_id: str, start: int, end: int) -> List[dict]:
+        return _init_log_for_window(pool_id=pool_id, start=start, end=end)
 
     def _get_block(block_number: int) -> dict:
         if fail_on_get_block is not None:
@@ -218,7 +258,9 @@ def fresh_caches(tmp_path: str):
     )
 
 
-POOL = "0x1234567890abcdef1234567890abcdef12345678"
+# Per reopen rev 5: V4 PoolId (32 bytes / 66 hex chars), NOT a per-pool address.
+POOL = "0x" + "cc" * 32  # 0xcccccccc...cccc, deterministic 32-byte poolId
+
 CURRENCY0 = "0x" + "11" * 20
 CURRENCY1 = "0x" + "22" * 20
 SENDER = "0x" + "ab" * 20
@@ -234,12 +276,12 @@ def make_init_log(block_number: int, log_index: int, **overrides) -> dict:
     Non-indexed (data): fee, tickSpacing, hooks, sqrtPriceX96, tick.
     """
     return encode_log(
-        pool_address=POOL,
+        pool_id=overrides.get("pool_id", POOL),
         block_number=block_number,
         log_index=log_index,
         abi=ABI_INITIALIZE,
         indexed_args=[
-            overrides.get("pool_id", POOL_ID),
+            overrides.get("pool_id", POOL),
             hex_addr(overrides.get("currency0", CURRENCY0)),
             hex_addr(overrides.get("currency1", CURRENCY1)),
         ],
@@ -261,12 +303,12 @@ def make_swap_log(block_number: int, log_index: int, **overrides) -> dict:
                        liquidity (uint128), tick (int24), fee (uint24).
     """
     return encode_log(
-        pool_address=POOL,
+        pool_id=overrides.get("pool_id", POOL),
         block_number=block_number,
         log_index=log_index,
         abi=ABI_SWAP,
         indexed_args=[
-            overrides.get("pool_id", POOL_ID),
+            overrides.get("pool_id", POOL),
             hex_addr(overrides.get("sender", SENDER)),
         ],
         non_indexed_args=[
@@ -287,12 +329,12 @@ def make_modify_log(block_number: int, log_index: int, **overrides) -> dict:
     Non-indexed (data): tickLower, tickUpper, liquidityDelta (int256), salt (bytes32).
     """
     return encode_log(
-        pool_address=POOL,
+        pool_id=overrides.get("pool_id", POOL),
         block_number=block_number,
         log_index=log_index,
         abi=ABI_MODIFY_LIQUIDITY,
         indexed_args=[
-            overrides.get("pool_id", POOL_ID),
+            overrides.get("pool_id", POOL),
             hex_addr(overrides.get("sender", SENDER)),
         ],
         non_indexed_args=[

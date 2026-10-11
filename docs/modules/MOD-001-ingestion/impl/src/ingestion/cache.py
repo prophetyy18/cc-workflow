@@ -1,8 +1,8 @@
 """Event cache backend (REQ-003 / REQ-N02 / REQ-020(c)).
 
-Per DESIGN Internal Design:
-- File-based: ./cache/events/<pool_address>/<start_block>_<end_block>.json
-- Index: ./cache/events/_index.json — maps (pool, start, end) to file path + sha256
+Per DESIGN Internal Design (reopen rev 5):
+- File-based: ./cache/events/<pool_id>/<start_block>_<end_block>.json
+- Index: ./cache/events/_index.json — maps (pool_id, start, end) to file path + sha256
 - REQ-N02 byte-identity: cached payloads byte-identical to raw RPC response
 - REQ-020(c): SHA-256 mismatch on read → re-fetch via RPC; append CacheCorruptionRecord
 """
@@ -21,12 +21,12 @@ CACHE_ROOT = "./cache/events"
 INDEX_FILE = "./cache/events/_index.json"
 
 
-def _window_file_path(pool_address: str, start_block: int, end_block: int) -> str:
-    return f"{CACHE_ROOT}/{pool_address}/{start_block}_{end_block}.json"
+def _window_file_path(pool_id: str, start_block: int, end_block: int) -> str:
+    return f"{CACHE_ROOT}/{pool_id}/{start_block}_{end_block}.json"
 
 
-def _window_index_key(pool_address: str, start_block: int, end_block: int) -> str:
-    return f"{pool_address.lower()}:{start_block}-{end_block}"
+def _window_index_key(pool_id: str, start_block: int, end_block: int) -> str:
+    return f"{pool_id.lower()}:{start_block}-{end_block}"
 
 
 class EventCache:
@@ -35,9 +35,9 @@ class EventCache:
     Usage:
         cache = EventCache(root="./cache/events")
         # On successful fetch:
-        cache.write(pool, start, end, raw_rpc_results_json_bytes)
+        cache.write(pool_id, start, end, raw_rpc_results_json_bytes)
         # On fetch attempt:
-        raw_bytes, corruption = cache.read_with_corruption_check(pool, start, end)
+        raw_bytes, corruption = cache.read_with_corruption_check(pool_id, start, end)
     """
 
     def __init__(self, root: str = CACHE_ROOT) -> None:
@@ -60,16 +60,16 @@ class EventCache:
     def _compute_sha256(self, raw: bytes) -> str:
         return hashlib.sha256(raw).hexdigest()
 
-    def has(self, pool_address: str, start_block: int, end_block: int) -> bool:
-        key = _window_index_key(pool_address, start_block, end_block)
+    def has(self, pool_id: str, start_block: int, end_block: int) -> bool:
+        key = _window_index_key(pool_id, start_block, end_block)
         return key in self._load_index()
 
-    def write(self, pool_address: str, start_block: int, end_block: int, raw: bytes) -> None:
+    def write(self, pool_id: str, start_block: int, end_block: int, raw: bytes) -> None:
         """Persist raw RPC response bytes (REQ-N02 byte-identity)."""
-        path = self.root / pool_address.lower() / f"{start_block}_{end_block}.json"
+        path = self.root / pool_id.lower() / f"{start_block}_{end_block}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(raw)
-        key = _window_index_key(pool_address, start_block, end_block)
+        key = _window_index_key(pool_id, start_block, end_block)
         index = self._load_index()
         index[key] = {
             "path": str(path),
@@ -78,13 +78,13 @@ class EventCache:
         self._save_index(index)
 
     def read_with_corruption_check(
-        self, pool_address: str, start_block: int, end_block: int
+        self, pool_id: str, start_block: int, end_block: int
     ) -> Tuple[Optional[bytes], Optional[CacheCorruptionRecord]]:
         """Return (raw_bytes, None) on hit-clean; (None, CacheCorruptionRecord) on corruption; (None, None) on miss.
 
         Per REQ-020(c): SHA-256 mismatch = corruption; caller MUST re-fetch and append the record.
         """
-        key = _window_index_key(pool_address, start_block, end_block)
+        key = _window_index_key(pool_id, start_block, end_block)
         index = self._load_index()
         entry = index.get(key)
         if entry is None:
@@ -108,9 +108,9 @@ class EventCache:
             return None, record
         return data, None
 
-    def invalidate(self, pool_address: str, start_block: int, end_block: int) -> None:
+    def invalidate(self, pool_id: str, start_block: int, end_block: int) -> None:
         """Remove cached entry (e.g., after reorg-driven re-fetch)."""
-        key = _window_index_key(pool_address, start_block, end_block)
+        key = _window_index_key(pool_id, start_block, end_block)
         index = self._load_index()
         entry = index.pop(key, None)
         if entry is not None:

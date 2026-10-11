@@ -1,7 +1,7 @@
-"""Block-timestamp cache (F1 / F2 / F-D fix per DESIGN.md).
+"""Block-timestamp cache (F1 / F2 / F-D fix per DESIGN.md, reopen rev 5).
 
-Per DESIGN.md Internal Design (Block-timestamp cache section):
-- File-based: ./cache/block_timestamps/<pool_address>/<block_number>.json
+Per DESIGN.md Internal Design (Block-timestamp cache section) — reopen rev 5:
+- File-based: ./cache/block_timestamps/<pool_id>/<block_number>.json
 - Value: {"timestamp": int, "block_hash": "0x..."}
 - REQ-N02 byte-identity: cached payloads byte-identical to raw RPC response
 - Reorg detection (F2): every fetch issues eth_getBlockByNumber per unique block,
@@ -27,9 +27,9 @@ class BlockTimestampCache:
     Usage:
         cache = BlockTimestampCache(root="./cache/block_timestamps")
         # On eth_getBlockByNumber success:
-        cache.write(pool, block_number, timestamp, block_hash)
+        cache.write(pool_id, block_number, timestamp, block_hash)
         # On fetch (per unique block in window):
-        cached = cache.read_with_reorg_check(pool, block_number, current_block_hash)
+        cached = cache.read_with_reorg_check(pool_id, block_number, current_block_hash)
         if cached is None:
             # reorg or miss — re-fetch
             ...
@@ -39,21 +39,21 @@ class BlockTimestampCache:
         self.root = Path(root)
 
     @staticmethod
-    def _path(root: Path, pool_address: str, block_number: int) -> Path:
-        return root / pool_address.lower() / f"{block_number}.json"
+    def _path(root: Path, pool_id: str, block_number: int) -> Path:
+        return root / pool_id.lower() / f"{block_number}.json"
 
     def _compute_sha256(self, raw: bytes) -> str:
         return hashlib.sha256(raw).hexdigest()
 
     def write(
         self,
-        pool_address: str,
+        pool_id: str,
         block_number: int,
         timestamp: int,
         block_hash: str,
     ) -> None:
         """Persist (timestamp, block_hash)."""
-        path = self._path(self.root, pool_address, block_number)
+        path = self._path(self.root, pool_id, block_number)
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"timestamp": timestamp, "block_hash": block_hash}
         raw = json.dumps(payload, sort_keys=True).encode("utf-8")
@@ -61,7 +61,7 @@ class BlockTimestampCache:
 
     def read_with_reorg_check(
         self,
-        pool_address: str,
+        pool_id: str,
         block_number: int,
         current_block_hash: str,
     ) -> Tuple[Optional[int], Optional[CacheCorruptionRecord]]:
@@ -69,7 +69,7 @@ class BlockTimestampCache:
 
         Per F2 explicit mechanism: reorg = current_block_hash differs from cached; treat as corruption.
         """
-        path = self._path(self.root, pool_address, block_number)
+        path = self._path(self.root, pool_id, block_number)
         if not path.exists():
             return None, None
         try:
@@ -100,9 +100,9 @@ class BlockTimestampCache:
             )
         return cached_timestamp, None
 
-    def invalidate(self, pool_address: str, block_number: int) -> None:
+    def invalidate(self, pool_id: str, block_number: int) -> None:
         """Remove cached entry (after reorg-driven re-fetch)."""
-        path = self._path(self.root, pool_address, block_number)
+        path = self._path(self.root, pool_id, block_number)
         try:
             path.unlink(missing_ok=True)
         except OSError:
