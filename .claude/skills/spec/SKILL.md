@@ -218,7 +218,7 @@ updated: YYYY-MM-DD
 <how to verify each Requirement / invariant. Three levels when useful:
 - **Capability Verification** — does this Spec meet its own Requirements?
 - **Contract Verification** — do other Specs / modules honor their inter-Spec contracts?
-- **System Verification** — do the combined capabilities still meet the original user goal?>
+- **System Verification** — do the combined capabilities still meet the original user goal? System Verification must include the full user sequence from the real starting state, classified per `verification.md` §4.7. Component / unit tests and mocks alone are not System Verification.>
 
 # Architecture Handoff
 
@@ -246,6 +246,15 @@ See [references/requirements.md](references/requirements.md) for:
 - How to assign Requirement IDs (`SPEC-NNN/REQ-NNN`)
 - What to source from Intent (item IDs, file+section, etc.)
 - How to identify cross-capability invariants
+
+### 13.1 End-to-end user sequence (anchor to shared rule)
+
+Each Functional Requirement must trace to at least one step in the
+user sequence captured in the source Intent's `# Clarified Intent`.
+A Requirement that does not trace is either out of scope or the
+sequence is incomplete; do not silently fill the gap with a
+Requirement that the user did not ask for. The full rule is
+`cross-layer-coordination.md` §8; this section only points to it.
 
 ## 14. Subcommand: `review <spec-id>`
 

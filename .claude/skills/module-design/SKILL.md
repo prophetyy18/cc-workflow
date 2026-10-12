@@ -509,6 +509,12 @@ design transition. The split matches
 - Each assigned Spec Requirement has an observable verification
   method whose expected result derives from the Requirement, not
   the implementation.
+- **The public contracts this module provides and consumes
+  compose with the rest of the system to complete the user
+  sequence from the source Intent** (per
+  `cross-layer-coordination.md` §8). A design that documents
+  each contract in isolation but cannot show its place in the
+  user sequence is incomplete.
 - **No entry in `# Blocking Unknowns and Implementation Handoff`
   is flagged Blocking AND is a *design prerequisite*** — i.e.,
   an unverified fact whose different possible outcomes would

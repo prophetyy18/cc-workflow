@@ -421,6 +421,19 @@ A downstream Spec should cite the intents it consumes (by ID) so this skill can 
 
 **An Intent may produce zero, one, or many Specs.** The `# Spec Input` section is the contract each consuming Spec reads; do not write it with a single specific Spec in mind. Intent hierarchy does not determine Spec decomposition — a large cross-domain Intent can directly feed multiple Specs without first being split into children.
 
+### 18.1 End-to-end user sequence (anchor to shared rule)
+
+The `# Clarified Intent` restatement must cover the **user's
+operational sequence from a real starting point** — what the user
+knows at the start, what the system already has, who provides each
+input, the order of operations, and the user-observable success of
+each step. This sequence is the anchor every downstream layer
+preserves; the shared rule and its application per layer are in
+`cross-layer-coordination.md` §8. The sequence is not a fixed
+template, table, or state machine — express it in plain language
+under `# Clarified Intent`, as concise list of steps if it helps
+clarity, and let downstream layers carry it forward.
+
 ## 19. Hard Rules
 
 1. **Owner authority.** Never silently change user intent or constraints. If disagreeing, surface it in `# Evaluation`, not by editing the user's words.

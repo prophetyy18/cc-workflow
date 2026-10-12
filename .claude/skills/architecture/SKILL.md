@@ -197,6 +197,7 @@ Verify:
 - No two modules claim authoritative ownership of the same state.
 - No Requirement is orphaned (no module responsible for satisfying it).
 - System-level guarantees (e.g., "no future-data leakage in the combined historical + replay + performance path") are not silently lost in the module split.
+- **The Baseline covers the user sequence from the source Intent.** For every step in the user-confirmed operational sequence, there is a Primary Owner and an available Provider contract; no step's required input depends on data the system has not yet produced at that point (no forward dependency / cycle); no step silently transfers system work to the user. See `cross-layer-coordination.md` §8.
 
 If a check fails, revise the boundary or owner assignment and re-verify. Do not ship a Baseline with known gaps.
 
@@ -470,6 +471,7 @@ Architecture does **not** use Intent / Spec's `active` → `archived` lifecycle.
 - Module dependency boundaries are explicit.
 - System Invariants have integration owners and verification paths.
 - **Every module listed anywhere in the Baseline carries a canonical `MOD-<slug>` ID recorded in §2 (Modules and Responsibilities). The same ID appears in §3 / §4 / §5 and in any per-module summary filename.** This is the gating criterion: without it, the next layer (Module Design) cannot look up the module.
+- **The user sequence from the source Intent is covered by the Baseline** (Step 7 last bullet). This is the end-to-end check from the shared rule (`cross-layer-coordination.md` §8). It is read at this gate, not inferred from "every Requirement has an Owner".
 - No Blocking architecture-level Unknowns remain (Non-Blocking may be deferred to "Open Architecture Questions").
 
 When the user confirms ("确认，继续" or equivalent), save the Baseline. Do not prompt a second time. Do not require an `archive` command.

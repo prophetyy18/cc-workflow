@@ -487,6 +487,16 @@ Additional anti-patterns, surfaced by actual run evidence:
   numerical error in the implementation is mirrored in the
   test, and the test is "real integration" in name only. See
   `verification.md` §4.2 and §4.7.
+- **"Every component passes, therefore the user can complete
+  the goal."** Component tests, source-string checks, mocks, and
+  partial renders can all pass while the user sequence has a
+  forward dependency, a missing Provider, a contract gap, or a
+  silent work-transfer to the user. The local-pass verdict is
+  the failure mode; the end-to-end check from the real starting
+  state is the only completion signal for the user's goal. The
+  shared rule is §8.7 above; the Reviewer Phase 4 risk class
+  `End-to-end user journey completeness` is the corresponding
+  Reviewer check.
 
 ## 7. When this reference is loaded
 
@@ -499,3 +509,118 @@ Load this file when a Skill:
 - Receives a forward message from another Skill.
 
 Do not load it for routine single-layer work.
+
+## 8. End-to-end user journey (shared cross-cutting principle)
+
+**This is the single source of truth** for the end-to-end path
+discipline. Each Skill, the Reviewer, and the verification layer point
+here; none of them restate the full rule.
+
+### 8.1 The principle
+
+Every authoritative artifact (Intent, Spec, Architecture, Module
+Design, Implementation) must be checkable against the user's
+**operational sequence from a real starting point**. The
+operational sequence is the user-confirmed order of operations with
+its preconditions: what the user knows at the start, what the system
+already has, who provides each input, the order of operations, and
+the user-observable success of each step.
+
+An artifact fails this check when any of the following holds:
+
+- a step in the user's sequence has no Primary Owner, no Provider,
+  or no available public contract;
+- a step's required input is data the system has not yet produced
+  at that point in the sequence (a forward dependency / cycle);
+- a step silently transfers work the system should do onto the user
+  (e.g. asking the user to hand-fill data the system could fetch);
+- the modules' contracts compose into a path that stops short of
+  completing the user's original sequence from the real starting
+  state.
+
+### 8.2 Acceptance is from a real starting state, not from "components in place"
+
+Component tests, source-string checks, mocks, and partial-UI renders
+are useful for boundary, fault, and shape coverage. They do not
+alone prove the user can complete the original goal.
+
+Each layer's review and verification must include, as part of the
+gate, the end-to-end check from the real starting point. The check
+classifies per `verification.md` §4.7 (real / offline replay / mock /
+not-run). If the real end-to-end run cannot execute, the gate does
+not close on the basis of "every component / unit test passed";
+name the missing pre-condition, the test that would have run, and
+keep the handoff open until it is satisfied. Per `verification.md`
+§4.8, a skipped real test is a real condition to surface, not a
+green checkmark.
+
+### 8.3 Scope
+
+The principle applies to UI flows, API call sequences, CLI
+commands, data pipelines, and any other user-facing or
+system-facing sequence. The shape is:
+
+> real starting state → first user action → system response →
+> next user action → ... → user-observable success.
+
+The discipline is the same regardless of medium. The principle is
+not a fixed template, a state machine, or a parallel document; it
+is a check each layer applies against its own authoritative content.
+
+### 8.4 Layer application (one entry per layer — full rule above)
+
+- **Intent** — the `# Clarified Intent` restatement names the
+  user's starting knowledge, the system's starting state, the
+  sequence of user / system actions, and the user-observable
+  success of each step. Downstream layers read this sequence and
+  preserve it.
+- **Spec** — every Functional Requirement traces to at least one
+  step in the user sequence. `# Acceptance and Verification`
+  includes a System Verification that walks the full sequence
+  from the real starting state, classified per `verification.md`
+  §4.7.
+- **Architecture** — the Baseline's Module Responsibility Map and
+  Public Capability / Contract Index cover every step in the user
+  sequence; for each step there is a Primary Owner, an available
+  Provider contract, and no forward dependency / cycle. Init
+  completion requires the sequence to be covered; §10 reads this
+  check at the gate.
+- **Module Design** — the public contracts the module provides
+  and consumes compose with the rest of the system to complete the
+  user sequence. §13.1 records this as a design prerequisite.
+- **Implementation** — the handoff gate (§13.1) includes a
+  real-acceptance test that exercises the user sequence from the
+  real starting state, classified per `verification.md` §4.7.
+  Component / unit tests, mocks, and source-string checks are
+  necessary but not sufficient.
+
+### 8.5 Reviewer discipline
+
+The Reviewer (Mode A) **independently derives the user sequence
+from the source Intent** and then checks the target artifact
+preserves it. The Reviewer does not read the target and
+reverse-derive a "user flow" from it. This is a Phase 4 risk
+class — see `independent-reviewer.md` §2 (Phase 4 — Risk-based
+Challenge). The Reviewer is read-only; the actual end-to-end run
+is the Implementation / Verification layer's job.
+
+### 8.6 Authority
+
+When the end-to-end check finds a gap, the fix lives at the
+**highest necessary authority whose content must change** (§4),
+applied to the **specific step** in the sequence that is
+broken. Do not apply a "global" fix that changes the user
+sequence or transfers work to the user; the user's confirmed
+sequence is the anchor.
+
+### 8.7 Anti-pattern
+
+**"Every component passes, therefore the user can complete the
+goal."** Component tests, source-string checks, and partial
+coverage can all pass while the user sequence has a forward
+dependency, a missing Provider, a contract gap, or a silent
+work-transfer to the user. The "the system looks correct
+locally" verdict is the failure mode; the end-to-end check
+from the real starting state is the only completion signal for
+the user's goal. See also `verification.md` §4.6 and the Reviewer
+Phase 4 risk class "End-to-end user journey completeness".

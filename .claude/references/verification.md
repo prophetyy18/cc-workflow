@@ -302,6 +302,27 @@ A passing test suite is necessary but not sufficient:
   `Limitation: empirical verification not performed`; do not promote
   `Implementation Verified`.
 
+**End-to-end user-journey check** (anchor to
+`cross-layer-coordination.md` §8). For tasks that have a user
+sequence (UI flow, API call sequence, CLI commands, data
+pipeline), acceptance must include a run from the real starting
+state covering every step. The run is classified per §4.7
+(real / offline replay / mock / not-run). If the real run cannot
+execute, the gate does not close on the basis of "every
+component / unit test passed"; name the missing pre-condition,
+the test that would have run, and the gap class per §4.8 (config
+/ cred / real protocol uninvestigated / impl matches contract
+but no runtime evidence). A skipped real end-to-end test is a
+real condition to surface — not a green checkmark, and not
+"`Implementation Verified`" for end-to-end correctness.
+
+The Reviewer is read-only and does not actually run the user's
+sequence itself; the Reviewer checks that the artifact preserves
+the user sequence and that the Authoring Skill produced the
+classification evidence. The actual end-to-end run is the
+Implementation / Verification layer's job, executed against the
+real starting state.
+
 ### 4.7 Real Acceptance Reporting
 
 For any test that targets an external dependency (network, chain,
