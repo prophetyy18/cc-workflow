@@ -371,6 +371,17 @@ parts**. A passing result is necessary, not sufficient: the
 report must say what was *checked* against the live response, not
 just that a call succeeded.
 
+For an interactive user sequence, also record the **interaction
+boundary**: real browser or client actions, automated browser
+actions, direct service requests, or code inspection. A live
+service response proves only the service steps exercised; it does
+not prove that a user can reach them through the product UI.
+Start with the actual initial page or state, then record each
+input, response, visible success or failure, and next available
+action. State which transitions were not exercised. A fixture
+that begins after a prerequisite action cannot prove that the
+prerequisite is reachable.
+
 ### 4.8 Real by default
 
 Test planning defaults to real acceptance at the boundaries the

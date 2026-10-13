@@ -624,3 +624,40 @@ locally" verdict is the failure mode; the end-to-end check
 from the real starting state is the only completion signal for
 the user's goal. See also `verification.md` §4.6 and the Reviewer
 Phase 4 risk class "End-to-end user journey completeness".
+
+### 8.8 Per-step reachability check (minimum per-step discipline)
+
+#### 8.8.1 Describe each transition
+
+Using the source Intent's sequence, state or infer for each step:
+what the user knows, what the system already has, what the user
+must input, what system action and provider follow, what becomes
+visible on success or failure, and which earlier output the next
+step needs. Prose is enough; no extra template is required.
+
+#### 8.8.2 Check reachability
+
+- **Forward dependency:** Is each required input known or
+  obtainable at this point? Is system data available from the
+  initial state or a completed earlier step? Flag any cycle in
+  which a step needs its own or a later result.
+- **Provider:** At design time, is the needed capability assigned
+  and specified at this point in the sequence? At implementation
+  time, does the actual starting state expose a working path to
+  it? Planned code does not count as runtime evidence.
+- **Work transfer:** Does the flow make the user discover data or
+  perform an action that the confirmed sequence assigns to the
+  system, just to unlock the next step? Preserve genuine choices
+  and optional manual controls.
+
+#### 8.8.3 Resolve and verify
+
+Fix the broken transition at the highest necessary authority
+whose content must change (§2-4). The current owner fixes its
+own content and sends other-layer defects through the feedback
+contract (§3); it does not silently rewrite the source Intent.
+The Reviewer checks the transitions against each artifact. At
+Implementation handoff, one or more real runs must demonstrate
+every transition from the initial state, including visible
+failure behavior, classified per `verification.md` §4.7. A
+separate test per step is not required.

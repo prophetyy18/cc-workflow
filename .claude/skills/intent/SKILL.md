@@ -140,7 +140,10 @@ If the ID is partial and exactly one intent matches, proceed. If multiple match,
 1. Load `INTENT.md`.
 2. Render a final summary: clarified intent, constraints, decisions, facts, unknowns, spec input.
 3. **Confirmation rule.** When called as a slash command, confirm with the user explicitly. When called via the natural-language completion flow (the user just said "确认，继续" / "INT-001 没问题了" / "需求已经确定" in response to a recent completion proposal), reuse that confirmation — do not prompt a second time. If the response is ambiguous ("好的", "继续讨论"), ask for clarification rather than assume.
-4. **Completion check before archive.** For the natural-language flow (and recommended for the command flow too), verify: current authoritative document is saved, no Blocking issue remains, confirmed decisions are recorded, sources and traceability are valid, no major upstream conflict requires feedback. If a Blocking issue exists, surface it and stop — do not silently archive. A Non-Blocking issue does not block archive; record it in `# Resume Notes` or `# Unknowns and Upstream Feedback`.
+4. **Completion check before archive — required for both the command and natural-language flow.** Read the saved document against `# Original Intent`, then verify: confirmed decisions, sources, traceability, and cross-layer feedback are current; no Blocking issue remains. In addition:
+   - Walk the user's goal from the real starting state: at each step, what does the user already know and provide, what does the system return, what can the user do next, and what can they see or do after failure? Investigate missing factual prerequisites before asking the user; ask only when a product choice is genuinely unresolved. Preserve the confirmed operation order (`cross-layer-coordination.md` §8).
+   - For each major original pain point, identify an observable success outcome or an explicit deferral. Reconcile `# Original Intent`, `# Clarified Intent`, decisions, success criteria, `# Spec Input`, scope, Unknowns, and Resume Notes. Remove `_TBD_` and resolved Unknowns from the current account; correct stale scope claims and contradictions, recording the reason in `# Resume Notes`. Keep historical decisions traceable. Do not treat an unresolved product choice as editorial cleanup.
+   If the path, outcome, or authoritative meaning remains unclear, surface the specific gap and keep the intent active. If the Intent already specifies a step but a downstream artifact reverses it, send feedback to that artifact's owner under the existing cross-layer contract (§3); do not reopen the product choice. Do not archive on user confirmation alone or pass an Intent gap downstream as if it were complete. Routine document cleanup needs no second confirmation; a changed user goal or product decision does.
 5. **Archive does not require downstream Spec to be complete.** Intent is considered ready for archive when the user confirms the goal, scope, and decisions are sufficiently clarified. Spec, Architecture, and Module work may proceed in parallel or later. If a downstream artifact later finds a real upstream problem, it can route the issue back through `/intent feedback`, which may lead to `reopen` — but that is not automatic.
 6. On confirmation: set `status: archived`, update `updated`. Append a short note to `# Resume Notes` (e.g., "Archived after N clarification rounds; X decisions recorded").
 7. Tell the user: archived intents can be reopened with `reopen`, and can also receive `feedback` without reopening.
@@ -371,7 +374,7 @@ updated: YYYY-MM-DD
 <short status: last action, what's next, key open questions.>
 ```
 
-**Omit or trim sections that don't apply.** Empty sections are fine. **Do not pad with fake content** to make the document look complete. If a section would only contain "TBD", write `_TBD_` and move on.
+**Omit or trim sections that don't apply.** Empty sections are fine. **Do not pad with fake content** to make the document look complete. While drafting, a section that would only contain "TBD" may use `_TBD_`; resolve or remove it before archive under §9 step 4.
 
 ## 15. Modification Flow (vs Creation)
 
@@ -463,7 +466,7 @@ clarity, and let downstream layers carry it forward.
 25. **No auto-archive, no auto-reopen, no auto-modify.** Never change intent status or authoritative content without explicit user authorization, even if a downstream feedback suggests it.
 26. **Don't claim sync that didn't happen.** If a downstream artifact cannot be modified from this skill (almost always), return a clear result for its owner to apply. Do not claim the artifact was updated.
 27. **One explicit confirmation is enough.** When the user has explicitly confirmed the current stage's completion ("确认，继续" / "需求已经确定" / "INT-001 没问题了"), that single confirmation authorizes the corresponding archive and the immediate handoff. Do not prompt a second time to "are you sure?". Do not extend the authorization to unrelated changes (other intents, unrequested Specs, architectural decisions, code).
-28. **Completion check before natural-language archive.** A natural-language completion confirmation is not a license to skip the completion check. The check (saved, no Blocking issue, decisions recorded, traceability valid, no major upstream conflict) still runs. Blocking issues stop the archive; the user must resolve them before re-confirming.
+28. **Completion check before every archive.** User confirmation does not waive §9 step 4 for the command or natural-language flow. Keep the intent active while a material gap remains; do not ask for a second confirmation after routine cleanup when the original authorization still applies.
 
 ## 20. Lightweight Reconcile Trigger
 

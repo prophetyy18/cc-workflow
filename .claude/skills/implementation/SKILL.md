@@ -474,16 +474,23 @@ handoff obligations.
   constant), the test's expected value must match an
   *independent recomputation*; if it doesn't, surface as a
   Spec-side error per the Spec §17 routine-correction flow.
-- **A real-acceptance test that exercises the user sequence
-  from the real starting state** is in place and PASS,
-  classified per `verification.md` §4.7. Component / unit
-  tests, mocks, and source-string checks are necessary but
-  not sufficient. If the real test cannot run, name the
-  missing pre-condition (per `verification.md` §4.8 gap
-  classes), the test that would have run, and keep the
-  handoff open — do not close on mock-only or
-  skipped-real-acceptance evidence. The full rule is
-  `cross-layer-coordination.md` §8.4 (Implementation row).
+- **Real-acceptance evidence for the user sequence from the
+  real starting state** is in place and PASS, classified per
+  `verification.md` §4.7. One or more runs must show each
+  transition from the source Intent's `# Clarified Intent`:
+  the available initial data, user input, system response,
+  visible result, and the next reachable action. Exercise a
+  relevant failure path and record what the user actually
+  sees. Apply `cross-layer-coordination.md` §8.8; a later
+  result cannot serve as the prerequisite for an earlier
+  action. Component / unit tests,
+  mocks, and source-string checks are necessary but not
+  sufficient. If the real test cannot run, name the missing
+  pre-condition (per `verification.md` §4.8 gap classes),
+  the test that would have run, and keep the handoff open —
+  do not close on mock-only or skipped-real-acceptance
+  evidence. The full rule is `cross-layer-coordination.md`
+  §8.4 (Implementation row) and §8.8 (per-step discipline).
 - Test suite is PASS (no FAIL; no NOT RUN left over from
   initial collection issues) under the recorded `run` command.
   Recording PASS from a stale or different command does not
