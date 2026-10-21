@@ -1,7 +1,7 @@
 ---
 name: implementation
 description: Realize a finalized DESIGN.md as runnable code, tests, and verification evidence. Reads only the authoritative public contract (DESIGN.md + contracts/*) and writes code, tests, and run-time evidence under the module's impl/. Reuses Cross-layer Coordination for upstream errors and the Independent Reviewer for verification. Use when the user wants to start implementation from a finalized design (`/implementation new MOD-foo`), resume work, run tests, request review, or hand off to delivery. Triggered by phrases like "implement MOD-foo", "实现 foo", "build MOD-foo", "run MOD-foo tests", "verify foo".
-allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(test*), Bash(python3*), Bash(pytest*), Bash(go test*), Bash(npm test*)
+allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(test*), Bash(python3*), Bash(pytest*), Bash(go test*), Bash(npm test*), Bash(git*)
 ---
 
 # Implementation Skill
@@ -9,9 +9,10 @@ allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), 
 Realizes a finalized `DESIGN.md` as runnable code, tests, and
 verification evidence. The Main Agent runs this Skill — Implementation
 does not introduce a new Subagent. The Skill uses the project's
-existing tools (test runner, package layout, dependencies) and reads
-only the authoritative public contract (`DESIGN.md` § Provided Public
-Contracts plus `contracts/*.yaml`). It discovers upstream errors
+existing tools (test runner, package layout, dependencies), implements
+the authoritative public contract (`DESIGN.md` § Provided Public
+Contracts plus `contracts/*.yaml`), and checks its current upstream
+basis. It discovers upstream errors
 through runtime evidence and routes corrections through the existing
 Cross-layer Coordination.
 
@@ -104,6 +105,10 @@ Read in order:
    `source_spec`) — read each Spec's `# Acceptance and Verification`.
 4. The Provider-side public contract dependencies listed in `DESIGN.md`
    § Consumed Public Contracts.
+5. The source Intent's critical user path and the current
+   Architecture ownership for its affected steps. Compare them
+   with the Design and any recorded PASS before coding; route a
+   missing or stale contract to its owner instead of inheriting it.
 
 If DESIGN.md is silent on a field the implementation needs, do not
 invent. Either fill the Internal Design step consistent with the
@@ -173,7 +178,7 @@ on its own — only that the tests they wrote passed. Re-check the
 tests' own coverage against the Public Contract and Spec
 Requirements (see `verification.md` §4.4 and §4.6).
 
-### Step 5 — Targeted Verification (Trigger A)
+### Step 5 — Independent Review (Trigger A)
 
 If the implementation satisfies any Trigger A criterion in
 `.claude/references/verification.md` §3 (e.g., money / assets /
@@ -195,6 +200,9 @@ later Module Design update.
 
 1. Load the `impl/` tree and `# Resume Notes` from the module's
    `DESIGN.md`.
+   Compare current item/contract semantics with the recorded test
+   basis using `../../references/change-impact.md`; mark only
+   affected prior conclusions pending revalidation.
 2. Continue from the open frontier (Step 2 → 5 as needed).
 3. After any material change satisfying Trigger B criteria
    (`verification.md` §3 Trigger B), run Targeted Resolution
@@ -424,7 +432,9 @@ contract owned by THIS module, this Skill itself fixes the contract
 Walk the change through actual dependencies (peer modules,
 consumers, integration tests). Use existing impact machines
 (`/architecture impact` if ownership changed; otherwise re-run
-Consumer's tests against the new contract).
+Consumer's tests against the new contract) and
+`../../references/change-impact.md` for the item-level path and old
+evidence scope.
 
 ### Targeted Verify
 
@@ -436,7 +446,9 @@ Resolution Verification (Mode B) for material changes per
 ### Resume
 
 Pick up the interrupted Implementation task. Update `# Resume Notes`
-with: original task, blocker, correction result, resume position.
+with: original task, changed item/contract IDs, affected consumer
+and test path, old evidence scope, blocker, correction result, resume
+position.
 In-session, the Main Agent continues the same task without
 re-prompting for unrelated permissions; for cross-session, persist
 the resume position.
@@ -491,6 +503,14 @@ handoff obligations.
   do not close on mock-only or skipped-real-acceptance
   evidence. The full rule is `cross-layer-coordination.md`
   §8.4 (Implementation row) and §8.8 (per-step discipline).
+- Compare the current source Intent, Spec, and Design with the
+  versions or semantics used by the recorded tests and prior
+  handoff. When an upstream change affects an input, Provider,
+  step order, outcome, or failure path, rerun the affected
+  contract and real-path checks. Preserve unaffected results,
+  but do not count old PASS or `final` as proof of the changed
+  behavior. Route missing upstream contracts to their owner
+  through §12, then resume implementation after correction.
 - Test suite is PASS (no FAIL; no NOT RUN left over from
   initial collection issues) under the recorded `run` command.
   Recording PASS from a stale or different command does not
@@ -517,6 +537,11 @@ Handoff` (and the §6 Trigger A list this Skill maintains)
 - Each Spec REQ assigned to this module has a passing
   observable test with an independent-recomputation check on
   numerical expected values.
+- Record each handoff claim's REQ/INV and contract-field scope,
+  source Git basis, command/environment, observed result and
+  evidence location in the existing handoff or Resume Notes per
+  `../../references/change-impact.md`. A bare test count or PASS
+  without scope cannot be reused after an upstream change.
 - The Trigger A / Trigger B verification entries that the
   module's contract surface requires (per `verification.md` §3
   — money / assets / security / data correctness / public
@@ -539,11 +564,6 @@ evidence list for the module's contract surface — not just the
 last fix's test — must be present. If any item is missing, the
 open obligation goes into `# Resume Notes` and blocks the
 handoff closure language.
-
-`DESIGN.md` final + `impl/` committed does NOT mean
-`Implementation Verified (Production)`. That belongs to
-downstream delivery verification after staging/production
-evidence.
 
 `DESIGN.md` final + `impl/` committed does NOT mean
 `Implementation Verified (Production)`. That belongs to downstream
@@ -590,13 +610,11 @@ trade-off the agent cannot decide alone.
    state-machine premises cite a primary source per `CLAUDE.md`
    Search Rules.
 7. **Numerical expectations must be independently re-derivable.**
-   When a Test's expected value is asserted as "the correct
-   answer", the Reviewer MUST independently recompute it. A
-   self-verified expected value that does not match an
-   independent recomputation is `Reasonable Judgment (Unverified)`,
-   not `Verified`; the skill does not reach `PASS` on Tests with
-   such expected values until the value is recomputed or
-   re-derived.
+   When a test asserts a value as "the correct answer", the
+   Authoring Skill produces an independent recomputation or
+   derivation; the read-only Reviewer checks its method and
+   evidence per `verification.md` §4.2. Without that evidence,
+   report `Reasonable Judgment (Unverified)`, not `Verified`.
 8. **Reuse, don't copy.** Cross-layer rules live in
    `cross-layer-coordination.md`; Reviewer rules live in
    `independent-reviewer.md` and `verification.md`. Do not

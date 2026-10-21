@@ -1,7 +1,7 @@
 ---
 name: spec
 description: Convert clarified user Intent into complete, verifiable, traceable system requirements. Use when the user wants to define what the system must do (functional + non-functional + cross-capability correctness), create a SPEC from an Intent, review requirement coverage, or check for ambiguity and risks. Located between Intent and Architecture in the workflow. Triggered by questions like "spec out INT-001", "what does the system need to do?", "review SPEC-002", "is INT-001 covered?", or "create requirements for …".
-allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*)
+allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(git*)
 ---
 
 # Spec Skill
@@ -168,10 +168,13 @@ Print the full `SPEC.md`. No editing. If ID is ambiguous, list candidates.
 ## 11. Subcommand: `resume <spec-id>`
 
 1. Load `SPEC.md`.
-2. Read `# Resume Notes` to see where the last session left off.
-3. Read `# Decisions` first. Do not re-ask answered questions.
-4. Continue clarification or research from the open frontier.
-5. Update `# Resume Notes` at the end.
+2. Check Git and apply `../../references/change-impact.md` to changed
+   source Intent items, REQ/INV IDs, acceptance and contract semantics.
+   Record affected downstream owners and evidence, not just file names.
+3. Read `# Resume Notes` to see where the last session left off.
+4. Read `# Decisions` first. Do not re-ask answered questions.
+5. Continue clarification or research from the open frontier.
+6. Update `# Resume Notes` with the open impact chain and next action.
 
 ## 12. SPEC.md Template
 
@@ -249,25 +252,23 @@ See [references/requirements.md](references/requirements.md) for:
 
 ### 13.1 End-to-end user sequence (anchor to shared rule)
 
-Each Functional Requirement must trace to at least one step in the
-user sequence captured in the source Intent's `# Clarified Intent`.
-A Requirement that does not trace is either out of scope or the
-sequence is incomplete; do not silently fill the gap with a
-Requirement that the user did not ask for. The full rule is
-`cross-layer-coordination.md` §8; this section only points to it.
+Check coverage in both directions against the source Intent's
+`# Clarified Intent`: each in-scope user-visible transition needs a
+Requirement or explicit System Verification obligation (name the
+owning Spec for out-of-scope steps), and each user-facing
+Requirement needs a source goal or transition. A list
+of fields or features is not proof that the next action is
+reachable from the preceding state. Technical and Derived
+Requirements may instead trace to a constraint or correctness
+need. Apply `cross-layer-coordination.md` §8.
 
 ## 14. Subcommand: `review <spec-id>`
 
 Run a structured review of a Spec. The default execution delegates to the read-only `independent-reviewer` subagent (defined in `.claude/agents/independent-reviewer.md`) in a fresh context, so the review does not inherit the author's reasoning. This Skill owns the **independent triage**, the user-decision loop, the **automatic post-fix verification**, and the resolution path; the Reviewer owns the evidence-based findings.
 
-**Trigger policy.** Delegate to the Independent Reviewer when:
-
-- The user runs `/spec review <spec-id>` explicitly (Trigger A — Independent Review, full scope).
-- A Spec is about to be archived and the Spec touches money / assets / security / core data correctness / public contracts (Trigger A — Important Deliverable).
-- An authorized Spec fix has just been applied that materially changes a Requirement / invariant / acceptance condition / public contract / load-bearing formula (Trigger B — Material Resolution → Targeted Resolution Verification).
-- A new material risk surfaces during the current Skill's execution that previous reviews did not cover (Trigger C — Significant New Risk; choose Mode A or Mode B by impact).
-
-For trivial wording edits and pure typo fixes, the current Skill may perform a fast Self-check without delegating. Default to delegation; do not skip it just because the Spec looks small. See `.claude/references/verification.md` §3 for the shared trigger rules and §6 for loop bounding.
+**Trigger policy.** An explicit `/spec review` runs Mode A. For
+automatic Mode A/B/C triggers, use `.claude/references/verification.md`
+§3; for loop bounding, use §6. Trivial wording edits use a Self-check.
 
 ### 14.1 Delegation procedure
 
@@ -329,8 +330,8 @@ This step is automatic within the current Skill's execution flow — it does not
 
 Check how well an Intent's important content is covered by existing Specs.
 
-1. Load `INTENT.md`. Extract: goals (from `# Clarified Intent`), hard constraints (from `# Constraints and Success Criteria`), confirmed decisions (from `# Decisions`).
-2. For each, search Specs that cite this intent. Read the relevant Requirements.
+1. Load `INTENT.md`. Extract: goals and operation sequence (from `# Clarified Intent`), hard constraints (from `# Constraints and Success Criteria`), confirmed decisions (from `# Decisions`).
+2. For each item and sequence transition, search Specs that cite this intent. Read the relevant Requirements and System Verification obligation.
 3. Assess **semantic** coverage (not just ID reference):
    - **Covered** — Requirement actually satisfies the goal/constraint/decision.
    - **Partial** — Requirement addresses part of it; gap is named.
@@ -346,11 +347,13 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
 1. Load `SPEC.md`.
 2. Render a final summary: capabilities, Requirements, invariants, acceptance conditions, handoff items.
 3. **Confirmation rule.** When called as a slash command, confirm with the user explicitly. When called via the natural-language completion flow (the user just said "确认，继续" / "SPEC-001 没问题了" / "需求已经确定" in response to a recent completion proposal), reuse that confirmation — do not prompt a second time. If the response is ambiguous, ask for clarification rather than assume.
-4. **Completion check before archive.** For the natural-language flow, verify — by reading the actual artifact, not the prose summary:
+4. **Completion check before archive, for both command and natural-language flows.** Verify by reading the actual artifact, not the prose summary:
 
    - saved;
    - **No entry in `# Unknowns and Upstream Feedback` is still flagged Blocking AND is a *Spec prerequisite*** (per `cross-layer-coordination.md` §2.5.e). An entry described as resolved but whose status line still says "Blocking" is unresolved. Reclassify or remove first; do not archive over it.
    - important Requirements have sources and acceptance;
+   - the source Intent's user sequence is covered in both directions per §13.1, including the real starting state and the next reachable action; `# Acceptance and Verification` specifies the full path rather than only isolated features;
+   - no `_TBD_` or equivalent draft placeholder remains in a current Requirement, acceptance condition, or handoff claim;
    - traceability is valid;
    - no major upstream conflict;
    - cross-document References (e.g. `# Architecture Handoff`, "architecture depends on", "out of scope" lists) match the *current* authoritative state — not historical.
@@ -376,7 +379,7 @@ them is the dimension of authorization (impact), not the lifecycle
 shape.
 
 1. **Determine the dimension** by impact (per
-   `cross-layer-coordination.md` §2.5.b.0).
+   `cross-layer-coordination.md` §2.5.b).
    - *Material change* — adds / removes / changes a goal, scope,
      key constraint, or user-visible behavior that was previously
      approved. Requires fresh user authorization of the scope
@@ -419,6 +422,10 @@ shape.
 3. **Route downstream** — for both dimensions, route a forward
    feedback to the downstream layers (Architecture / Module
    Design / Implementation) so they re-check dependent content.
+   First classify the changed REQ/INV or acceptance item with
+   `../../references/change-impact.md`; editorial-only changes end
+   after a local reference check. For semantic changes, pass the
+   item-level path, affected evidence and owner in the feedback.
    Spec does NOT itself modify Architecture / Module Design /
    Implementation / DESIGN files for either dimension.
 

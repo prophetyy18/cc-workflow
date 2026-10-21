@@ -43,7 +43,7 @@ Run a structured review on a Spec. By default this is executed as an **Independe
 
 | Mode | When | Who executes | Output label |
 |---|---|---|---|
-| **Independent Review** (Mode A) | User runs `/spec review <spec-id>`; or Spec is about to be archived and touches money / assets / security / core data correctness / public contracts. | A non-fork `independent-reviewer` subagent. Read-only. No persistent memory. | "Independent Review: SPEC-NNN" |
+| **Independent Review** (Mode A) | User runs `/spec review <spec-id>`; or the shared Trigger A in `verification.md` §3 applies. | A non-fork `independent-reviewer` subagent. Read-only. No persistent memory. | "Independent Review: SPEC-NNN" |
 | **Targeted Resolution Verification** (Mode B) | After a Trigger B fix (`SKILL.md` §14.6): the Spec Skill just applied an authorized fix that materially changes a Requirement / invariant / acceptance / public contract / formula. | Same `independent-reviewer` subagent; scope is the change and its ripple. | "Targeted Verification: SPEC-NNN (Scope: <the change>)" |
 | **Self-check** | Trivial wording edits, pure typo fixes, internal-only quick passes. | The current Spec Skill in its own context. | "Self-check (not Independent Review): SPEC-NNN" |
 

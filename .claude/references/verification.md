@@ -116,6 +116,9 @@ artifact that touches:
 - Public contracts, module boundaries, cross-module invariants, or
   dependency direction.
 - Mathematics / quantitative bounds that load-bear on system behavior.
+- A multi-step user path whose ordering or initial availability is
+  necessary to complete the core goal, even when each screen or
+  component is individually low risk.
 
 Run Independent Review (Mode A) unless a sufficient fresh-context review
 has already been performed and its evidence is still applicable.
@@ -415,10 +418,11 @@ accepted because all tests passed when real tests did not run is
 **not** permitted.
 
 When the task's required real acceptance has not been performed,
-the Main Agent does **not** announce the task closed. The artifact's
-status field does not transition to "complete" / "final" /
-"handoff closed" on the basis of mock-only or skipped real-acceptance
-evidence. The Main Agent records what was *not* verified (the
+the Main Agent does **not** announce implementation or the user
+path closed. An implementation or delivery artifact does not
+transition to "complete" / "handoff closed" on the basis of
+mock-only or skipped real-acceptance evidence. The Main Agent
+records what was *not* verified (the
 missing pre-condition, the test that would have run, and what kind
 of test it would be) and saves the resume position in the
 artifact's `# Resume Notes` (or equivalent). Re-classifying an
@@ -426,6 +430,13 @@ unsatisfied necessary acceptance as "Consumer follow-up" or
 "production-time validation" to close the task is the same
 anti-pattern: the task's own completion discipline set the gate,
 and the gate is the gate.
+
+This rule gates a claim that implementation or the user path is
+verified. A Module Design may become `final` when its contracts are
+complete and the real-run obligation is explicitly handed to
+Implementation; `final` alone is not real-run evidence. After an
+upstream change, classify old evidence against the changed path
+before reusing it, and rerun only the affected boundaries.
 
 Three gap classes — config / credential / execution pre-condition
 (1), real protocol / OAuth / response schema uninvestigated (2),
@@ -503,13 +514,13 @@ Condition. Before the next round:
    derived closed form, a separate derivation route). Do not
    tweak the same weak evidence into alignment.
 3. **Distinguish the fix dimension** by impact (per
-   `cross-layer-coordination.md` §2.5.b.0) — not by operation
+   `cross-layer-coordination.md` §2.5.b) — not by operation
    name. A fix that the impact factors classify as in-
    authority for the owning Skill does **not** need a fresh
    user authorization; continue the cycle with a stronger
    evidence source. A fix that crosses the factors needs a
    fresh user authorization — branch into cross-layer
-   coordination §2.5.b.0; do not chain the user-decision loop
+   coordination §2.5.b; do not chain the user-decision loop
    into the same cycle as a routine correctness fix.
 
 ### 6.3 Stop conditions

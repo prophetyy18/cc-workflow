@@ -15,6 +15,9 @@ For a Spec change, identify:
 - The minimum evidence supporting each claim
 
 The output is a short, executable Impact Plan with a clear **A / B / C** decision. See SKILL.md §6 for the decision definitions.
+For item-level provenance, evidence validity, and recovery notes, also
+apply `../../../references/change-impact.md`. This methodology owns the
+Architecture decision; the shared rule covers upstream changes beyond Spec.
 
 ---
 
@@ -140,7 +143,14 @@ The plan must include (in this order):
 3. **Affected Modules** — per module, role (Primary Owner / Collaborator / Provider / Consumer).
 4. **Affected Public Capabilities and Contracts** — per capability, the Step-5 classification.
 5. **Documentation Impact** — per document, the change required and the owner.
+   Include `modify`, `revalidate only`, `unaffected`, or `unknown —
+   investigate`, with the item/contract path and evidence. Do not send
+   an unchanged module into reopen merely because it appears in the
+   same Spec or file.
 6. **Verification Obligations** — which end-to-end / system / integration verifications must be updated.
+   For a changed user path, identify prior evidence that used the
+   old premise and the owner who must rerun the affected portion;
+   retain unaffected evidence.
 7. **Unresolved Unknowns** — what is still unknown, what evidence would resolve each.
 8. **Decision: A | B | C** — one paragraph of reasoning.
 9. **Recommended Next Step** — `Module Design` for A; `/architecture revise <spec-id>` for B; targeted investigation for C.

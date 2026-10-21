@@ -1,7 +1,7 @@
 ---
 name: architecture
 description: Design and maintain the system's Architecture Baseline — module responsibilities, dependency boundaries, public contract ownership, and cross-module system invariants. Use when the user wants to start an initial architecture from existing Specs (/architecture init), analyze how a Spec change affects the existing architecture (/architecture impact <spec-id>), revise the architecture after impact analysis is approved (/architecture revise <spec-id>), or audit the current architecture for consistency (/architecture review). Located between Spec and Module Design in the workflow. Triggered by questions like "design the architecture for these specs", "does this spec break existing contracts", "who owns capability X", or "is our module boundary still right".
-allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*)
+allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(git*)
 ---
 
 # Architecture Skill
@@ -220,6 +220,17 @@ Detailed 8-step methodology in [references/impact-analysis.md](references/impact
 7. **Evaluate Evidence** — Confirmed / Potential / Unknown, with sources.
 8. **Output the Impact Plan** — a short, executable plan with: Spec changes, capability impact, affected modules, public contracts, providers, consumers, contract adjustment required, documentation updates, verification obligations, owners, unresolved unknowns.
 
+For a changed user path, compare its starting state and step order
+with the Baseline's actual Provider → Consumer chain. Name which
+earlier `final` designs, implementations, and acceptance results
+need targeted revalidation even when result A says the Baseline
+itself needs no revision. Result A does not mean downstream work
+or user-path verification is complete.
+Apply `../../references/change-impact.md` for item-level old/new
+semantics and evidence scope. Include an evidenced `unaffected`
+verdict where a nearby module is excluded; a missing citation alone
+cannot establish that verdict.
+
 ### Impact Decision: A / B / C
 
 The impact result is one of three decisions (separate from Spec's Route A / B / C — those are entry routing, not this result):
@@ -270,20 +281,32 @@ These are impact analysis results, not new lifecycle states.
 
 ## 7. Subcommand: `revise <spec-id>`
 
-Apply the Architecture changes authorized by a confirmed `impact` result B.
+Apply the Architecture changes identified by `impact` or cross-layer
+feedback, using the impact-based authorization rule below.
+Before changing the Baseline, retain the item-level Impact Plan; after
+revision, record the changed Architecture decisions/ownership and
+Provider → Consumer revalidation obligations in its existing handoff
+or Resume Notes. A changed contract's owner and consumers must be
+named even when the Baseline's A/B/C result is already settled.
 
 ### Authorization
 
 Run `revise` only when:
 
-- An `impact` result B has been produced and the user has authorized the change scope, OR
+- An `impact` result B has been produced and its change scope is
+  already covered by the user's instruction or confirmation, OR
 - The user has explicitly asked for a specific Architecture change with sufficient detail, OR
 - A Cross-layer Feedback message (per `cross-layer-coordination.md` §3)
   identifies a real Architecture-level issue (module boundary, public
   contract ownership, dependency direction, or cross-module
   invariant attribution), the highest-necessary-authority discipline
-  (§4) places the fix here, and the user has authorized the change
-  scope.
+  (§4) places the fix here, and the change scope is authorized.
+
+Judge whether existing authorization covers a necessary correction
+under `cross-layer-coordination.md` §2.5.b. When current Spec
+authority pins the correction and no new product choice is needed,
+apply it and continue; ask only for a material scope or trade-off
+the user has not authorized.
 
 If the user has already confirmed the change in the natural-language
 completion flow, do not prompt a second time. If the requested

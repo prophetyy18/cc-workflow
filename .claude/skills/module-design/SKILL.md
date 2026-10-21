@@ -1,7 +1,7 @@
 ---
 name: module-design
 description: Design a single module's public contract and internal design from an authoritative Architecture Baseline and the Spec Requirements the module owns. Reuses Cross-layer Coordination for upstream errors and the Independent Reviewer for verification. Delivers a DESIGN.md (and optional machine-readable contracts) that Implementation can execute against. Use when the user wants to start a new module design from Architecture (`/module-design new MOD-foo`), resume a paused design, focus only on the public contract, request a full review, or hand off to Implementation. Triggered by phrases like "design MOD-foo", "把 foo 模块设计一下", "看下 foo 的契约", "foo 可以交给实现了".
-allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(python3*), Bash(awk*), Bash(sed*)
+allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(python3*), Bash(awk*), Bash(sed*), Bash(git*)
 ---
 
 # Module Design Skill
@@ -177,6 +177,9 @@ Read in order:
 4. Known Consumers' actual use — search the consumer-side code for
    references to this capability; treat absence as `Unknown`, not as
    "no constraint".
+5. The source Intent's critical user path for these Requirements;
+   compare its starting state and step order with the proposed
+   Provider / Consumer contracts before drafting them.
 
 If the Baseline is silent on the Public Capability / Contract Index
 entry, the requirements chain, or the integration owner — surface
@@ -264,7 +267,7 @@ Create `docs/modules/MOD-<name>/DESIGN.md` using the template in §10.
 Persist after every meaningful change. If machine-readable contracts
 exist, write them under `docs/modules/MOD-<name>/contracts/`.
 
-### Step 6 — Targeted Verification (Trigger A)
+### Step 6 — Independent Review (Trigger A)
 
 If the design satisfies any Trigger A criterion in
 `.claude/references/verification.md` §3 (e.g., the module owns a
@@ -282,11 +285,15 @@ Reviewer reuse is the same as in `spec/SKILL.md` §14 and
 
 1. Load `DESIGN.md` and any `contracts/*` files. Read `# Resume Notes`
    first. Do not re-derive settled decisions.
+   Compare current upstream item/contract semantics and recorded
+   evidence with Git using `../../references/change-impact.md`.
 2. Continue from the open frontier (Step 2 → 6 above as needed).
 3. After any material change that meets Trigger B criteria
    (`.claude/references/verification.md` §3), run Targeted Resolution
    Verification (Mode B) before resuming normal flow.
 4. Update `# Resume Notes` at the end with the new resume position.
+   Include the affected item IDs, consumer path, evidence still valid
+   and the next owner/action when an impact chain is open.
 
 ## 7. Subcommand: `contract <module-id>`
 
@@ -312,9 +319,8 @@ Apply the Reviewer's verification principles
   wrong implementation?
 - §4.2 (Mathematics) — for any quantitative bound the module
   promises.
-- §4.6 (Implementation readiness) — is the DESIGN.md enough for an
-  Implementation Agent to proceed without re-reading this Skill's
-  chat history?
+- `cross-layer-coordination.md` §8 — can the contracts support
+  the user's sequence from its initial state?
 
 If the review surfaces upstream errors (Baseline wrong, Spec
 Requirement wrong), route them via Cross-layer Coordination, **not**
@@ -334,6 +340,8 @@ No edits.
 ## 10. Subcommand: `handoff <module-id>`
 
 1. Load the design.
+   Check changed upstream items and Provider contracts against the
+   last handoff using `../../references/change-impact.md`.
 2. Run the Completion Check (§12).
 3. Run Targeted Resolution Verification (Mode B) per
    `.claude/references/verification.md` if any material change since
@@ -456,7 +464,8 @@ revise mechanisms with user authorization.
 Walk the upstream change through actual dependencies (peer modules,
 consumers). Use existing impact machines when available
 (`/architecture impact <spec-id>` or
-`.claude/skills/architecture/references/impact-analysis.md`). Do not
+`.claude/skills/architecture/references/impact-analysis.md`) and
+`../../references/change-impact.md` for item and evidence scope. Do not
 run a project-wide scan for every correction.
 
 ### Targeted Verify
@@ -514,7 +523,11 @@ design transition. The split matches
   sequence from the source Intent** (per
   `cross-layer-coordination.md` §8). A design that documents
   each contract in isolation but cannot show its place in the
-  user sequence is incomplete.
+  user sequence is incomplete. On a Spec or Architecture change,
+  recheck the affected transition against the current sources;
+  an earlier `final` or Review covers only its former scope.
+  If the needed behavior belongs to another Provider, send
+  cross-layer feedback to its owner and record the dependency.
 - **No entry in `# Blocking Unknowns and Implementation Handoff`
   is flagged Blocking AND is a *design prerequisite*** — i.e.,
   an unverified fact whose different possible outcomes would
@@ -633,8 +646,9 @@ A new confirmation is required when:
 5. **No upstream override.** Do not silently edit a Spec, an
    Architecture Baseline, or another module's contract. Route via the
    feedback contract and let the correct Owner decide. An archived
-   Spec or an adopted Architecture Baseline require the existing
-   reopen / revise flow with user authorization.
+   Spec or adopted Baseline uses its existing reopen / revise flow;
+   fresh user authorization follows the impact rule in
+   `cross-layer-coordination.md` §2.5.b, not the status alone.
 6. **Verified technical premises.** Load-bearing library, protocol,
    or state-machine premises must cite a primary source. Use the
    search rules in `CLAUDE.md`. Unverified premises become Unknowns,
@@ -642,13 +656,10 @@ A new confirmation is required when:
 
 7. **Numerical expectations must be independently re-derivable.**
    When a finding, fixture, or closed-form IL/value is asserted as
-   "the correct answer", the Reviewer MUST independently
-   recompute it (mpmath / sympy / algebraic identity / separate
-   derivation). Author-self-verified arithmetic without an
-   independent check is `Reasonable Judgment (Unverified)`, not
-   `Verified`. Several iterations with wrong self-verified numeric
-   until the verification loop bound gives out are the failure
-   mode this rule prevents.
+   "the correct answer", the Authoring Skill produces a separate
+   derivation or recomputation. The read-only Reviewer checks its
+   method and evidence per `verification.md` §4.2; without that
+   evidence, report `Reasonable Judgment (Unverified)`.
 
 8. **Separate necessary from improvement.** A finding that
    addresses a real defect (a Necessary Condition or missing

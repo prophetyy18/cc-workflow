@@ -1,7 +1,7 @@
 ---
 name: intent
 description: Capture, clarify, persist, and evolve user Intent. Turns rough goals into a structured INTENT.md that downstream Spec Agents can read. Use when the user wants to start, modify, resume, link, archive, or review an intent. Also use when the user says "I want to build X", "let's plan Y", "create a new intent for Z", or asks to clarify, scope, or refine an existing intent.
-allowed-tools: Read, Edit, Write, Glob, Grep, Bash(date*), Bash(mkdir*), WebFetch, WebSearch
+allowed-tools: Read, Edit, Write, Glob, Grep, Bash(date*), Bash(mkdir*), Bash(git*), WebFetch, WebSearch
 ---
 
 # Intent Skill
@@ -128,10 +128,13 @@ If a sub-intent already covers the candidate topic, surface the existing one and
 ## 8. Subcommand: `resume <id>`
 
 1. Load `INTENT.md`.
-2. Read `# Resume Notes` to see where the last session left off.
-3. Read `# Decisions` first. **Do not re-ask answered questions.**
-4. Continue clarification or research from the open frontier.
-5. Update `# Resume Notes` at the end of the session.
+2. Check Git and apply `../../references/change-impact.md` to any
+   changed Goal/Constraint/Decision and its cited downstream items.
+   Existing downstream final/PASS evidence is scoped to its old basis.
+3. Read `# Resume Notes` to see where the last session left off.
+4. Read `# Decisions` first. **Do not re-ask answered questions.**
+5. Continue clarification or research from the open frontier.
+6. Update `# Resume Notes` with affected IDs, owner and next action.
 
 If the ID is partial and exactly one intent matches, proceed. If multiple match, list and ask.
 
@@ -155,6 +158,8 @@ When the user explicitly asks to change an already-archived intent (e.g., "改�
 
 - Reopen the intent (status → active), update `updated`, log a note in `# Resume Notes`.
 - Apply the modification, preserving ID and stable item IDs.
+- Compare changed item semantics and record the downstream impact path
+  under `../../references/change-impact.md` before forwarding work.
 - If the change is materially different from the user's authorization (e.g., they asked to add a constraint, but a Decision also seems to require revision), stop and confirm the scope before extending.
 - After modification, the user may again confirm and re-archive.
 
@@ -162,7 +167,10 @@ When the user explicitly asks to change an already-archived intent (e.g., "改�
 
 1. Confirm with the user. Warn that any downstream Spec may have been written against the archived version.
 2. Set `status: active`, update `updated`.
-3. Append a note to `# Resume Notes` explaining why it was reopened. Optionally add a `# Spec Impact` reminder: which downstream Specs may need to be re-checked.
+3. Append a note to `# Resume Notes` explaining why it was reopened.
+   After the edit, record changed item IDs, affected Spec references,
+   uncertain links and the next owner/action per `change-impact.md`;
+   do not infer impact from the Intent filename alone.
 
 ## 11. Subcommand: `tree`
 
@@ -393,7 +401,8 @@ For an `archived` intent that needs editing, `reopen` first.
 Read [references/clarification.md](references/clarification.md) for the full algorithm. Summary:
 
 - Model intent as a **frontier** of decisions. Each round, ask all questions whose prerequisites are settled.
-- Each question ships with a recommended answer. Word it so "yes" accepts.
+- Recommend an answer only when evidence supports it; leave genuine
+  product choices open for the user to frame.
 - Research is the agent's job. Ask the user only about decisions.
 - Hard cap **5 questions per clarification pass** with a `## Deferred` bucket for the rest. Re-validate after every answer; replace contradicted text, do not append.
 - After meaningful new info, write back a "stated vs assumed" restatement and confirm.
@@ -429,13 +438,16 @@ A downstream Spec should cite the intents it consumes (by ID) so this skill can 
 The `# Clarified Intent` restatement must cover the **user's
 operational sequence from a real starting point** — what the user
 knows at the start, what the system already has, who provides each
-input, the order of operations, and the user-observable success of
-each step. This sequence is the anchor every downstream layer
+input, the order of operations, and the user-observable success
+or failure at each step. This sequence is the anchor every downstream layer
 preserves; the shared rule and its application per layer are in
 `cross-layer-coordination.md` §8. The sequence is not a fixed
 template, table, or state machine — express it in plain language
-under `# Clarified Intent`, as concise list of steps if it helps
-clarity, and let downstream layers carry it forward.
+under `# Clarified Intent`, as a concise list of steps if it helps
+clarity. Cite an existing Goal / Constraint / Decision ID for the
+critical path (or this section if no item ID exists) in
+`# Spec Input`, so downstream acceptance can trace to it without
+a separate per-layer checklist.
 
 ## 19. Hard Rules
 

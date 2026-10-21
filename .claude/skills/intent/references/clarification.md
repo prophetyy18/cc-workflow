@@ -54,10 +54,14 @@ Every frontier question must have:
 
 - A real interrogative ending in `?` (not a label like "FR-023").
 - A one-sentence "Why it matters."
-- A **recommended answer** with one-sentence reasoning. Word the question so a one-word "yes" accepts the recommendation.
-- 2–4 mutually exclusive options if multiple choice, or a free-form short answer otherwise.
+- A recommended answer only when existing evidence supports one;
+  state the assumption and its reason. Do not phrase an unresolved
+  product choice so that agreement is the easiest response.
+- 2–4 mutually exclusive options when choices are clear, or a
+  free-form answer when the user's own framing is needed.
 
-For free-form answers, prompt the user to answer in **≤5 words** when possible. This prevents rambling answers that are themselves ambiguous.
+Keep questions concise without constraining the length of the
+user's answer. Clarify an ambiguous answer in the next round.
 
 ## 5. Prioritization
 

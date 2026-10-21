@@ -108,6 +108,23 @@ Rules:
   - Existing verification obligations.
 - When dependencies are unclear, mark `Unknown`. Do not pretend to have located all affected objects.
 - Do not trigger a full project scan for every change. Scale to the actual change.
+- Before downstream edits, use `change-impact.md` to compare changed
+  stable items and their old/new semantics, trace the actual Provider →
+  Consumer and evidence links, and record a verdict and owner for each
+  candidate. A missing link is an investigation, not proof of no impact.
+- For each affected user path, identify which earlier Design,
+  Implementation, and acceptance conclusions used the old premise.
+  Recheck only those conclusions against the new authority; an
+  existing `final`, passing local test, or prior Review is evidence
+  for its old scope, not acceptance of the changed path. Record the
+  owner and the verification still needed in the normal handoff or
+  Resume Notes. Do not reopen unrelated artifacts merely because
+  an upstream file changed. Reopen an affected authority only when
+  its content must change; otherwise perform a focused consistency
+  or runtime check and retain the existing status. Use the bounded
+  verification loop in `verification.md` §6.
+  Persist the changed item, evidence scope and next action in existing
+  Resume Notes so `/workflow status` can reconstruct the open chain.
 
 ### 2.5 Verify and Return
 
@@ -189,7 +206,7 @@ unresolved question with the trade-off named, not a generic
 ### 2.5.b.1 Routine correctness (impact-determined)
 
 The same judgement criteria determine what counts as routine
-correctness under §2.5.b.0. Routine correctness is what the
+correctness under §2.5.b. Routine correctness is what the
 fix looks like when *all four factors above* fall on the
 "no fresh user auth" side:
 
@@ -226,6 +243,10 @@ encodes a completion claim (Spec `archived`, Module Design
   not claimed. "Will be done by Implementation" is not Trigger A
   evidence at the Design gate — it is a follow-up handoff
   obligation that Implementation owns.
+- For a changed upstream requirement, inspect the affected path
+  and its evidence, not only the cited document's status or ID.
+  Keep the old conclusion scoped to its former requirement until
+  the affected contract, code, and acceptance evidence are checked.
 
 ### 2.5.e Design prerequisites vs handoff obligations
 
@@ -415,7 +436,7 @@ Additional anti-patterns, surfaced by actual run evidence:
 - **Routine correctness escalation.** Treating routine correctness
   as requiring a fresh user authorization — or, equivalently,
   treating it as not requiring one when the impact factors in
-  §2.5.b.0 don't agree. The category follows from impact, not
+  §2.5.b don't agree. The category follows from impact, not
   from operation name. Asking the user to authorize a fix the
   Skill's impact check would have classified as routine is
   burning the loop and confusing "I have a problem" with "the
@@ -441,7 +462,7 @@ Additional anti-patterns, surfaced by actual run evidence:
   single reopen path), not an in-place edit that skips the
   reopen flow and not a reopen claimed as a "material change"
   for authorization. Whether the change requires fresh user
-  authorization is decided by impact (§2.5.b.0), not by the
+  authorization is decided by impact (§2.5.b), not by the
   reopen command. Routing a fixture mismatch to the user
   wastes a round of clarification and conflates two different
   things.
@@ -574,11 +595,11 @@ is a check each layer applies against its own authoritative content.
   sequence of user / system actions, and the user-observable
   success of each step. Downstream layers read this sequence and
   preserve it.
-- **Spec** — every Functional Requirement traces to at least one
-  step in the user sequence. `# Acceptance and Verification`
-  includes a System Verification that walks the full sequence
-  from the real starting state, classified per `verification.md`
-  §4.7.
+- **Spec** — check in-scope transitions and user-facing
+  Requirements in both directions; name the owning Spec for
+  other transitions. `# Acceptance and Verification` includes
+  System Verification that walks the full sequence from the
+  real starting state, classified per `verification.md` §4.7.
 - **Architecture** — the Baseline's Module Responsibility Map and
   Public Capability / Contract Index cover every step in the user
   sequence; for each step there is a Primary Owner, an available
@@ -661,3 +682,11 @@ Implementation handoff, one or more real runs must demonstrate
 every transition from the initial state, including visible
 failure behavior, classified per `verification.md` §4.7. A
 separate test per step is not required.
+
+Report three claims separately: whether the current documents and
+contracts define a reachable path; whether code and local tests
+match those contracts; and whether a user completed the path under
+real operating conditions. Name the evidence and scope for each.
+Only the last claim establishes user-path acceptance. A Design may
+be `final` with a recorded runtime obligation; that status does
+not settle the last claim.
