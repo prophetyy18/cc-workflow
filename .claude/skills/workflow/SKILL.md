@@ -26,7 +26,11 @@ and prerequisite checks rather than introducing another lifecycle or agent.
    compare each candidate with its last reliable adopted version. Read
    `../../references/cross-layer-coordination.md` §2-4 for ownership and
    feedback, and `../../references/verification.md` §4.7-4.8 for evidence
-   levels. Use `git diff`, `git log`, `git show`, frontmatter, ID references,
+   levels. Check the load-bearing premises each candidate rests on: a
+   cited fact whose recorded coverage no longer spans the scope it is
+   used for, or that an applicable record contradicts, needs scoped impact
+   analysis (`../spec/references/fact-verification.md` §2.1). Use `git diff`,
+   `git log`, `git show`, frontmatter, ID references,
    contract consumers and actual tests. If the old version or a reverse link
    is missing, report uncertainty and the smallest investigation needed.
 3. For each affected chain, report the changed item, propagation path,

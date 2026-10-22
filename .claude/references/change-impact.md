@@ -1,7 +1,9 @@
 # Item-level change impact and recovery
 
 Use this reference when an Intent item, Requirement, invariant, Architecture
-decision/ownership, public contract, or its implementation changes, and when
+decision/ownership, public contract, or its implementation changes — or when a
+load-bearing fact / evidence record that a Requirement, estimate, or acceptance
+premise depends on is corrected, withdrawn, or contradicted — and when
 resuming work after a gap. It refines cross-layer coordination §2.4; it is not
 a separate authority, lifecycle, or manually maintained relationship index.
 
@@ -25,6 +27,9 @@ citation, or reliable old version, use its section and mark the relation
 uncertain; add a precise citation to the owning document when editing it.
 If an old item was renamed or split, map old to new by meaning and record
 the mapping rather than assuming the ID itself is unchanged.
+A research or evidence record is a linkable item in this graph: it sits
+downstream of the observation that supports it and upstream of every
+Requirement, estimate, and acceptance premise that cites it.
 Do not invent coverage or create a parallel relationship database.
 
 ## 2. Compare meaning before propagating
@@ -56,6 +61,12 @@ and choose `revalidate only`; status alone is not evidence.
 
 An old `final`, PASS, Review, or real run remains historical evidence for the
 version and contract it checked. It does not establish the changed item.
+When a fact or evidence record is corrected, inspect each conclusion that
+actually used the disputed part. An affected Requirement, estimate or
+acceptance premise is pending revalidation; a citation alone does not prove
+its meaning changed. A claim beyond the record's coverage was never
+established for that excess (`.claude/skills/spec/references/fact-verification.md`
+§2.1).
 For affected evidence, report `pending revalidation` as an assessment, not a
 new lifecycle state or an edit to the old record. Reuse unaffected evidence.
 If the old run does not name its item/contract scope, source revision, test

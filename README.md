@@ -5,12 +5,13 @@ Claude Code 的轻量级 agent 工作流框架。捕获用户意图、协调跨�
 ## 工作流
 
 ```text
-User → Intent ──→ Reconcile (跨 Intent) ──→ Spec ──→ Architecture ──→ Module / Implementation
-        ↑                    │
-        └────── /intent feedback ←── 下游问题回流
+User → Intent → Spec → Architecture → Module Design → Implementation → 真实路径验证
+           ↕ 跨 Intent Reconcile        ↑ 依条目与契约追踪变更、反馈和返回位置
 ```
 
-Intent 层是用户目标的权威来源。下游发现问题通过 `/intent feedback` 回流，由 Intent skill 判定归属后改 Intent（需用户确认）或重定向。
+Intent 是用户目标的权威来源。下游发现问题先定位所属层；仅当目标或关键约束需要改变时，才把产品选择交给用户。
+
+框架只有一条执行逻辑：从仓库恢复当前目标及依据，沿稳定条目和真实消费者找到受影响的工作，选择当前能闭合的一项；若其前提未闭合，进入前提的权威层修复并保存返回位置。修复后重新读取产物与评审结果，再继续原任务。状态表示文档所处阶段，不能替代对当前版本的评审、代码测试或真实用户路径证据。无关模块按原有有效依据继续。
 
 ## Skills
 
@@ -38,6 +39,13 @@ docs/intents/INT-NNN/INTENT.md
 ```
 
 每个 Intent 一个自包含目录。`id` 是唯一权威，关系用 `parent` / `related` / `impact_scope` 表达，不嵌套。
+
+## 审查与验证
+
+共享判断分别位于 `cross-layer-coordination.md`（归属、授权、前提、路径）、
+`change-impact.md`（关系与影响）和 `verification.md`（评审与证据）。各层 Skill
+只规定本层产物与完成条件。`tests/workflow/` 提供流程场景和辅助分析；上下文
+统计用于定位需要人工检查的重复内容，不能单独证明规则有效或可删。
 
 ## 原则
 

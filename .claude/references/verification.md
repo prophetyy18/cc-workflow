@@ -77,7 +77,9 @@ Every call to the Reviewer must provide, in plain prose:
 - `Basis` — current source item/contract versions or exact snapshots,
   unresolved prerequisites, and evidence methods/limits. Give facts,
   not the author's assertion that the prerequisites are closed.
-- `Review Criteria` — exact path to the domain checklist (per Skill).
+- `Review Criteria` — exact path and only the sections applicable to the
+  target. Do not load unrelated domain checks to make a small review look
+  comprehensive.
 - `Scope` — what is in / out. For Mode B, the specific change being
   verified (diff hunk, REQ-ID, Section).
 - `Method` — "Independently derive expected requirements / outcome
@@ -233,7 +235,16 @@ values, or hand-computed intermediates are a special case of `X == Y`:
 Claims about external systems, protocols, APIs, libraries, or standards
 must be supported by a primary source (official docs, RFC, library
 source) or recorded as Unknown. Secondary sources are leads only.
-Reuse the standard in `spec/references/fact-verification.md`.
+Reuse the standard in `.claude/skills/spec/references/fact-verification.md`.
+
+Also check the **coverage** of the cited evidence, not only its
+authenticity: a claim of absence or completeness is bounded by the
+range its evidence actually searched
+(`.claude/skills/spec/references/fact-verification.md` §2.1). And
+cross-check the target's load-bearing facts against the project's other
+recorded facts — a contradiction between two records is
+a finding to report, not a question to settle by preferring the newer
+or more convenient document.
 
 ### 4.4 Acceptance Criteria
 
@@ -390,10 +401,9 @@ prerequisite is reachable.
 
 ### 4.8 Real by default
 
-Test planning defaults to real acceptance at the boundaries the
-task actually needs. Mocks are for the parts that don't matter —
-boundary shape, fault paths, schema round-trips — not for the parts
-that would otherwise prove the integration.
+Test planning identifies the real boundaries the task must exercise.
+Mocks can test boundary shape, fault handling and schema round-trips;
+report their scope without claiming they exercised a live integration.
 
 When the real dependency is not currently accessible:
 
@@ -458,6 +468,20 @@ implementation matches known contract but no runtime evidence (3)
   contract, but no real run has been observed. Surface which
   gap class the unsatisfied real test belongs to before closing.
 
+**A measurement that is still running.** A bounded, expensive, or
+rate-limited external measurement that has not returned is neither a
+pass nor a fail, and it is not the same situation as a test that was
+never run. It is a fourth situation: the claim stays Unverified, the
+measurement's scope and its resume point are recorded
+(`change-impact.md` §3), and the pending result counts in neither
+direction. The affected decision proceeds on the evidence already in
+hand when that evidence is sufficient to decide it — apply the test in
+`.claude/skills/spec/references/fact-verification.md` §8 — and work
+that does not depend on the pending measurement continues
+(`cross-layer-coordination.md` §2.5.c). Do not extend a measurement
+without bound to obtain certainty, and do not hold the whole chain
+waiting for it.
+
 ### 4.9 Preserve evidence kind and boundary across layers
 
 When reusing a claim, keep its **observed**, **estimated**, **assumed**, or
@@ -466,14 +490,13 @@ the existing evidence record. Separate the actual observation from the
 derivation and its assumptions; link back rather than copying a stronger
 claim into Spec, Design or a review brief.
 
-A batch-throughput probe supports a throughput observation and possibly a
-conditional total-time estimate. It does not measure the complete cold path
-or prove an acceptance bound impossible; it is not a lower or upper bound
-without a justified bound derivation. Keep the original bound and user
-operation order while investigating compliant designs. Partial availability
-must state which user actions are enabled before completeness; allowing a
-previously forbidden early action is a product change, not an optimization.
-Only an actual run of the stated boundary supports measured elapsed time.
+A measured rate on one operation may support a conditional estimate for a
+larger path; it does not measure that path or prove an acceptance bound
+impossible without a justified derivation. Keep the confirmed bound and
+operation order while investigating compliant designs. If data is only
+partly available, name which user actions are available; enabling an action
+earlier than the confirmed order changes product behavior. Only a run of the
+stated boundary supports a measured end-to-end duration.
 If that run is unavailable, apply §4.8 and preserve the missing evidence.
 
 ## 5. Evidence Standard

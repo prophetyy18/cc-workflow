@@ -368,25 +368,12 @@ Use Git and Markdown for history. No separate version control system.
 
 ### Automatic Post-fix Verification (Trigger B)
 
-When the current Skill has applied an authorized `revise` that meets any of the criteria below, automatically call the Independent Reviewer Subagent in `Targeted Resolution Verification` mode before declaring the issue resolved. This is the same Trigger B used by the Spec Skill — see `.claude/references/verification.md` §3 Trigger B and the shared trigger rules.
-
-**Trigger B criteria** (apply when the revise materially changes any of):
-
-- A module boundary, Capability / Module ownership, or dependency direction.
-- A public contract's Required Behavior, Failure Semantics, or Timing / State Semantics.
-- A cross-module System Invariant's responsibility attribution or verification path.
-- A load-bearing architectural decision (system-level data flow, atomicity, replay ordering, etc.).
-
-**Procedure**:
-
-1. Confirm the change is authorized, persisted in the Baseline, and recorded in `# Resume Notes` / change log.
-2. Build a Mode B delegation message: see `.claude/references/verification.md` §2 for the contract; the reviewer's reasoning frame lives in `.claude/agents/independent-reviewer.md`. `Scope` describes the specific section (e.g., "Module Responsibility Map §3 — added module X"). Include the original Impact finding's evidence and the authoritative basis for the correct outcome (the Spec Requirement / Capability being satisfied).
-3. Launch the Independent Reviewer in `Targeted Resolution Verification` mode. The Reviewer re-derives the correct outcome; the Skill does not pre-bake the verdict.
-4. Triage the `Targeted Verification Executed` report. If the change satisfies the upstream Spec Requirement and introduces no material new defect in scope, record `Authority Resolved` for this architecture finding. If it does not, surface the failing aspects back to the user.
-5. Cycle behavior — when one round is enough, when a second round uses a stronger evidence source, and when to stop with the unresolved constraint — lives in `.claude/references/verification.md` §6. Do not restate a per-round cap here.
-6. **Do not** run Targeted Verification for trivial wording, formatting, or low-risk local Baseline edits. The Trigger B criteria above are the gate.
-
-This step is automatic within the current Skill's execution flow — it does not require the user to run `/architecture review` again. See `.claude/references/verification.md` for the shared contract and loop bounding.
+Apply `verification.md` §3 Trigger B and §6 when a revision changes module
+ownership, dependency direction, a public capability or cross-module
+invariant. Give the Reviewer the changed Baseline section, source Spec items
+and original finding. Triage its scoped report; complete `Authority Resolved`
+only after the required correction and review are closed. Wording edits use
+the shared self-check rule; no second user scheduling decision is needed.
 
 ## 8. Subcommand: `review`
 
@@ -504,17 +491,24 @@ Architecture does **not** use Intent / Spec's `active` → `archived` lifecycle.
 - **The user sequence from the source Intent is covered by the Baseline** (Step 7 last bullet). This is the end-to-end check from the shared rule (`cross-layer-coordination.md` §8). It is read at this gate, not inferred from "every Requirement has an Owner".
 - No Blocking architecture-level Unknowns remain (Non-Blocking may be deferred to "Open Architecture Questions").
 
-When the user confirms ("确认，继续" or equivalent), save the Baseline. Do not prompt a second time. Do not require an `archive` command.
+When the checks pass under the current task authorization, save the Baseline.
+A stage confirmation is sufficient; an authorized whole-goal continuation
+does not need a new one. Do not require an `archive` command.
 
 ### Impact Completion
 
 - Result A: hand off to Module Design. No Baseline change.
-- Result B: present the Revision plan. If the user confirms, run `revise` (or stay in the same turn if already authorized). Hand off to Module Design after Revision.
+- Result B: record the scoped Revision plan and apply §2.5.b. Run `revise` under existing authorization when the correction preserves confirmed meaning; ask only for an unresolved product choice. Hand off after the revision closes.
 - Result C: explain the missing evidence. Do not pretend to have completed the impact.
 
 ### Handoff to Module Design
 
-When an `init`, `revise`, or Impact result A / B hands off to Module Design, surface `/module-design new <module-id>` for each affected module — the module ID comes from the Baseline's Module Responsibility Map. When the Module Design Skill is invocable from the current environment, use it. When it is not invocable, report the unavailability explicitly and surface the manual command; do not pretend to invoke it. The Module Design Skill takes the Baseline + the assigned Spec Requirements and produces `DESIGN.md` plus optional machine-readable contracts; it does not modify Baseline or Spec content.
+When an `init`, `revise`, or Impact result A / B hands off to Module Design,
+identify the affected `MOD-<slug>` IDs from the Baseline. Under an authorized
+whole-goal continuation, invoke the Module Design Skill or read and follow it
+in the Main Agent when invocation is unavailable. A genuinely unavailable
+capability leaves a recorded return point; it does not make the user schedule
+ordinary stage transitions. Module Design owns its `DESIGN.md` and contracts.
 
 ### Handoff Content (to Module Design or downstream)
 

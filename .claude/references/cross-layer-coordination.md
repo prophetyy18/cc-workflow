@@ -1,715 +1,253 @@
-# Cross-Layer Coordination
+# Cross-layer coordination
 
-A minimal, on-demand reference for Skills (Intent, Spec, Architecture, Module Design, Implementation, Verification) when a finding, feedback, or change crosses authority layers. **Read this only when the current problem touches more than one layer.**
+This reference owns decisions shared by Intent, Spec, Architecture, Module
+Design, Implementation and Verification. Each Skill owns only its layer's
+content and completion checks. Apply these rules to the **affected item or
+contract**, not automatically to an entire document or project.
+`change-impact.md` locates dependencies; `verification.md` owns reviews and
+runtime evidence.
 
-This is **not**:
+## 0. Reasoning boundary
 
-- A Skill.
-- A Subagent.
-- A workflow engine.
-- A new lifecycle state.
-- An issue tracker.
+Derive necessary behavior from the highest applicable authority; locate the
+gap; let its owner resolve it; verify the actual resolution. A review finding
+is evidence to triage, not an edit or final decision. Feedback sent, content
+edited, review returned and runtime verified are distinct events.
 
-It is a rules file. Load it from the Skill that needs to escalate, propagate, or coordinate.
+## 1. Authority layers
 
-## 0. Relationship to the Derive → Locate → Resolve → Validate reasoning
+| Layer | Decides |
+|---|---|
+| Intent | User goal, starting state, confirmed order, success and constraints |
+| Spec | System behavior, invariants and acceptance |
+| Architecture | Module responsibility, capability ownership and dependencies |
+| Module Design | Provider/Consumer contracts and module design |
+| Implementation | Code, executable tests and implementation evidence |
+| Verification | What a review or real run actually demonstrated |
+| User | A change to confirmed product meaning or an unresolved material choice |
 
-Each Skill that surfaces or routes issues applies a shared **Derive → Locate → Resolve → Validate** reasoning method, but the reasoning is performed inside the Skill itself, not by this document.
+The layer that recorded an evidence claim corrects it. A corrected fact does
+not automatically invalidate every Requirement citing it: trace its actual
+use and decide whether each conclusion needs an edit, revalidation, or none.
+Engineering difficulty or cost is evidence for investigating options; it is
+not a user-confirmed Intent constraint unless the user adopts it.
 
-- **Derive** and **Locate** live in the Independent Reviewer (`.claude/agents/independent-reviewer.md` §0 / §3). The Reviewer reports findings; it does not act on them.
-- **Resolve** and **Validate** live in the Owning Skill's triage (e.g. `.claude/skills/spec/references/review.md` §2.7). The Owning Skill decides the action and the closure language. The triage Validate step is **proposed-resolution validation** — it does not claim the fix has been applied or verified empirically (those are downstream closure states in §5).
-
-This document only defines the **cross-layer protocol** — when the Resolve step names a different authority, or when several authorities must act. The Identify / Escalate / Resolve / Propagate stages below are how cross-layer issues move between authorities; the `Resolve` stage here is *not* the Owning Skill's internal Resolve step (that happens earlier). Apply §4 (Minimum necessary escalation) whenever a Resolve decision crosses an authority boundary.
-
-## 1. Authority layers (who decides what)
-
-| Layer | Authority (decides) | Does NOT decide |
-|---|---|---|
-| **Intent** | User goals, important constraints, confirmed decisions, success criteria | System behavior, modules, APIs |
-| **Spec** | System capabilities, functional / non-functional requirements, system invariants, acceptance | Module names, API shapes, schemas, algorithms |
-| **Architecture** | Module responsibilities, public capability ownership, dependency direction, cross-module invariants | Specific APIs, schemas, internal algorithms |
-| **Module Design** | Specific APIs, schemas, internal structure, algorithms | Why capabilities exist, what they must guarantee, system responsibility allocation |
-| **Implementation** | Actual code | Anything not yet codified in the upstream layer |
-| **Verification** | Empirical evidence that runtime / data / contracts behave as required | Authority correctness — verification reports observed behavior; authority remains with the layer that defined the requirement |
-| **User / Product Owner** | Product defaults, trade-offs, business decisions the agent cannot make | Implementation details |
-
-**Discipline:** an issue belongs to the **highest necessary** layer whose authority must change. Not always the layer the Reviewer first inspected. Not always Intent.
-
-## 2. The six coordination stages
-
-When a problem touches more than one layer, apply these stages in order. Skip any stage that does not apply.
+## 2. Cross-layer work
 
 ### 2.1 Identify
 
-Ask: "Can the current Skill resolve this issue while preserving all confirmed upstream constraints?"
+Compare the finding with the current authoritative item and evidence. If the
+current owner can preserve confirmed upstream constraints, it fixes its own
+content. Otherwise locate the smallest authority whose content must change.
+An uncertain fact requires investigation, not necessarily a product decision.
 
-If **yes** → resolve within the current Skill. Done.
+### 2.2 Escalate
 
-If **no** → identify the **smallest** set of layers that must act.
-
-Do not list every layer that *might* be relevant. List only the layers that *must* act.
-
-### 2.2 Escalate (only as high as necessary)
-
-Send a feedback message to the next-higher authority whose content must change. Use the feedback contract (§3).
-
-Rules:
-
-- **Do not default to Intent.** Most cross-layer issues are Spec / Architecture / Module Design issues.
-- **Do not escalate beyond the necessary authority.** A module-internal algorithm error is Module / Implementation; do not push it to Spec or Intent.
-- **One escalation per change.** If a single change requires multiple layers, the higher layer decides first, then propagation (§2.4) reaches the lower layers.
-
-Examples:
-
-| Issue | Highest necessary authority |
-|---|---|
-| Cache eviction algorithm wrong | Module / Implementation |
-| API type signature wrong but contract Owner is clear | Contract Owner |
-| Two modules claim ownership of the same authoritative state | Architecture |
-| Spec lacks observable system behavior | Spec |
-| User goal must be re-chosen | Intent / User |
+Send the contradiction, source item, evidence, needed decision and return
+point to that owner (§3). Do not default to Intent or ask the user to
+dispatch Skills. The Main Agent enters the owning Skill under current task
+authorization.
 
 ### 2.3 Resolve
 
-The target Skill reads its own authoritative basis and decides:
+The owner re-derives the answer from its sources, then accepts, rejects,
+defers for named evidence, or redirects the finding. Record actual edits and
+outstanding checks. Feedback received or content edited is progress, not
+resolution.
 
-- **Current authority sufficient** — the issue can be resolved inside this Skill without authoritative content change. Close.
-- **Authoritative change required** — make the change. Record the rationale and what evidence supports it.
-- **Insufficient evidence** — request more evidence. Do not invent.
-- **Owner decision required** — escalate to the User / Product Owner.
-- **Wrong authority / redirect** — the target layer cannot resolve this; redirect back to the correct layer with reason.
+### 2.4 Propagate
 
-Rules:
-
-- The target Skill **does not automatically accept** Reviewer / Triage suggestions. It judges independently.
-- The target Skill records its decision, rationale, and any downstream impact in its own work document (Spec / ARCHITECTURE / MODULE / INTENT). It does not create a parallel decision log.
-- If the target Skill disagrees with the request, it returns a `Rejected` decision with reasoning.
-
-### 2.4 Propagate (only where dependencies justify)
-
-When authoritative content actually changes, check:
-
-- **Vertical impact** — downstream layers that consume the changed authority.
-- **Sibling impact** — peer artifacts sharing the same requirement, contract, or capability.
-
-Use existing impact machinery when available:
-
-- Architecture Skill: `/architecture impact <spec-id>` walks `Requirement Change → Capability → Provider → Public Contract → Consumers → Verification`.
-- Spec Skill: §19 Downstream Routing.
-- Intent Skill: §13 `Relationships and Impact`.
-
-Rules:
-
-- Base propagation on **actual dependencies**, not topical similarity:
-  - Authoritative Requirement references.
-  - Known module responsibility mappings.
-  - Public Contract Owner and Consumers.
-  - Real code dependencies.
-  - Existing verification obligations.
-- When dependencies are unclear, mark `Unknown`. Do not pretend to have located all affected objects.
-- Do not trigger a full project scan for every change. Scale to the actual change.
-- Before downstream edits, use `change-impact.md` to compare changed
-  stable items and their old/new semantics, trace the actual Provider →
-  Consumer and evidence links, and record a verdict and owner for each
-  candidate. A missing link is an investigation, not proof of no impact.
-- For each affected user path, identify which earlier Design,
-  Implementation, and acceptance conclusions used the old premise.
-  Recheck only those conclusions against the new authority; an
-  existing `final`, passing local test, or prior Review is evidence
-  for its old scope, not acceptance of the changed path. Record the
-  owner and the verification still needed in the normal handoff or
-  Resume Notes. Do not reopen unrelated artifacts merely because
-  an upstream file changed. Reopen an affected authority only when
-  its content must change; otherwise perform a focused consistency
-  or runtime check and retain the existing status. Use the bounded
-  verification loop in `verification.md` §6.
-  Persist the changed item, evidence scope and next action in existing
-  Resume Notes so `/workflow status` can reconstruct the open chain.
+Use `change-impact.md` to follow only justified dependencies: source item →
+relevant Requirement/acceptance → ownership/contract → Provider and actual
+Consumers → code, tests and real-path evidence. Classify each candidate
+`modify`, `revalidate only`, `unaffected`, or `unknown — investigate`.
+Old PASS and `final` remain historical for their tested scope. Stop a branch
+at an evidenced unchanged boundary; do not reopen unrelated work.
 
 ### 2.5 Verify and Return
 
-Before the originating Skill accepts a returned Fix and proceeds, it
-**re-checks the authoritative artifact against the resolution** — it
-does not rely on the returner's claim alone. The check is small but
-strict:
+Reread the changed authoritative artifact, applicable review and open
+conditions. Check the original necessary condition and affected references;
+do not accept a return message as proof. Resume dependent work only when the
+owner actually closed the affected prerequisite (§2.5.c). A runtime
+obligation can remain for Implementation (§2.5.e).
 
-Apply the same execution prerequisite check in §2.5.c used at entry
-and handoff. A feedback receipt, edit, or returned review alone cannot
-release the dependent work.
+### 2.5.b Authorization by impact
 
-- Did the targeted authoritative content actually change in the
-  expected way (read the file / state the return message references,
-  not just the prose summary)?
-- Does the artifact now satisfy every Necessary Condition the
-  Fix was supposed to restore? A Necessary Condition introduced by
-  the Fix must be checked the same way a Necessary Condition
-  introduced by original authoring is checked.
-- Do cross-document References in the artifact (e.g. "depends on
-  `<other-doc>` (`<status>`)") still match the **current** state
-  of the cited document, or do they survive only as historical
-  context? If stale (e.g., a Provider was promoted from `draft`
-  to `final` after a reopen but the Consumer still says
-  "currently draft"), the originating Skill notes the drift and
-  fixes it in the same loop or routes it forward via the same
-  feedback contract — never silently let the drift persist.
+An instruction to complete a goal covers necessary internal correction,
+reopen/revise, review and return when confirmed upstream meaning determines
+the fix. A layer boundary or operation name is not a new approval. Ask the
+user only if the proposed result changes confirmed product meaning, order,
+scope, key constraint or compatibility, or if the sources leave a material
+product trade-off unresolved. Investigate a compliant solution first. An
+optional alternative that would change confirmed meaning is deferred while
+the confirmed path remains feasible; it does not block compliant work or
+require a user choice now. An internal contradiction alone does not
+authorize choosing one of two possible user-visible outcomes.
 
-If any of those reads is not what the originating Skill expects,
-the Fix did not actually land. Treat the return message as
-unverified and re-route.
+### 2.5.b.1 Routine correctness
 
-### 2.5.b Authorization by impact, not by operation name
+A correction is routine when current authorization covers it, upstream
+sources determine the answer, confirmed meaning is preserved and no product
+choice remains. Its owner uses the normal edit and review flow, including
+`reopen` or `revise` where required.
 
-Whether a fix requires fresh user authorization is decided by
-**impact**, not by the operation name. The judgement factors
-are independent of the operation:
+### 2.5.c Execution prerequisites
 
-- **What the user already authorized** — the previous completion
-  confirmation covers the artifact's surface for which it was
-  given. A confirmed "implement this Design" authorizes the
-  necessary in-Design changes that follow, including any cross-
-  layer fixes needed to make that Design itself consistent.
-  Already-authorized necessary fixes are executed by the
-  owning Skill and propagated; the user is not re-prompted.
-- **Whether upstream authoritative content determines the fix
-  direction unambiguously** — a Spec formula names the correct
-  expected value, so a fixture mismatch is a Spec typo. A
-  Provider contract names the return shape, so a rounding
-  inconsistency against it is a contract conflict. When
-  upstream sources pin the answer, the owning Skill makes the
-  fix.
-- **Whether the fix changes confirmed semantics, scope, a key
-  constraint, or a compatibility commitment** — a rename that
-  user-visible code documents changes the user-visible surface
-  (if those documents are user-visible behavior). A rounding
-  tweak that contradicts the public contract's "full precision"
-  claim is a contract conflict. A "rename" of an internal
-  identifier visible only inside `impl/` is not.
-- **Whether the fix exposes a trade-off or a user-meaningful
-  choice only the user can make** — choosing between alternatives
-  the user has not expressed a preference on; deciding behavior
-  the upstream artifact was silent on; setting a configurable
-  default that affects user outcomes.
+At entry, resume, cross-layer return and handoff, check the selected scope:
 
-Operation names ("rename", "rounding mode", "encoding typo")
-do not decide the authorization category. A so-called "rename"
-that changes user-visible surface is goal/scope; a so-called
-"fixture typo" that contradicts an upstream silence is scope.
-The category follows from impact, not from naming.
+1. Read actual upstream content/version and open decisions. Determine which
+   review and evidence still apply. A status, old PASS, existing code or
+   `RESOLVED UPSTREAM` note is not sufficient.
+2. If any plausible unresolved outcome would change this work's behavior,
+   contract or acceptance, affected dependent work waits for the owner's
+   resolution and required review. An obvious fix direction does not release
+   formal affected implementation before the contract is revised and reviewed.
+3. Continue unaffected work on its accepted basis. Git dirtiness is neither
+   a global stop nor a delivery claim. Authorized exploration against open
+   premises is provisional and cannot certify a handoff.
 
-**Internal contradiction is not authorization.** When two
-parts of an artifact say different things (Spec formula vs
-acceptance fixture, Provider contract vs Consumer reference),
-the right move is to re-derive which side is correct against
-upstream sources — not to assume the contradiction resolves
-itself or to fabricate a fix. If re-derivation determines the
-answer, the fix is owned by the relevant Skill (no fresh user
-auth). If it cannot determine the answer, surface the specific
-unresolved question with the trade-off named, not a generic
-"approve / decline" binary.
+If blocked, save the sought result, source version, missing condition, owner
+and return point in existing Resume Notes. Resolve at the owner, reread the
+artifacts and repeat the check. Sending feedback is not closure.
 
-### 2.5.b.1 Routine correctness (impact-determined)
+### 2.5.e Prerequisite or handoff obligation
 
-The same judgement criteria determine what counts as routine
-correctness under §2.5.b. Routine correctness is what the
-fix looks like when *all four factors above* fall on the
-"no fresh user auth" side:
-
-- The user's prior authorization covers the artifact's surface.
-- Upstream sources pin the answer.
-- No confirmed semantics / scope / key-constraint / compat are
-  changed.
-- No trade-off the user must decide.
-
-A fix that crosses any factor needs a fresh authorization at
-the relevant layer (reopen for Spec-level, `revise` for
-Architecture-level, etc.). A fix that crosses none is owned by
-the Skill whose authority the fix falls under.
-
-### 2.5.c Execution prerequisites (entry, resume, return, handoff)
-
-Before starting or resuming dependent work, accepting a cross-layer
-return, or claiming a handoff, apply this check to the **selected
-item/contract scope**, using `change-impact.md` to locate its basis:
-
-- Read the actual source content/version and open issues. Which
-  decisions and review evidence apply to this scope now? An old
-  `final`, PASS, existing implementation, or `RESOLVED` note is not
-  sufficient. An edited upstream item still awaiting its required
-  review/completion checks is not ready for dependent implementation.
-- Determine whether an unresolved outcome could change this work's
-  behavior, contract, or acceptance. If so, it is a prerequisite
-  regardless of its label, owner, or whether feedback has been sent.
-  Reclassification must meet §2.5.e, not merely remove a Blocking tag.
-- Check that required reviews returned an applicable report and the
-  owning layer completed the required resolution and handoff checks.
-  `active`/`draft` caused by an unrelated item does not invalidate an
-  unchanged, previously accepted scope. New or changed scope needs
-  its own closed basis; do not use partial acceptance to bypass review.
-  Even when the correct internal fix is obvious and authorized, affected
-  implementation edits wait for the owning design/contract revision and
-  its required review; only provisional exploration or unrelated work can
-  run before that closure.
-- Git dirtiness identifies versions and possible drift, not a global
-  stop signal. A reviewed working-tree snapshot can support in-session
-  work when its exact content and completed checks are recorded; it
-  does not certify a committed delivery. Inspect the relevant diff.
-
-If ready, execute the selected work. If blocked, save its result sought,
-basis, missing condition, owner and return point in existing Resume Notes;
-resolve through that owner within current authorization, then reread the
-artifacts and repeat this check before returning. Unaffected work may
-continue. Explicitly authorized exploration may test unresolved premises,
-but must remain provisional and cannot certify a formal handoff.
-
-### 2.5.e Design prerequisites vs handoff obligations
-
-Classify by the effect of the unresolved result on design correctness:
-
-- **Design prerequisite** — without resolving this, the
-  contract itself cannot be stated correctly. Examples: a
-  primary-source verification the design's formulas depend on,
-  a behavior the Spec is silent on, a Required Outcome the
-  design can't support. These block the affected Design handoff until
-  the owner actually resolves them and §2.5.c passes. Sending feedback
-  upstream leaves the prerequisite open.
-- **Implementation verification obligation** — a behavior
-  that is correct on the contract surface but only verifiable
-  end-to-end against a running implementation / test suite /
-  library. Examples: type-checking against an actual library,
-  runtime performance, fuzz testing, primary-source verification
-  of library behavior the consumer needs but the design only
-  *named*. The Design transition records these as handoff
-  obligations (in `source_spec` / `# Blocking Unknowns and
-  Implementation Handoff` / equivalent) — they are owned by
-  the next layer, not by Design. They do **not** block Design
-  final; they gate Implementation handoff.
-
-To reclassify a prerequisite as an Implementation obligation, explain
-why the plausible outcomes leave the current behavior, contract and
-acceptance valid. If an outcome would require a different guarantee,
-it is still a prerequisite. Performance measurement itself normally
-belongs to Implementation: Design can retain the required bound and
-hand off its measurement. An estimate does not authorize relaxing that
-bound or changing a confirmed operation sequence. A feasibility probe
-may inform a design decision without becoming user-path acceptance.
-
-If the §13 mixing rule reads as "any open item blocks Design
-final", the design side and the implementation side fall into
-mutual waiting. They are separated here. Closing the loop on
-either side still goes through §2.5 / §2.5.b.
-
-The downstream Owner returns:
-
-```text
-Source Issue Reference: <where this came from>
-Decision: <Accepted | Rejected | Deferred | Redirected>
-Rationale: <one short paragraph>
-Actual Changes: <list of file paths / item IDs changed, or "none">
-Verification Performed: <how the change was checked, or "no verification yet">
-Outstanding Obligations: <what remains, if anything>
-```
-
-The originating Skill judges whether its own authority problem is now resolved.
-
-**Three states are distinct** (see §5):
-
-- Review Executed.
-- Authority Resolved.
-- Implementation Verified.
-
-None implies the others. Do not collapse them.
+If plausible results of an unknown could change behavior, contract or
+acceptance, it is an affected Design prerequisite. Relabeling it as an
+Implementation obligation does not release Design. If all plausible results
+leave Design valid and only a running implementation can verify the property,
+record a specific Implementation verification obligation and hand it off.
+Runtime performance commonly belongs here: retain the accepted bound for
+measurement; an estimate cannot relax it.
 
 ### 2.6 Resume
 
-Closing the feedback loop is not the end. The Main Agent (not the user) resumes the original task that was paused when the cross-layer issue surfaced.
-
-- After the owning layer's resolution passes §2.5.c, load `# Resume Notes` for the originating task — for a module, the module's `DESIGN.md` is the canonical home; the Implementation Skill reads / writes there too. `Accepted` feedback alone does not release the task.
-- Continue from the recorded position. Do not restart the task from the top.
-- A routine correction (a local fix inside the originating Skill's authority) does not require a fresh user confirmation. Reserved confirmations are for material changes to goal / scope / key constraints / new trade-offs; those still go to the User.
-- If the cycle completed but the original task is now materially different from what the user originally asked for, surface the delta. Otherwise resume silently and report only when the work produces a normal delivery moment.
-
-The shared doc records the rule; each Skill's Cross-layer Triggers section instantiates it for that Skill's authored files.
+The Main Agent resumes the original task from its saved position after
+§2.5.c passes. It selects the next closable work without asking the user to
+schedule stages. Reviewer timeout or missing real environment leaves that
+evidence open while unrelated work may continue.
 
 ## 3. Feedback contract
 
-When escalating or propagating, use the minimum fields below. Do not invent new formats per Skill — these are common across all layers.
-
 ### 3.1 Forward message
 
-```text
-Source: <Skill / artifact that is sending>
-  e.g. spec/SKILL.md reviewing docs/specs/SPEC-001/SPEC.md
-Finding / Issue Reference: <F-N from a Review report, or a short description if no Review>
-Target Authority: <Intent | Spec | Architecture | Module Design | Implementation | Verification | User>
-Affected Authoritative Items:
-  - <e.g. INT-001/C-01, SPEC-001/REQ-003, ARCHITECTURE §X>
-Problem:
-  <what is wrong or missing, in one short paragraph>
-Evidence:
-  - <path:line, URL, or runtime observation>
-Required Decision:
-  <what the target layer must decide or change>
-Potential Impact:
-  <which downstream layers / artifacts might be affected if this changes>
-Requested Response:
-  <what format the response should take; default = §3.2>
-```
+In the existing artifact record source finding/item IDs, target owner,
+problem, evidence with scope, decision needed, affected path and return
+point. Short prose suffices; no new issue file or fixed template is required.
 
 ### 3.2 Return message
 
-```text
-Source Issue Reference: <mirror of the Forward message's id>
-Decision: <Accepted | Rejected | Deferred | Redirected>
-Rationale:
-  <why this decision; cite authoritative basis>
-Actual Changes:
-  - <file path / item ID changed> — <one line>
-  - "none" if decision is Rejected or Deferred
-Evidence:
-  - <path:line, URL, or runtime observation supporting the change>
-Affected Downstream Scope:
-  - <layers / artifacts that must now re-check> or "none"
-Outstanding Obligations:
-  - <verification still pending, related issues not yet addressed, etc.>
-```
+Record decision and reason, changed item/version (or `none`), review/runtime
+evidence actually obtained, downstream scope and remaining obligations.
+The originating owner verifies the artifact itself.
 
-### 3.3 Where messages are stored
+### 3.3 Storage
 
-- In-session: as plain text between Skills via the Main Agent.
-- Cross-session: written into the relevant existing authoritative document — `# Unknowns and Upstream Feedback`, `# Resume Notes`, ARCHITECTURE baseline change log, etc. **No parallel issue tracking system.**
+Use existing `# Unknowns and Upstream Feedback`, `# Resume Notes`, or
+Architecture change notes. Do not create a second relationship database or
+lifecycle state.
 
-## 4. Minimum necessary escalation (the core rule)
+## 4. Minimum necessary escalation
 
-**Escalate only when the current authority cannot resolve the issue while preserving confirmed upstream constraints.**
+The highest necessary authority fixes the root cause first. Propagate through
+actual consumers; stop where an artifact already satisfies the new basis.
+The evidence-record owner corrects its record; each affected conclusion's
+owner decides whether to edit or revalidate. Product choices go to the user
+under §2.5.b.
 
-When an issue spans multiple layers:
+## 5. Closure semantics
 
-1. Find the **highest necessary authority** whose content must change.
-2. Resolve that authority first.
-3. Propagate downward through actual dependencies.
-4. **Do not require every affected layer to redesign.**
-5. **Stop** when the affected layer already has sufficient authority.
+| Claim | What it establishes |
+|---|---|
+| Review Executed | A scoped independent report returned; findings may remain open |
+| Authority Resolved | The owner corrected or justified affected content and completed applicable review/handoff checks |
+| Implementation Verified | Actual code, data or runtime behavior was observed for the stated boundary |
 
-The goal is the minimum set of changes that:
-
-- Fixes the root cause.
-- Preserves all confirmed upstream constraints.
-- Updates only the layers that need updating.
-
-Anything beyond that is over-engineering.
-
-## 5. Closure semantics (do not collapse these)
-
-| State | Definition | Who marks it |
-|---|---|---|
-| **Review Executed** | The Review ran and returned its report. The Independent Reviewer supports two flavors under this single state: **Independent Review** (Mode A, full scope) and **Targeted Resolution Verification** (Mode B, focused on a specific change after an authorized fix). The Reviewer records the flavor and scope it actually executed under. | Independent Reviewer |
-| **Authority Resolved** | The owning layer has applied or justified the resolution, completed applicable review and handoff checks for the affected scope, and supplied evidence the originating layer can reread. | Owning Skill |
-| **Implementation Verified** | Actual runtime / data / contracts have been observed to satisfy the resolved requirement. | Verification (Test, runtime observation, code review) |
-
-Trigger rules for invoking the Reviewer in either flavor, the shared
-Evidence Standard, and the loop bounding for post-fix verification live
-in `.claude/references/verification.md`. This document does not
-duplicate them; load that file only when the current Skill is about to
-delegate, triage, or sequence a verification call.
-
-Rules:
-
-- The Reviewer must never claim `Authority Resolved` or `Implementation Verified`.
-- Feedback received and document edited are progress events only; name
-  them literally. Review Executed means a report returned, not a pass.
-- The Owning Skill must never claim `Implementation Verified` without Verification evidence; this includes asserting `Authority Resolved` after a Targeted Resolution Verification has merely returned — see `.claude/references/verification.md` §6 for the loop bounding.
-- Verification never claims `Authority Resolved` — that is the upstream layer's decision.
-- These are **logical states**, not new document lifecycle statuses. They are recorded in `# Resume Notes`, `# Unknowns and Upstream Feedback`, etc., as plain language — never as a `closed` field on a Finding.
+These are versioned evidence claims, not new document statuses. A review call
+or edit alone proves none of the later claims. Report document/contract
+closure, code/local tests and real user-path acceptance separately.
+`verification.md` owns review triggers, evidence levels, failure handling
+and loop bounds.
 
 ## 6. Anti-patterns
 
-The following are **not** cross-layer coordination; they are coordination failure modes. Avoid them.
+The checks above address recurring errors: sending every defect to Spec;
+renaming an open contract question to pass it downstream; reopening unrelated
+work because one file changed; and claiming user success from local tests or
+status. Optional review advice does not expand necessary work. A repeated
+finding requires better evidence or a different method (`verification.md` §6).
 
-- **All defects → Spec.** Routing Architecture / Module / Implementation findings back to Spec as "add a Requirement".
-- **All suggestions → Confirmed Defect.** Inflating severity to demand a fix.
-- **Tech solution → authoritative Requirement.** Writing "use Redis" into a Spec because a Reviewer proposed it.
-- **Triage rubber-stamps.** The Owning Skill copying the Reviewer's recommendation without independent judgment.
-- **Unconditional loops / unbounded cycle.** Treating "Fix → Verify → Fix → Verify" as a budget to spend rather than a state machine with a stop condition. The only source of truth for the cycle's behavior is `.claude/references/verification.md` §6 — the §6 cycle (one Fix ↔ one Targeted Resolution Verification, with stop conditions at §6.3). No Skill restates its own cap; no anti-pattern asserts a different cap. Counting rounds, declaring "one additional" rounds, or letting the User authorize "beyond the cap" are not separate exit ramps — they are the failure mode this anti-pattern names.
-- **Self-closing.** Claiming `Implementation Verified` without empirical evidence.
-- **Decision-talk fatigue.** Creating a feedback record for every micro-issue.
-- **Same-root, duplicate findings.** Producing separate Findings for the same root cause instead of merging them.
-- **Auto-delegation of trivial edits.** Routing every Spec / Architecture edit to a full Independent Review regardless of impact. The Trigger rules in `.claude/references/verification.md` §3 — not the user's `/review` input — decide when an automatic review fires.
+## 7. When to load this reference
 
-Additional anti-patterns, surfaced by actual run evidence:
+Read the relevant section when work crosses authority or depends on changed
+upstream content. Routine single-layer edits use their owning Skill.
+`/workflow status` and `/workflow continue` use these prerequisite and impact
+rules to select work.
 
-- **Bundle unrelated findings in one revision.** A single fix
-  revision that addresses a necessary defect AND a list of
-  Improvements loses the necessary-vs-optional distinction. Pair
-  the necessary fix with one of: queuing the Improvement for a
-  separate revision; rejecting it with evidence; or asking the
-  user only when the Improvement changes goal / scope / a key
-  constraint. Do not let Improvements piggyback on a necessary
-  fix to ride past triage.
-- **Stale cross-document references at the status gate.** A
-  Spec / Architecture / Module Design doc that still cites
-  `currently draft` for a Provider that has since been promoted
-  to `final` (or any analogous drift) is a default-FAIL on the
-  status transition. Reconcile the references against current
-  state at the moment of the transition — not in a "later
-  cleanup" pass.
-- **Status gates that read intent, not content.** "No Blocking
-  Unknown remains" is true in prose but false in # Unknowns when
-  one entry is still flagged Blocking. The check at the gate
-  reads the section, not the prose.
-- **Routine correctness escalation.** Treating routine correctness
-  as requiring a fresh user authorization — or, equivalently,
-  treating it as not requiring one when the impact factors in
-  §2.5.b don't agree. The category follows from impact, not
-  from operation name. Asking the user to authorize a fix the
-  Skill's impact check would have classified as routine is
-  burning the loop and confusing "I have a problem" with "the
-  user has to choose something"; refusing to authorize a fix
-  the impact check classifies as scope-driven is silently
-  expanding scope. Either failure mode looks the same to the
-  user: a stuck task with an unclear next step.
-- **"Self-verified algebraically" as evidence.** Mentioning an
-  algebraic check the author performed is not independent
-  evidence. The Reviewer — or an external library — must
-  recompute. See `verification.md` §4.2 / §4.4 and
-  `independent-reviewer.md` §4 / §5.
-- **Local fix → module-ready inference.** A single Targeted
-  Verification that clears a local fix does not, by itself, make
-  a module implementation-ready. Implementation Handoff
-  requires the Trigger A evidence declared in the relevant §13
-  to be on hand, not promised by follow-ups.
-- **Treating an internal fixture inconsistency as a scope
-  change.** When the upstream artifact's own content (Spec
-  formula vs acceptance fixture, internal cross-reference vs
-  its current state) contradicts itself, the right move is the
-  owning layer's own routine correction (§2.5.b / Spec §17
-  single reopen path), not an in-place edit that skips the
-  reopen flow and not a reopen claimed as a "material change"
-  for authorization. Whether the change requires fresh user
-  authorization is decided by impact (§2.5.b), not by the
-  reopen command. Routing a fixture mismatch to the user
-  wastes a round of clarification and conflates two different
-  things.
-- **Stopping at "I noticed and wrote a forward feedback".**
-  Discovered a defect, sent a feedback message, did not act on
-  it, did not resume the original task. That is *partial*
-  coordination, not the coordination the framework expects.
-  The originating Skill either fixes the upstream content
-  itself (when it has the authority and the change is routine
-  correctness) or routes the loop through cross-layer
-  coordination §2.5 such that the original task *resumes*.
-  Forward feedback is not the end of the loop — it is the
-  trigger for the next round.
-- **Verification only on the originally-found assertion.**
-  When a fix passes, the related public contract claims, the
-  internal design rationale, and the downstream consumer's
-  expectations are also part of the truth claim. A `quantize`
-  the public contract did not authorize; a parameter rename
-  the consumer's call-site now mismatches; a rounding mode
-  the acceptance condition contradicts — these are
-  contradictions, not separate unrelated work. The
-  verification must reconcile the related sections (per
-  `verification.md` §4.5 and Implementation §11.6).
+## 8. End-to-end user journey
 
-- **Mocked SDK as fake "real integration".** A test that calls a
-  "real SDK" method but intercepts its inputs / outputs in the
-  test is `mock` on the data-source axis (per `verification.md`
-  §4.7), even if the call site looks authentic on the
-  interface. Reporting it as "real integration verified" without
-  flagging the substitution is the failure mode. Boundary and
-  fault tests are valid uses of mocks; they are not
-  acceptance-of-correctness evidence.
-- **Skipped test counted as passed.** "All tests passed" is
-  not a claim that the acceptance criterion holds when some
-  tests were skipped because real conditions were unavailable.
-  A skipped real test is a real condition to surface — record
-  what was not run and why, not a green checkmark. See
-  `verification.md` §4.7 (Not run / skipped / failed) and §4.8
-  (real by default).
-- **Implementation + test sharing the wrong assumption.** When
-  the test input, expected value, or fixture all derive from the
-  same arithmetic the implementation performed, a real
-  numerical error in the implementation is mirrored in the
-  test, and the test is "real integration" in name only. See
-  `verification.md` §4.2 and §4.7.
-- **"Every component passes, therefore the user can complete
-  the goal."** Component tests, source-string checks, mocks, and
-  partial renders can all pass while the user sequence has a
-  forward dependency, a missing Provider, a contract gap, or a
-  silent work-transfer to the user. The local-pass verdict is
-  the failure mode; the end-to-end check from the real starting
-  state is the only completion signal for the user's goal. The
-  shared rule is §8.7 above; the Reviewer Phase 4 risk class
-  `End-to-end user journey completeness` is the corresponding
-  Reviewer check.
+### 8.1 Principle
 
-## 7. When this reference is loaded
+The source Intent anchors the user's real starting state, known inputs,
+confirmed order, visible success and failure. Each layer derives only the
+capability or contract it owns. A path fails if a step needs a result not yet
+produced, no Provider supplies a capability, or system work silently moves
+to the user.
 
-Load this file when a Skill:
+### 8.2 Acceptance from the real starting state
 
-- Receives a finding whose owner is not the current Skill.
-- Needs to escalate or redirect.
-- Is about to modify authoritative content and must check impact.
-- Has multiple Findings with a common root cause.
-- Receives a forward message from another Skill.
-
-Do not load it for routine single-layer work.
-
-## 8. End-to-end user journey (shared cross-cutting principle)
-
-**This is the single source of truth** for the end-to-end path
-discipline. Each Skill, the Reviewer, and the verification layer point
-here; none of them restate the full rule.
-
-### 8.1 The principle
-
-Every authoritative artifact (Intent, Spec, Architecture, Module
-Design, Implementation) must be checkable against the user's
-**operational sequence from a real starting point**. The
-operational sequence is the user-confirmed order of operations with
-its preconditions: what the user knows at the start, what the system
-already has, who provides each input, the order of operations, and
-the user-observable success of each step.
-
-An artifact fails this check when any of the following holds:
-
-- a step in the user's sequence has no Primary Owner, no Provider,
-  or no available public contract;
-- a step's required input is data the system has not yet produced
-  at that point in the sequence (a forward dependency / cycle);
-- a step silently transfers work the system should do onto the user
-  (e.g. asking the user to hand-fill data the system could fetch);
-- the modules' contracts compose into a path that stops short of
-  completing the user's original sequence from the real starting
-  state.
-
-### 8.2 Acceptance is from a real starting state, not from "components in place"
-
-Component tests, source-string checks, mocks, and partial-UI renders
-are useful for boundary, fault, and shape coverage. They do not
-alone prove the user can complete the original goal.
-
-Each layer's review and verification must include, as part of the
-gate, the end-to-end check from the real starting point. The check
-classifies per `verification.md` §4.7 (real / offline replay / mock /
-not-run). If the real end-to-end run cannot execute, the gate does
-not close on the basis of "every component / unit test passed";
-name the missing pre-condition, the test that would have run, and
-keep the handoff open until it is satisfied. Per `verification.md`
-§4.8, a skipped real test is a real condition to surface, not a
-green checkmark.
+Component tests, mocks and static checks establish only their observed
+boundary. A required real path is accepted after its transitions run under
+actual operating conditions; otherwise name the missing environment and
+keep that acceptance open (`verification.md` §4.7–4.8).
 
 ### 8.3 Scope
 
-The principle applies to UI flows, API call sequences, CLI
-commands, data pipelines, and any other user-facing or
-system-facing sequence. The shape is:
+Apply the same reachability check to UI, CLI, API and data pipelines. The
+Intent supplies the sequence; no second journey checklist or status exists.
 
-> real starting state → first user action → system response →
-> next user action → ... → user-observable success.
+### 8.4 Layer application
 
-The discipline is the same regardless of medium. The principle is
-not a fixed template, a state machine, or a parallel document; it
-is a check each layer applies against its own authoritative content.
-
-### 8.4 Layer application (one entry per layer — full rule above)
-
-- **Intent** — the `# Clarified Intent` restatement names the
-  user's starting knowledge, the system's starting state, the
-  sequence of user / system actions, and the user-observable
-  success of each step. Downstream layers read this sequence and
-  preserve it.
-- **Spec** — check in-scope transitions and user-facing
-  Requirements in both directions; name the owning Spec for
-  other transitions. `# Acceptance and Verification` includes
-  System Verification that walks the full sequence from the
-  real starting state, classified per `verification.md` §4.7.
-- **Architecture** — the Baseline's Module Responsibility Map and
-  Public Capability / Contract Index cover every step in the user
-  sequence; for each step there is a Primary Owner, an available
-  Provider contract, and no forward dependency / cycle. Init
-  completion requires the sequence to be covered; §10 reads this
-  check at the gate.
-- **Module Design** — the public contracts the module provides
-  and consumes compose with the rest of the system to complete the
-  user sequence. §13.1 records this as a design prerequisite.
-- **Implementation** — the handoff gate (§13.1) includes a
-  real-acceptance test that exercises the user sequence from the
-  real starting state, classified per `verification.md` §4.7.
-  Component / unit tests, mocks, and source-string checks are
-  necessary but not sufficient.
+Intent records goal and starting state. Spec defines behavior and observable
+acceptance. Architecture assigns owners and dependencies. Module Design
+makes Provider/Consumer contracts compose. Implementation exercises the path
+and failure behavior. Each layer checks only what it can define or observe
+and routes other gaps to their owner.
 
 ### 8.5 Reviewer discipline
 
-The Reviewer (Mode A) **independently derives the user sequence
-from the source Intent** and then checks the target artifact
-preserves it. The Reviewer does not read the target and
-reverse-derive a "user flow" from it. This is a Phase 4 risk
-class — see `independent-reviewer.md` §2 (Phase 4 — Risk-based
-Challenge). The Reviewer is read-only; the actual end-to-end run
-is the Implementation / Verification layer's job.
+The independent Reviewer derives the path from source Intent before
+challenging an artifact. It reports broken transitions and likely owner;
+it cannot claim runtime execution.
 
 ### 8.6 Authority
 
-When the end-to-end check finds a gap, the fix lives at the
-**highest necessary authority whose content must change** (§4),
-applied to the **specific step** in the sequence that is
-broken. Do not apply a "global" fix that changes the user
-sequence or transfers work to the user; the user's confirmed
-sequence is the anchor.
+Fix the broken transition at the smallest affected item in the highest
+necessary layer (§4), preserving confirmed user meaning.
 
-### 8.7 Anti-pattern
+### 8.7 Completion claim
 
-**"Every component passes, therefore the user can complete the
-goal."** Component tests, source-string checks, and partial
-coverage can all pass while the user sequence has a forward
-dependency, a missing Provider, a contract gap, or a silent
-work-transfer to the user. The "the system looks correct
-locally" verdict is the failure mode; the end-to-end check
-from the real starting state is the only completion signal for
-the user's goal. See also `verification.md` §4.6 and the Reviewer
-Phase 4 risk class "End-to-end user journey completeness".
+Report documents/contracts, code/local tests and real user-path evidence
+separately. Only the last establishes user success under real conditions.
 
-### 8.8 Per-step reachability check (minimum per-step discipline)
+### 8.8 Per-step reachability
 
 #### 8.8.1 Describe each transition
 
-Using the source Intent's sequence, state or infer for each step:
-what the user knows, what the system already has, what the user
-must input, what system action and provider follow, what becomes
-visible on success or failure, and which earlier output the next
-step needs. Prose is enough; no extra template is required.
+At the starting state, identify what the user knows and supplies, what the
+system has, what each action shows on success and failure, and which earlier
+output the next action needs. Prose is enough.
 
 #### 8.8.2 Check reachability
 
-- **Forward dependency:** Is each required input known or
-  obtainable at this point? Is system data available from the
-  initial state or a completed earlier step? Flag any cycle in
-  which a step needs its own or a later result.
-- **Provider:** At design time, is the needed capability assigned
-  and specified at this point in the sequence? At implementation
-  time, does the actual starting state expose a working path to
-  it? Planned code does not count as runtime evidence.
-- **Work transfer:** Does the flow make the user discover data or
-  perform an action that the confirmed sequence assigns to the
-  system, just to unlock the next step? Preserve genuine choices
-  and optional manual controls.
+Check each input is available when needed, its Provider is ready, and the
+next action does not depend on itself or a later result. Evidence claimed as
+complete must cover the scope needed. Preserve confirmed choices and order.
 
 #### 8.8.3 Resolve and verify
 
-Fix the broken transition at the highest necessary authority
-whose content must change (§2-4). The current owner fixes its
-own content and sends other-layer defects through the feedback
-contract (§3); it does not silently rewrite the source Intent.
-The Reviewer checks the transitions against each artifact. At
-Implementation handoff, one or more real runs must demonstrate
-every transition from the initial state, including visible
-failure behavior, classified per `verification.md` §4.7. A
-separate test per step is not required.
-
-Report three claims separately: whether the current documents and
-contracts define a reachable path; whether code and local tests
-match those contracts; and whether a user completed the path under
-real operating conditions. Name the evidence and scope for each.
-Only the last claim establishes user-path acceptance. A Design may
-be `final` with a recorded runtime obligation; that status does
-not settle the last claim.
+Route by §4. At Implementation handoff, run the required path from its initial
+state and record failure behavior, conditions and unexercised transitions
+(`verification.md` §4.7). A final Design may have a runtime obligation;
+that status is not user-path acceptance.

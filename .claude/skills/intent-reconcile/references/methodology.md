@@ -90,7 +90,10 @@ Produce the report (see SKILL.md §5). The recommendation must include:
 6. Which intents / Specs are impacted.
 7. Open questions for the user.
 
-If the proposal is material, **wait for explicit user confirmation** before editing.
+Apply `cross-layer-coordination.md` §2.5.b: a correction determined by
+confirmed intent meaning can be edited under the authorized goal. If the
+proposal changes that meaning or requires an unresolved product trade-off,
+ask the user before editing the affected content.
 
 ## Step 7 — Apply Safely
 

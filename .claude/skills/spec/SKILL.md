@@ -26,15 +26,15 @@ Read `$ARGUMENTS`. First token is the subcommand, the rest is the target.
 | Subcommand | Target | Behavior |
 |---|---|---|
 | (empty) or `help` | — | Show this help |
-| `<intent-id>` (bare) | intent id | Primary entry: read intent, run risk review, propose Spec scope, ask user to confirm before creating |
+| `<intent-id>` (bare) | intent id | Primary entry: read intent, run risk review, determine Spec scope |
 | `new` | `<intent-id> [scope]` | Create a new Spec for an intent (optionally scoped) |
 | `list` | — | List all Specs grouped by status |
 | `show` | `<spec-id>` | Print the full `SPEC.md` |
 | `resume` | `<spec-id>` | Continue work on an existing Spec |
 | `review` | `<spec-id>` | Run risk / completeness / traceability / conflict check |
 | `coverage` | `<intent-id>` | Analyze how well an Intent's goals are covered by existing Specs |
-| `archive` | `<spec-id>` | Finalize Spec (after user confirmation) |
-| `reopen` | `<spec-id>` | Re-open an archived Spec (warns about downstream impact) |
+| `archive` | `<spec-id>` | Finalize Spec after its completion gate |
+| `reopen` | `<spec-id>` | Re-open an archived Spec with impact analysis |
 
 If the subcommand is unknown, do not guess. Show help and stop.
 
@@ -48,9 +48,9 @@ If the subcommand is unknown, do not guess. Show help and stop.
 | "show me SPEC-001" | `show` |
 | "review SPEC-001", "check this spec" | `review` |
 | "is INT-001 covered?", "what's the coverage?" | `coverage` |
-| "archive SPEC-001", "we're done with this" | `archive` (after confirmation) |
+| "archive SPEC-001", "we're done with this" | `archive` after the completion gate |
 | "确认，继续" / "SPEC-001 没问题了" (after a recent completion proposal) | `archive` + Downstream Routing — do not prompt a second time |
-| "I need to change SPEC-001 but it's archived" | `reopen` (after confirmation) |
+| "I need to change SPEC-001 but it's archived" | `reopen` with impact and authorization check |
 
 **Modification is the default, not creation.** A Spec for the same capability is modified, not duplicated.
 
@@ -82,10 +82,8 @@ Use when the user wants to start spec work but hasn't said "new" explicitly.
    - For load-bearing factual claims, also follow [references/fact-verification.md](references/fact-verification.md): classify as Verified / Supported / Unverified; defer or resolve before closing the Spec.
 4. **Capability discovery** (see §7): map the intent to system capabilities.
 5. **Spec decomposition decision**: one Spec, or several? Or does a related Spec already exist?
-6. Present a brief proposal: "I propose to create SPEC-NNN for capability X, with sub-Specs for Y and Z. Existing SPEC-XXX already covers W."
-7. **Wait for user confirmation**, then proceed to `new` or `resume`.
-
-Do not silently create a Spec. The user must confirm scope before any SPEC.md is written.
+6. Record the scope and its source Intent items; reuse an existing Spec when it owns the same capability.
+7. Proceed to `new` or `resume` under the user's Spec or whole-goal instruction. Apply cross-layer §2.5.b if decomposition exposes a material product choice. A routine capability boundary does not require another approval round.
 
 ## 6. Subcommand: `new <intent-id> [scope]`
 
@@ -93,7 +91,7 @@ Create a new Spec.
 
 1. Re-run the risk review. If Blocking Unknowns exist, surface them — do not silently fill in assumptions.
 2. Read the source intent again. Identify the scope: which capabilities this Spec will cover.
-3. If `[scope]` is given, narrow to that. If not, infer the smallest useful scope and present it for confirmation.
+3. If `[scope]` is given, narrow to that. Otherwise infer the smallest useful scope from the Intent and existing Specs; ask only if plausible choices change confirmed product scope (§2.5.b).
 4. **Check existing Specs**:
    - Does an existing Spec already cover part of this scope? If yes, surface — modify existing first, don't duplicate.
    - If split is appropriate, propose a primary Spec and optionally cross-Spec invariants.
@@ -116,16 +114,6 @@ For a large intent, present a concise capability map before writing Requirements
 - Does it depend on or coordinate with other capabilities?
 - Is it already covered by an existing Spec?
 - Does it have key Unknowns?
-
-Example for an "Uniswap v4 LP backtest platform" intent:
-
-```text
-- Historical chain data acquisition + availability
-- Historical pool & LP state reconstruction
-- Strategy decision + position operation replay
-- Fee / inventory / NAV / risk evaluation
-- Strategy comparison + interactive research
-```
 
 This map is **not** a fixed template. Derive from the actual intent. Don't pad with speculative capabilities. Don't list technical implementation details (e.g., "PostgreSQL schema" — that's Architecture).
 
@@ -307,26 +295,11 @@ The Reviewer does not modify any authoritative content (`INTENT.md` / `SPEC.md` 
 
 ### 14.6 Automatic Post-fix Verification (Trigger B)
 
-When the current Skill has applied an authorized Spec fix that meets any of the criteria below, automatically call the Independent Reviewer in `Targeted Resolution Verification` mode before declaring the issue resolved. This is the post-fix hook that closes the verification loop.
-
-**Trigger B criteria** (apply when the fix materially changes any of):
-
-- A Requirement's acceptance condition, observable behavior, or correctness scope.
-- A System Invariant or cross-capability correctness rule.
-- A load-bearing formula, numerical bound, or quantitative acceptance threshold.
-- An Acceptance Criterion's expected result (e.g., correcting a wrong expected value).
-- Public contract language that flows downstream to Architecture / Module.
-
-**Procedure**:
-
-1. Confirm the change is authorized, persisted to `SPEC.md`, and tracked in `# Resume Notes`.
-2. Build a Mode B delegation message using the template at [references/review.md §2.1](references/review.md#21-delegation-message-template). `Scope` describes the specific change (REQ-ID, Section, Acceptance Criterion). Include the original finding evidence and the authoritative basis for the correct outcome.
-3. Launch the Independent Reviewer in `Targeted Resolution Verification` mode. The Reviewer re-derives the correct outcome independently; this Skill does not pre-bake the verdict.
-4. Triage the `Targeted Verification Executed` report the same way as a Mode A report (§14.1 step 7). If the report shows the change restored the Necessary Condition and introduces no material new defect in scope, record `Authority Resolved` for this finding.
-5. If the report shows the change did NOT restore the Necessary Condition, apply the cycle in `.claude/references/verification.md` §6 — re-derive, change the evidence source, or stop with the unresolved constraint honestly. Do not restate the per-round cap here; the §6 cycle is the only source.
-6. **Do not** run Targeted Verification for trivial wording, formatting, or low-risk local edits. The Trigger B criteria above are the gate.
-
-This step is automatic within the current Skill's execution flow — it does not require the user to type `/review` again. See `.claude/references/verification.md` for the shared contract.
+Apply `verification.md` §3 Trigger B and §6 to the changed Requirement,
+invariant or acceptance scope. Give the Reviewer the original finding,
+source Intent and changed REQ IDs; triage the returned report under §14.1.
+Record `Authority Resolved` only after the necessary finding is actually
+closed. Trivial wording changes use the shared self-check rule.
 
 ## 15. Subcommand: `coverage <intent-id>`
 
@@ -504,10 +477,9 @@ Important clarifications — none of these alone establish a Baseline:
 
 Skill Availability is **independent** of this route: a Baseline can be absent whether or not the Skill is invocable.
 
-Recommendation: surface `/architecture init` as the next step.
-
-- If the Architecture Skill is invocable from the current environment, use it.
-- If the Architecture Skill is not invocable from the current environment, report the unavailability explicitly and surface the manual command. Preserve the Handoff — do not claim the invocation succeeded.
+Recommendation: `/architecture init`. Under an authorized whole-goal task,
+the Main Agent invokes that Skill or reads and follows it if invocation is
+unavailable. Preserve the Handoff when neither is possible.
 
 **Route B — Architecture Impact**
 
@@ -525,10 +497,8 @@ When a Baseline exists but is partial or applicability is uncertain, evaluate th
 
 **Insufficient evidence means we need to check, not that revision is required.**
 
-Recommendation: surface `/architecture impact SPEC-NNN` as the next step.
-
-- If the Architecture Skill is invocable from the current environment, use it.
-- If the Architecture Skill is not invocable, report the unavailability explicitly and surface the manual command.
+Recommendation: `/architecture impact SPEC-NNN`. Use the same Main Agent
+handoff rule as Route A.
 
 **Route C — Direct Module Design**
 
@@ -546,7 +516,9 @@ When the routing evidence itself is incomplete (Baseline exists but Owner / cont
 
 Recommendation: proceed directly to Module Design for the relevant module. No new Architecture work required. Skill invocability is not required to recommend Route C — it changes only who performs the Module Design, not the routing verdict.
 
-When the Module Design Skill is invocable from the current environment, surface `/module-design new <module-id>` for each affected module (the module ID comes from the Baseline's Module Responsibility Map). When the Skill is not invocable, report the unavailability explicitly and surface the manual command — do not pretend to invoke it.
+For each affected module ID from the Baseline, invoke the Module Design Skill
+or read and follow it in the Main Agent under an authorized whole-goal task.
+Record a return point if the capability is genuinely unavailable.
 
 ### 19.3 Routing evidence
 
@@ -578,32 +550,12 @@ Downstream Routing is a small step in Spec's existing Hand-off, not a separate W
 
 ### 19.6 Skill availability is not fixed
 
-Do not encode a hardcoded implementation status for the Architecture Skill into this SKILL.md. Skill Availability is a runtime property, judged per invocation, and can change between runs and environments.
-
-Each invocation must independently judge:
-
-- Whether the Architecture Skill is invocable from the **current** Claude Code environment.
-- Whether the current business project has a trustworthy Architecture Baseline.
-
-The two checks are independent. The combined cases resolve as:
-
-| Skill Available | Baseline | Routing |
-|---|---|---|
-| Yes | Absent | Route A (Init); the Skill's invocability does not imply a Baseline exists. |
-| Yes | Sufficient | Route C possible; Skill may be invoked for confirmatory Impact if desired. |
-| Yes | Present, new capability lacks Owner | Route B (special case; do not invoke Init just because of a coverage gap). |
-| Yes | Present but applicability uncertain | Route B (Impact) or targeted verification. |
-| Yes | Only Skill files exist | Route A — Skill documentation is not a Baseline. |
-| Yes | Only an empty architecture directory exists | Route A — empty directory is Baseline absent. |
-| No  | Absent | Route A is required in principle, but the Skill is not invocable from this environment; report unavailability and surface the manual command. |
-| No  | Sufficient | Route C is still the right routing conclusion. Skill invocability changes only who performs Module Design, not the routing verdict. |
-
-Rules:
-
-- Judge Skill Availability from the **current** environment, not from a memorized development phase.
-- Do not write any historical development state (e.g. "skill not yet implemented") into the routing rules.
-- When the Skill is unavailable, report it explicitly. Do not claim the call succeeded.
-- Baseline existence is a separate question from Skill installation.
+Judge Skill invocation and the business project's Baseline independently at
+runtime. A Skill file or empty directory is not a Baseline. If native Skill
+invocation is unavailable but files and tools are accessible, the Main Agent
+follows the owning Skill; otherwise it reports the actual blocker and return
+point without claiming the handoff ran. Routing A/B/C depends on Baseline
+evidence, not Skill availability.
 
 ## 20. Upstream Feedback
 
@@ -625,7 +577,10 @@ Spec may find problems at any layer. Route them by ownership level:
 
 Spec does NOT modify Intent or Architecture. It only describes the problem, the evidence, and the requested resolution.
 
-If the spec skill is not invokable from this environment, record the feedback in `# Unknowns and Upstream Feedback` and surface the manual command for the user. Do not print a command and claim it was executed.
+Record feedback in `# Unknowns and Upstream Feedback`; under an authorized
+whole-goal task, the Main Agent enters the owning Skill or reads and follows
+it when native invocation is unavailable. Report a genuinely unavailable
+capability and preserve the return point. Do not claim an unperformed edit.
 
 ## 21. Hard Rules
 

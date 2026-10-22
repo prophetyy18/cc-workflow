@@ -10,9 +10,9 @@ Establish an **adequate** factual basis for each load-bearing Requirement. Not m
 
 Fact verification is not limited to the initial Spec risk review. It applies at any point a load-bearing factual claim is encountered:
 
-- **Intake** (risk review) — claims about the system domain (e.g., "Uniswap v4 supports hooks").
-- **Capability discovery** — claims about what the system must do (e.g., "an event-driven backtest can reconstruct pool state at any block").
-- **Requirement derivation** — claims that justify a Derived Requirement (e.g., "to prevent future-data leakage, the replay engine must not see blocks > end_block").
+- **Intake** (risk review) — claims about external systems or domain behavior.
+- **Capability discovery** — factual assumptions about what inputs or outputs are available.
+- **Requirement derivation** — claims that justify a Derived Requirement.
 - **Spec review** — claims implicit in the existing Requirements.
 - **Material changes** — claims whose accuracy may have shifted.
 
@@ -28,6 +28,20 @@ For each load-bearing claim, classify as one of:
 
 A Verified claim may become Unverified if the new context shifts its scope. A Supported claim can be reused, but re-confirm its source, method, date, scope, and applicability before relying on it.
 
+### 2.1 Claim scope is bounded by evidence coverage
+
+State the observation's actual method, data source, searched range or
+sample, and limits. A negative or completeness claim cannot cover an
+unsearched range. Label the excess Unverified and name the smallest
+investigation that could settle it. Even a fully searched range does not
+prove completeness if the source or method could have omitted relevant data.
+
+Compare load-bearing facts with other **applicable** records for the same
+object, period and meaning. A conflict is an investigation, not a vote for
+the newer record. Check whether an older record was explicitly withdrawn.
+Correct the evidence at its owner and trace actual dependent conclusions
+through `change-impact.md` §3; preserve unaffected Requirements.
+
 ## 3. Reusing Existing Evidence
 
 Reuse is allowed when:
@@ -36,6 +50,9 @@ Reuse is allowed when:
 - The method is recorded (read page, ran command, observed runtime, etc.).
 - The verification date is recent enough to be relevant.
 - The scope of the original claim still applies to the new context.
+- The evidence's coverage still spans the scope the new use requires
+  (§2.1).
+- No other applicable record contradicts it (§2.1).
 - The uncertainty notes still hold (or are still acceptable).
 
 If any of these cannot be established, treat the claim as Unverified.
@@ -87,7 +104,9 @@ For each load-bearing claim that affects a Requirement, record in `# Unknowns an
   **Source**: <URL or path:line in this repo>
   **Method**: <how verified>
   **Verified on**: <YYYY-MM-DD>
-  **Scope**: <what this covers and does not cover>
+  **Scope**: <what this covers and does not cover — for a negative or
+    completeness claim, name the searched range explicitly; the claim
+    must not state more than that range supports (§2.1)>
   **Uncertainty**: <remaining doubt, even after verification>
   **Affects**: <list of Requirement IDs that depend on this claim>
 ```
@@ -101,6 +120,13 @@ If a fact is non-trivial, the full evidence may move to `research/<topic>.md` an
 - **Speculative future claims** — "X might change in 6 months". Not actionable now. Note it in Unknowns and revisit when relevant.
 
 The goal is adequate evidence, not exhaustive research. Each verification should be justifiable: "we know this because ..."
+
+Evidence is sufficient for a decision when plausible remaining outcomes
+cannot change its behavior, contract or acceptance (`cross-layer-coordination.md`
+§2.5.e). Otherwise keep the affected decision open and record the next
+evidence step. An unfinished measurement proves neither pass nor failure.
+Plan expensive probes with a question, smallest useful method, cost/time
+limit and stop condition; escalate only a new material cost or product choice.
 
 ## 9. Cross-Skill Reuse
 

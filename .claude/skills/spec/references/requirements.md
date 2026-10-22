@@ -47,7 +47,7 @@ Do not mechanically fill all categories. Pick the ones that meaningfully constra
 
 Requirements derived from existing user goals to guarantee correctness. Mark as **Derived** with explicit reasoning.
 
-Example: if the user requires historical strategy backtesting, then "no use of future data" is a derived requirement needed to make the backtest correct. The user's intent doesn't say "don't use future data" — but it's a necessary consequence of the backtest being valid.
+Example: if the user requires private team documents, then checking access on every document read is derived from that privacy goal, even when the user did not name every read endpoint.
 
 Derived Requirements must:
 

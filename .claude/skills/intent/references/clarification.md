@@ -101,7 +101,7 @@ When writing the `# Clarified Intent` restatement (see §10), distinguish:
 
 Example:
 
-> User wants a real-time price feed for ETH/USDC on Uniswap V3. They will use it in a trading bot (assumed). Latency target is sub-second (assumed).
+> User wants a shared calendar. It will support remote teams (assumed). Updates must appear within one minute (assumed).
 
 The user can strike any "(assumed)" they don't agree with.
 

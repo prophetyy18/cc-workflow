@@ -135,11 +135,11 @@ for both `MOD-<slug>` IDs and display names. The lookup order:
    multiple rows match, list them as candidates and ask the
    user — do not silently pick one.
 
-4. **No match.** Present the Baseline's known module list (with
-   whatever IDs and display names it actually carries) as
-   evidence and ask the user to confirm or correct. Do not
-   invent a module. Do not stop with "module not found" alone —
-   that leaves the user without a path forward.
+4. **No match.** Compare the requested capability with the Baseline's
+   known owners. If ownership is missing or inconsistent, route to
+   Architecture Impact with the evidence and return point. Ask the user
+   only if the requested identity or product boundary remains ambiguous;
+   do not invent a module.
 
 The per-module summary file (`docs/architecture/modules/MOD-<slug>.md`)
 is optional. When present, its filename must match the canonical
@@ -153,14 +153,13 @@ report Architecture Skill invocability:
   environment, the Main Agent should `/architecture init` itself —
   do not push the user to type the command. Once a Baseline exists,
   return to this `new`.
-- If the Architecture Skill is not invocable, report the
-  unavailability explicitly and surface the manual command. Do not
-  pretend to invoke it.
+- If native invocation is unavailable, the Main Agent reads and follows
+  the Architecture Skill when its files and tools are accessible;
+  otherwise it records the actual blocker and return point.
 
-If the user is asking for an ad-hoc module not yet in the Baseline,
-require explicit confirmation of the ID and minimal boundary
-context, record that decision in `# Resume Notes`, and note that
-the Baseline should be amended (a separate `architecture` concern).
+If the user asks for an ad-hoc module absent from the Baseline, let
+Architecture decide ownership and the canonical ID before Design proceeds.
+Preserve the request and return point in `# Resume Notes`.
 
 ### Step 1 — Load upstream basis
 

@@ -23,9 +23,14 @@ For each verified fact, record in `# Facts and Research`:
   **Source**: <URL or path:line in this repo>
   **Verified on**: <YYYY-MM-DD>
   **Method**: <how verified — read page X, ran command Y, inspected file Z>
-  **Scope**: <what this covers and does not cover>
+  **Scope**: <what this covers and does not cover — for a claim of absence
+    or completeness, name the searched range; the claim must not state
+    more than that range supports>
   **Uncertainty**: <remaining doubt, even after verification>
 ```
+
+The scope rule is the same one the Spec layer applies — see
+`.claude/skills/spec/references/fact-verification.md` §2.1.
 
 If the fact is non-trivial, move the full evidence to `research/<topic>.md` and link to it from `# Facts and Research`.
 
@@ -46,11 +51,18 @@ When sources disagree:
 - Note which is more authoritative and why.
 - If the conflict affects downstream Spec, mark the disputed fact in `# Unknowns` with a clear "must resolve before implementation" tag.
 
+Before recording, also check the project's other recorded facts — other
+Intents' research, Spec research, project evidence notes — for a record
+that contradicts this one. A contradiction between two records is
+settled by re-verification against the primary source, not by trusting
+the newer document. Until it is settled, the fact stays Unverified and
+the items that cite it are pending revalidation.
+
 Do not pick a side silently. Do not average sources. Show the conflict.
 
 ## 4. User Claims vs. Verified Facts
 
-A claim the user makes about the world is a **fact about what the user said**, not a fact about the world. If the user says "Uniswap V4 was launched in 2024" and that is a load-bearing claim, **verify it independently** before recording it under `# Facts and Research`. If verification fails, move the claim to `# Unknowns` with a note that the user asserted it.
+A claim the user makes about the world is a **fact about what the user said**, not a fact about the world. If the user says an external service has a required capability and that claim is load-bearing, verify it independently before recording it under `# Facts and Research`. If verification fails, move the claim to `# Unknowns` with a note that the user asserted it.
 
 ## 5. Unknowns
 

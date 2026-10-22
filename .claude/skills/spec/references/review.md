@@ -159,6 +159,7 @@ See `.claude/agents/independent-reviewer.md` §3 for the full procedure. The Rev
 6. **Architecture boundary** — no Requirement names a specific module, API, schema, or storage choice. The `# Architecture Handoff` section lists open decisions but does not pre-decide them.
 7. **Coverage cross-check** — for each Requirement, identify which Intent goal / constraint / decision it serves. Surface any that serve none.
 8. **Source intent status** — if a source intent is still `active` (not `archived`), note that upstream changes may still occur.
+9. **Evidence coverage and conflict** — every load-bearing fact this Spec relies on is supported by evidence whose recorded coverage spans the scope the Requirement claims, and is not contradicted by another recorded fact in the project. A Requirement that cites a bounded observation as a global fact is a defect, not a wording issue (`fact-verification.md` §2.1).
 
 ### 2.4 Findings classification
 

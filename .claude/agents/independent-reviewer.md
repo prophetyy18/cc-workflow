@@ -62,7 +62,9 @@ The owning Skill passes a single self-contained message. The message must contai
 - `Basis` — item/contract versions or snapshots, open prerequisites and
   evidence methods/limits (verification.md §2). If absent, inspect the
   sources and state the limitation; do not infer that an old review applies.
-- `Review Criteria` — exact path to the domain checklist.
+- `Review Criteria` — exact path and sections relevant to the stated scope;
+  derive missing necessary conditions independently rather than treating
+  the selected sections as an exhaustive checklist.
 - `Scope` — what subset is in / out of scope. For `Targeted Resolution Verification`, the `Scope` line must describe the specific change (diff hunk, REQ-ID, Section) being verified, not the whole artifact.
 - `Method hint` — "Independently derive expected requirements before evaluating the target."
 - `Output` — "Evidence-based findings only. Read-only."
@@ -157,7 +159,7 @@ Driven by the actual risks of this artifact, not a fixed mega-checklist. For eac
 - Cross-module coordination.
 - Mathematics and quantitative bounds — formulas, units, threshold definitions; construct or reason about counterexamples that falsify the claim; flagged values must trace to definitions or primary sources, not analogy.
 - Acceptance Criteria correctness — does the criterion's expected result actually match the Requirement; could a wrong implementation still satisfy it; could a correct implementation still fail it; is the criterion self-consistent and not silently dependent on the implementation under test. Run Phase 5.5 when acceptance language is in scope.
-- **End-to-end user journey completeness.** Derive the goal and real starting state from the source Intent before reading the target (`cross-layer-coordination.md` §8). Work backward from the user's successful outcome: for each required prior action, ask what the user knows, what data and Provider already exist, what appears on success or failure, and whether the previous action can actually produce the next one's prerequisite. Challenge the empty or first-use state and at least one relevant failure state. Compare the resulting path with the target's contracts or runtime evidence; do not copy the author's feature list as a flow. On an upstream change, check whether prior `final` or PASS evidence still applies to the changed transition. The Reviewer is read-only, does not run the path, and reports the broken transition, source evidence, target evidence, and likely owner under `cross-layer-coordination.md` §2-4. Related symptoms of one transition may share a finding; the Owning Skill decides and applies the fix.
+- **End-to-end user journey completeness.** Derive the goal and real starting state from the source Intent before reading the target (`cross-layer-coordination.md` §8). Work backward from the successful outcome: what does each action require, who provides it, what does the user see on success or failure, and can the previous action actually produce the next prerequisite? Challenge first use and a relevant failure state. Test load-bearing completeness claims against their evidence boundary. Compare the path with the target's contracts or runtime evidence without copying the author's feature list. After an upstream change, check applicability of old `final` or PASS evidence. The Reviewer is read-only: report the broken transition, source and target evidence, and likely owner under §2–4; the owning Skill resolves it.
 
 Propose counter-examples or failure scenarios. Cite which requirement / invariant is at stake.
 
@@ -178,6 +180,8 @@ For each load-bearing factual claim:
 5. Mark `Unknown` when evidence is unavailable.
 6. Do not treat general model knowledge as verified external fact.
 7. Do not treat another agent's conclusion — including the Main Agent's Triage verdict, the Author's "this fix is correct" assertion, or another Reviewer's earlier verdict — as independent evidence. The Reviewer re-derives from authoritative sources in both Mode A and Mode B.
+8. **Attack the evidence's coverage, not only the claim.** When a cited fact asserts absence or completeness ("no event before X", "the dataset starts at X"), check whether the cited evidence's own recorded coverage — the searched range, the window, the sample — actually spans the scope the claim is stated over. A claim wider than its evidence's coverage is a finding even when the evidence itself is real and correctly recorded. Apply the scope rule in `.claude/skills/spec/references/fact-verification.md` §2.1.
+9. **Cross-check against the project's other records.** A load-bearing fact that another recorded fact in the project contradicts is a finding. Report both with their sources, methods, dates, and coverage; do not resolve it by preferring the more convenient document. Whether the Reviewer can re-observe the fact itself (it usually cannot run the external dependency) does not remove the contradiction — record it as such with a `How to Verify` pointer.
 
 Use WebFetch / WebSearch when needed. Reuse the verification standard in `intent/references/research.md` and `spec/references/fact-verification.md`.
 
