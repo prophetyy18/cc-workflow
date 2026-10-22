@@ -267,7 +267,7 @@ the **fix is wrong even if the gap is real**. Reject the fix; resolve at the rig
 
 #### 2.7.4 Validate — does the proposed resolution logically restore the guarantee?
 
-Triage does not modify authoritative content (Spec skill hard rule — see SKILL.md §14.1 #10; all material edits wait for user authorization). At this stage the Skill is **proposing** a resolution path; this step validates the proposal **logically**, not empirically. It does not claim the fix has been applied or that empirical verification has happened.
+Triage itself does not modify authoritative content. At this stage the Skill is **proposing** a resolution path; this step validates the proposal **logically**, not empirically. Under an authorized continuation, the Spec owner may then apply an in-scope correction under cross-layer §2.5.b and obtain applicable post-fix verification. Triage alone does not claim the fix has been applied or empirically verified.
 
 The three closure states in `cross-layer-coordination.md` §5 belong to distinct moments and are not produced here:
 

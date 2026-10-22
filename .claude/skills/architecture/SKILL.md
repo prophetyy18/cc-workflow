@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Design and maintain the system's Architecture Baseline — module responsibilities, dependency boundaries, public contract ownership, and cross-module system invariants. Use when the user wants to start an initial architecture from existing Specs (/architecture init), analyze how a Spec change affects the existing architecture (/architecture impact <spec-id>), revise the architecture after impact analysis is approved (/architecture revise <spec-id>), or audit the current architecture for consistency (/architecture review). Located between Spec and Module Design in the workflow. Triggered by questions like "design the architecture for these specs", "does this spec break existing contracts", "who owns capability X", or "is our module boundary still right".
+description: Design and maintain the system's Architecture Baseline — module responsibilities, dependency boundaries, public contract ownership, and cross-module system invariants. Use when the user wants to start an initial architecture from existing Specs (/architecture init), analyze how a Spec change affects the existing architecture (/architecture impact SPEC-NNN), revise the architecture after impact analysis is approved (/architecture revise SPEC-NNN), or audit the current architecture for consistency (/architecture review). Located between Spec and Module Design in the workflow. Triggered by questions like "design the architecture for these specs", "does this spec break existing contracts", "who owns capability X", or "is our module boundary still right".
 allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), Bash(git*)
 ---
 
@@ -99,7 +99,10 @@ Read every `SPEC.md` under `docs/specs/`. Extract:
 - `# Architecture Handoff` content
 - Source Intent items
 
-For each Spec, note its `status` (active vs archived). Archived Specs are confirmed baseline input. Active Specs are partial input — only use clearly-accepted sections; flag uncertain parts as "draft, may change".
+For each Spec, note its status and apply cross-layer §2.5.c to the consumed
+items. Affected items under revision or awaiting required review may inform
+provisional analysis, but cannot support a completed Baseline handoff.
+Unchanged, previously accepted items remain usable despite unrelated edits.
 
 If a Requirement is not clear enough to drive a responsibility decision, route back to Spec via the existing feedback mechanism. Do not invent business semantics.
 
@@ -389,7 +392,11 @@ This step is automatic within the current Skill's execution flow — it does not
 
 Audit current architecture for consistency. **Default read-only; do not auto-modify.**
 
-This subcommand is the user-explicit path to Trigger A (Independent Review) for Architecture. The same `independent-reviewer` Subagent (`.claude/agents/independent-reviewer.md`) used for Initial Review also serves the post-fix `Targeted Resolution Verification` of important `revise` changes (§7 Post-fix Verification). Architecture does not auto-modify; the user decides what to fix based on the Reviewer's report.
+This subcommand is the user-explicit path to Trigger A (Independent Review)
+for Architecture. The same Reviewer serves post-fix verification (§7).
+A standalone review reports findings; within an authorized repair or
+whole-goal continuation, apply necessary corrections via `revise` and
+cross-layer §2.5.b without a new scheduling decision from the user.
 
 For the shared delegation contract, evidence standard, loop bounding, and Mode A / Mode B differences, see `.claude/references/verification.md`.
 
@@ -413,7 +420,7 @@ When math / quantitative bounds or acceptance criteria are in scope of the Basel
 - "review the contract for capability Y" — focus on one public contract and its consumers.
 - "review whether SPEC-XXX fits the architecture" — focus on one Spec's Requirements vs current ownership.
 
-Output: a short report of findings. No automatic edits. The user decides what to fix.
+Output: a short report of findings; continuation follows the scope rule above.
 
 Do not produce a giant full-project audit report by default. Scale the review to the actual question.
 
@@ -587,7 +594,10 @@ In particular:
 
 1. **No fabricated modules or contracts.** If evidence is missing, mark the question unresolved and say so. Do not invent modules, APIs, or contracts to make the Baseline look complete.
 2. **Impact is read-only by default.** `impact` must not modify the Baseline, modules, contracts, or code. Revision is a separate, authorized step.
-3. **Revision requires authorization.** Material Architecture changes need explicit user confirmation. If the user has confirmed in the natural-language flow, that single confirmation authorizes the documented scope — do not re-prompt.
+3. **Revision uses existing authorization.** Apply cross-layer §2.5.b;
+   necessary internal revisions within an authorized goal proceed without
+   another confirmation. Ask for changed product meaning or a material
+   trade-off outside that authorization.
 4. **One Primary Owner per state.** Each authoritative state has exactly one Owner. Collaboration does not equal co-ownership.
 5. **Consumers depend on contracts, not private internals.** If a module relies on another module's private behavior, that's a Baseline violation.
 6. **One explicit confirmation is enough.** A natural-language "确认，继续" after a completion proposal authorizes saving the Baseline and the immediate handoff. Do not prompt a second time. Do not extend the authorization to unrelated changes.

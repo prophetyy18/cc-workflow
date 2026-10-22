@@ -50,7 +50,7 @@ If the subcommand is unknown, do not guess. Show help and stop.
 
 | User intent (paraphrased) | Action |
 |---|---|
-| "implement MOD-foo", "把 foo 实现了", "build MOD-foo" | `new` (if `DESIGN.md` is `final`); `resume` (if `draft`) |
+| "implement MOD-foo", "把 foo 实现了", "build MOD-foo" | `new` or `resume` by existing work; both apply §5 Entry prerequisites before code changes |
 | "跑一下 MOD-foo 的测试", "test foo" | `test` |
 | "审一下 foo 的实现", "verify foo" | `verify` |
 | "看下 foo 进度", "status foo" | `status` |
@@ -81,17 +81,21 @@ modules live.
 
 ## 5. Subcommand: `new <module-id>`
 
-Run `new` only when:
+### Entry prerequisites — `new` and `resume`
 
-- `DESIGN.md` for `<module-id>` exists with `status: final`, OR the
-  user has explicitly asked to start from `draft` (record the
-  divergence in `# Resume Notes`).
-- The Provider's public contract is reachable (`DESIGN.md` § Provided
-  Public Contracts and / or `contracts/*.yaml`).
+Apply `cross-layer-coordination.md` §2.5.c to the selected implementation
+scope before editing code. Its Design and consumed contracts must have
+completed their required handoff checks against the current upstream items.
+`final` and an old Review cannot establish this after a semantic change.
+Existing code or a `resume` route does not waive the same check.
 
-If `DESIGN.md` is missing or stuck at `draft`, surface the blocker
-and point at `/module-design resume <module-id>` (or `new`). Do not
-invent Requirements or contracts.
+If the required Design scope is still draft, preserve existing code and
+automatically enter Module Design's corrective flow within authorization;
+save the implementation return point and recheck after that owner closes
+the prerequisite. A draft due solely to unrelated items may leave a previously
+accepted scope usable under the shared check. Explicitly authorized probes
+or prototypes may explore unresolved premises, but are provisional and do
+not satisfy formal implementation/handoff. Do not invent missing contracts.
 
 ### Step 1 — Read upstream
 
@@ -204,6 +208,8 @@ later Module Design update.
    basis using `../../references/change-impact.md`; mark only
    affected prior conclusions pending revalidation.
 2. Continue from the open frontier (Step 2 → 5 as needed).
+   First apply §5 Entry prerequisites; if blocked, resolve at the owner
+   and return here only after cross-layer §2.5.c passes.
 3. After any material change satisfying Trigger B criteria
    (`verification.md` §3 Trigger B), run Targeted Resolution
    Verification (Mode B) before resuming normal flow.
@@ -423,7 +429,8 @@ escalation).
 
 Edit only the necessary authority. Do not silently rewrite an
 archived Spec or an adopted Architecture Baseline — use the existing
-reopen / revise mechanisms with user authorization. For a public
+reopen / revise mechanisms under the impact-based authorization rule
+in cross-layer §2.5.b. For a public
 contract owned by THIS module, this Skill itself fixes the contract
 (rare; almost always involves Module Design first).
 
@@ -441,7 +448,7 @@ evidence scope.
 After the correction and the local re-implementation, run Targeted
 Resolution Verification (Mode B) for material changes per
 `verification.md` §3 Trigger B. Bound the loop:
-`verification.md` §6 (1 + 1 + 1 cap).
+`verification.md` §6.
 
 ### Resume
 
@@ -468,6 +475,8 @@ handoff obligations.
 - `DESIGN.md` is `final` — read frontmatter and `# Resume Notes`,
   not the prose. If the design carries an open Blocking
   *prerequisite*, handoff is invalid.
+  Apply §5 Entry prerequisites and cross-layer §2.5.c again; a
+  misleading obligation label does not release an unresolved dependency.
 - Each public capability in `DESIGN.md` § Provided Public
   Contracts has at least one observable test.
 - The implementation matches the public contract field by field:
@@ -577,8 +586,9 @@ response to a recent completion proposal, that single confirmation
 authorizes recording the handoff state in `DESIGN.md # Resume Notes`
 and surfacing the next-step pointer (delivery, deployment, etc.).
 Do not prompt a second time ("are you sure?") for the same scope.
-Do not extend the authorization to other modules, unrequested test
-changes, or contract edits.
+Apply cross-layer §2.5.b to necessary corrections in affected modules,
+tests and contracts; this confirmation does not authorize unrelated work
+or a change to confirmed product meaning.
 
 Reserved confirmations (those that still need a fresh "确认，继续"
 from the user) cover material changes to goal, scope, or key

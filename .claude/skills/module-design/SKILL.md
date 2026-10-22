@@ -164,6 +164,11 @@ the Baseline should be amended (a separate `architecture` concern).
 
 ### Step 1 — Load upstream basis
 
+For `new`, `resume`, cross-layer returns and `handoff`, use
+`cross-layer-coordination.md` §2.5.c on the selected scope. Drafting
+alternatives while an upstream item is unresolved is provisional;
+it cannot release dependent implementation or establish `final`.
+
 Read in order:
 
 1. The Architecture Baseline — Module Responsibility Map, Public
@@ -286,7 +291,8 @@ Reviewer reuse is the same as in `spec/SKILL.md` §14 and
 1. Load `DESIGN.md` and any `contracts/*` files. Read `# Resume Notes`
    first. Do not re-derive settled decisions.
    Compare current upstream item/contract semantics and recorded
-   evidence with Git using `../../references/change-impact.md`.
+   evidence with Git using `../../references/change-impact.md` and
+   apply Step 1's prerequisite check before proceeding.
 2. Continue from the open frontier (Step 2 → 6 above as needed).
 3. After any material change that meets Trigger B criteria
    (`.claude/references/verification.md` §3), run Targeted Resolution
@@ -333,7 +339,7 @@ Print the current state of `DESIGN.md`:
 - What's settled (public contract content, internal decisions).
 - What's open (which Step / which fields).
 - What's blocked (with Cross-layer feedback references).
-- Handoff readiness (per §12 completion criteria).
+- Handoff readiness (per §13 completion criteria).
 
 No edits.
 
@@ -342,7 +348,7 @@ No edits.
 1. Load the design.
    Check changed upstream items and Provider contracts against the
    last handoff using `../../references/change-impact.md`.
-2. Run the Completion Check (§12).
+2. Run the Completion Check (§13).
 3. Run Targeted Resolution Verification (Mode B) per
    `.claude/references/verification.md` if any material change since
    the last successful review.
@@ -457,7 +463,7 @@ Propagate) and §4 (Minimum necessary escalation).
 Edit only the necessary content at the located authority. Do not
 batch unrelated changes. Do not silently rewrite an archived Spec or
 an adopted Architecture Baseline — go through the existing reopen /
-revise mechanisms with user authorization.
+revise mechanisms under cross-layer §2.5.b's impact-based authorization.
 
 ### Impact Propagation
 
@@ -528,18 +534,10 @@ design transition. The split matches
   an earlier `final` or Review covers only its former scope.
   If the needed behavior belongs to another Provider, send
   cross-layer feedback to its owner and record the dependency.
-- **No entry in `# Blocking Unknowns and Implementation Handoff`
-  is flagged Blocking AND is a *design prerequisite*** — i.e.,
-  an unverified fact whose different possible outcomes would
-  change the public contract, an internal design decision, a
-  System Invariant, or another key design choice. Whether a fact
-  is a design prerequisite vs a §13.2 implementation obligation
-  is decided from the design's own contents (`cross-layer-coordination.md`
-  §2.5.e): can the design state its correctness for *every*
-  possible outcome? If yes, §13.2; if any outcome would change
-  the design, §13.1. A document that says "Implementation will
-  verify X" is not by itself sufficient to reclassify X as §13.2
-  when X's outcomes affect the design.
+- **No unresolved prerequisite for this scope**, regardless of its
+  label. Apply `cross-layer-coordination.md` §2.5.c/e. Sending feedback,
+  editing upstream, or renaming a blocker as an obligation does not
+  complete the required upstream resolution and review.
 - **Every Reference in `source_architecture`, `source_spec`,
   "Depends on...", and "Contract location" still matches the
   *current* authoritative state of the cited artifact.** A line
@@ -601,26 +599,13 @@ after runtime evidence. `final` does not authorize skipping
 
 ### One explicit confirmation is enough
 
-When the user has explicitly confirmed the current stage's
-completion (`确认，继续` / `设计没问题了` / `MOD-foo 可以交给实现了`)
-in response to a recent completion proposal, that single
-confirmation authorizes:
-
-- Setting `DESIGN.md status: final` for this module.
-- The corresponding Implementation Handoff (`new <module-id>` next).
-
-Do not prompt a second time ("are you sure?") for the same scope.
-Do not extend the authorization to unrelated modules, unrequested
-Spec edits, or Architecture changes. Material changes to the goal,
-scope, or key constraints that surface during a subsequent round
-remain user decisions — they are not covered by the prior
-confirmation.
-
-A new confirmation is required when:
-
-- The user re-opens the module (`reopen`).
-- A subsequent correction changes a Spec REQ or Architecture
-  ownership that the prior confirmation did not cover.
+An instruction to complete the goal or the current stage covers necessary
+internal corrections, reopen/review, and the handoff within that scope once
+§13.1 passes. Use `cross-layer-coordination.md` §2.5.b for authorization;
+reopen or crossing a layer is not itself a reason to ask again. Ask only
+for a change to confirmed product meaning, scope, key constraints or an
+unresolved material trade-off beyond existing authorization. Authorization
+does not waive prerequisites.
 
 ## 14. Hard Rules
 

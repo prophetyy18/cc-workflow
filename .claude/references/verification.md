@@ -74,6 +74,9 @@ Every call to the Reviewer must provide, in plain prose:
 - `Review Mode` — `Independent Review` (default) | `Targeted Resolution Verification` (only when Triggers B/C apply).
 - `Target` — exact file path(s) or artifact identifier.
 - `Authoritative Sources` — paths the target was supposed to satisfy.
+- `Basis` — current source item/contract versions or exact snapshots,
+  unresolved prerequisites, and evidence methods/limits. Give facts,
+  not the author's assertion that the prerequisites are closed.
 - `Review Criteria` — exact path to the domain checklist (per Skill).
 - `Scope` — what is in / out. For Mode B, the specific change being
   verified (diff hunk, REQ-ID, Section).
@@ -455,10 +458,25 @@ implementation matches known contract but no runtime evidence (3)
   contract, but no real run has been observed. Surface which
   gap class the unsatisfied real test belongs to before closing.
 
-## 5. Evidence Standard
+### 4.9 Preserve evidence kind and boundary across layers
 
-The Reviewer distinguishes three levels of confidence and must label
-each material claim with one:
+When reusing a claim, keep its **observed**, **estimated**, **assumed**, or
+**unverified** nature, source version, conditions and command/method beside
+the existing evidence record. Separate the actual observation from the
+derivation and its assumptions; link back rather than copying a stronger
+claim into Spec, Design or a review brief.
+
+A batch-throughput probe supports a throughput observation and possibly a
+conditional total-time estimate. It does not measure the complete cold path
+or prove an acceptance bound impossible; it is not a lower or upper bound
+without a justified bound derivation. Keep the original bound and user
+operation order while investigating compliant designs. Partial availability
+must state which user actions are enabled before completeness; allowing a
+previously forbidden early action is a product change, not an optimization.
+Only an actual run of the stated boundary supports measured elapsed time.
+If that run is unavailable, apply §4.8 and preserve the missing evidence.
+
+## 5. Evidence Standard
 
 The Reviewer distinguishes three levels of confidence and must label
 each material claim with one:
@@ -491,9 +509,16 @@ opposition to a stop rule.
 Fix  ↔  Targeted Resolution Verification
 ```
 
-A fix that just shipped is verified once. If the verification
-surfaces a new finding, that finding enters the same cycle
-below.
+A fix is verified once against its Necessary Condition and changed scope.
+Reuse unaffected evidence. Triage new findings before entering another
+cycle: only a violated Necessary Condition or a material regression caused
+by the current fix blocks it. Distinct pre-existing gaps are routed to
+their owner and scheduled by their actual dependency; they do not force
+another review of the same fix. Ordinary improvements are recorded/deferred,
+not promoted to mandatory work or a reason for another full review. Keep
+the original finding IDs and review basis stable across targeted rounds;
+do not enlarge the target merely because a reviewer suggested more probes
+or more complete recovery prose.
 
 ### 6.2 When the same finding needs more than one round
 
@@ -525,25 +550,49 @@ Condition. Before the next round:
 
 ### 6.3 Stop conditions
 
-The cycle stops, with surface to the user, when any of these holds:
+Pause the affected loop for diagnosis when any of these holds:
 
 - **Necessary Condition not converging under independent
   evidence.** The same NC fails to verify across two rounds
   despite a fresh evidence source. Two independent attempts
   that both disagree with the NC mean the *approach* is wrong,
   not the value. Iteration count is not a budget to spend.
-- **The fix requires an upstream authoritative change the
-  current cycle did not authorize** (e.g. a Spec reopen, an
-  Architecture revise) — branch into cross-layer coordination.
+- **The fix requires upstream correction** — use cross-layer
+  coordination and existing task authorization. A layer boundary alone
+  does not require a new user decision.
 - **The remaining gap is a goal / scope / key-constraint
   decision the Main Agent cannot make alone.**
 
-When stopping, surface the evidence: what was tried, what was
-independently verified, what remains failing. Stop with a
-decision requirement, not a "continue or stop" choice — the
-caller chooses between a real decision (scope change /
-authorization / more work) and more work; the framework
-presents the open constraint, not a handwave.
+Investigate the disputed premise, evidence source or method before another
+fix; do not relabel the issue, weaken acceptance or transfer it downstream.
+If that investigation produces a genuinely new corrective basis, record it
+and resume the scoped loop. Otherwise save the failing condition and return
+point, continue unaffected work, and report the actual missing input or
+capability. Ask the user only for a real product/authorization decision.
+
+### 6.3.a Reviewer execution failure
+
+Before a required reviewer call, record its target, source snapshot,
+Necessary Condition and return point in the existing Resume Notes. This
+lets a new session recover even if the process ends before the call returns.
+Do not mark Review Executed until a report is actually received.
+
+Timeout, tool failure, missing or incomplete report is **no review result**,
+not PASS or Review Executed. Save the source/target snapshot, scope, error
+and return point. After diagnosing the execution failure, retry once with
+the same necessary scope (or a fresh independent reviewer with the same
+basis). If unavailable again, keep the required review open. Other evidence
+may support diagnosis and unaffected work, but does not impersonate a
+required Independent Review. Do not restart a full review endlessly or ask
+the user to schedule retries. A later retry needs a changed availability
+condition and the saved scope.
+If the tool/agent registry already establishes that independent execution
+is unavailable, record the limitation directly; no retry is useful. Check
+an available alternative once, not by scanning the machine for similarly
+named skills. Loading a review Skill in the author's context does not create
+an independent reviewer. A nested CLI started from the author's shell without
+the project's Reviewer definition, exact basis and read-only boundary is not
+an alternative review result.
 
 ### 6.4 Anti-patterns within the cycle
 

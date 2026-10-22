@@ -22,7 +22,7 @@ Intent 层是用户目标的权威来源。下游发现问题通过 `/intent fee
 | `architecture` | 维护系统架构基线，划定模块边界、公共能力归属、依赖方向 |
 | `module-design` | 在已确认的基线之上独立设计一个模块的公共契约与内部设计，并向 Implementation 交付可执行的设计结果 |
 | `implementation` | 在已确认的 DESIGN.md 之上编写可运行代码、可执行测试与运行证据；对重要交付调用 Reviewer；对发现的上游错误跨层回溯修复 |
-| `workflow` | 只读地从 Git、条目引用、契约和验证证据恢复项目进度：`/workflow status [ID]` |
+| `workflow` | `/workflow status [ID]` 只读恢复进度；`/workflow continue <ID>` 或“继续完成 INT-NNN”自动选择可闭合工作，纠正必要前提后恢复原任务 |
 
 完整的权限与跨 Skill 协调见各 Skill 与 `.claude/references/` 下的共享规则。
 跨层语义变更使用 `.claude/references/change-impact.md`，按条目和实际消费者追踪；影响结论及恢复位置写回现有 `# Resume Notes`，不维护第二份关系库。
@@ -41,6 +41,6 @@ docs/intents/INT-NNN/INTENT.md
 
 ## 原则
 
-各层只管自己 · 修改优先于新建 · boundary-driven 细化 · 可追溯但轻量 · 修改权威内容前必须用户确认。
+各层只管自己 · 修改优先于新建 · boundary-driven 细化 · 可追溯但轻量 · 已授权纠错自动推进，改变产品意思或关键约束才询问。
 
 详细见 [CLAUDE.md](./CLAUDE.md)。

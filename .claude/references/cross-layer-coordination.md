@@ -133,6 +133,10 @@ Before the originating Skill accepts a returned Fix and proceeds, it
 does not rely on the returner's claim alone. The check is small but
 strict:
 
+Apply the same execution prerequisite check in §2.5.c used at entry
+and handoff. A feedback receipt, edit, or returned review alone cannot
+release the dependent work.
+
 - Did the targeted authoritative content actually change in the
   expected way (read the file / state the return message references,
   not just the prose summary)?
@@ -221,45 +225,53 @@ the relevant layer (reopen for Spec-level, `revise` for
 Architecture-level, etc.). A fix that crosses none is owned by
 the Skill whose authority the fix falls under.
 
-### 2.5.c Status-gate disciplines (cross-Skill)
+### 2.5.c Execution prerequisites (entry, resume, return, handoff)
 
-The same discipline applies to any status transition that
-encodes a completion claim (Spec `archived`, Module Design
-`final`, Implementation `handoff`):
+Before starting or resuming dependent work, accepting a cross-layer
+return, or claiming a handoff, apply this check to the **selected
+item/contract scope**, using `change-impact.md` to locate its basis:
 
-- Read the artifact's `# Unknowns` / `# Blocking Unknowns and
-  Implementation Handoff` / equivalent sections **at the moment of
-  the transition**. The transition is invalid if any item is still
-  flagged Blocking AND that item is a *design prerequisite*
-  (§2.5.e); resolve or reclassify first. Note the distinction
-  below: Implementation-handoff obligations are recorded at the
-  Design transition but do *not* block it.
-- Read the artifact's `Source <other-doc>` / "depends on" /
-  cross-module References and confirm they match the **current**
-  authoritative state of the cited document (not historical). If
-  stale, update or surface as Architecture-completeness, Spec, or
-  Implementation follow-up — do not finalize on stale references.
-- Trigger evidence declared in the Skill's §13 must be on hand,
-  not claimed. "Will be done by Implementation" is not Trigger A
-  evidence at the Design gate — it is a follow-up handoff
-  obligation that Implementation owns.
-- For a changed upstream requirement, inspect the affected path
-  and its evidence, not only the cited document's status or ID.
-  Keep the old conclusion scoped to its former requirement until
-  the affected contract, code, and acceptance evidence are checked.
+- Read the actual source content/version and open issues. Which
+  decisions and review evidence apply to this scope now? An old
+  `final`, PASS, existing implementation, or `RESOLVED` note is not
+  sufficient. An edited upstream item still awaiting its required
+  review/completion checks is not ready for dependent implementation.
+- Determine whether an unresolved outcome could change this work's
+  behavior, contract, or acceptance. If so, it is a prerequisite
+  regardless of its label, owner, or whether feedback has been sent.
+  Reclassification must meet §2.5.e, not merely remove a Blocking tag.
+- Check that required reviews returned an applicable report and the
+  owning layer completed the required resolution and handoff checks.
+  `active`/`draft` caused by an unrelated item does not invalidate an
+  unchanged, previously accepted scope. New or changed scope needs
+  its own closed basis; do not use partial acceptance to bypass review.
+  Even when the correct internal fix is obvious and authorized, affected
+  implementation edits wait for the owning design/contract revision and
+  its required review; only provisional exploration or unrelated work can
+  run before that closure.
+- Git dirtiness identifies versions and possible drift, not a global
+  stop signal. A reviewed working-tree snapshot can support in-session
+  work when its exact content and completed checks are recorded; it
+  does not certify a committed delivery. Inspect the relevant diff.
+
+If ready, execute the selected work. If blocked, save its result sought,
+basis, missing condition, owner and return point in existing Resume Notes;
+resolve through that owner within current authorization, then reread the
+artifacts and repeat this check before returning. Unaffected work may
+continue. Explicitly authorized exploration may test unresolved premises,
+but must remain provisional and cannot certify a formal handoff.
 
 ### 2.5.e Design prerequisites vs handoff obligations
 
-A `DESIGN.md` cannot reach `final` because of two distinct
-reasons, and only one of them is *this* Skill's gate:
+Classify by the effect of the unresolved result on design correctness:
 
 - **Design prerequisite** — without resolving this, the
   contract itself cannot be stated correctly. Examples: a
   primary-source verification the design's formulas depend on,
   a behavior the Spec is silent on, a Required Outcome the
-  design can't support. These must be closed at the Design
-  transition (resolved, reclassified, or surfaced back to
-  the upstream layer through its routine-correction path).
+  design can't support. These block the affected Design handoff until
+  the owner actually resolves them and §2.5.c passes. Sending feedback
+  upstream leaves the prerequisite open.
 - **Implementation verification obligation** — a behavior
   that is correct on the contract surface but only verifiable
   end-to-end against a running implementation / test suite /
@@ -271,6 +283,15 @@ reasons, and only one of them is *this* Skill's gate:
   Implementation Handoff` / equivalent) — they are owned by
   the next layer, not by Design. They do **not** block Design
   final; they gate Implementation handoff.
+
+To reclassify a prerequisite as an Implementation obligation, explain
+why the plausible outcomes leave the current behavior, contract and
+acceptance valid. If an outcome would require a different guarantee,
+it is still a prerequisite. Performance measurement itself normally
+belongs to Implementation: Design can retain the required bound and
+hand off its measurement. An estimate does not authorize relaxing that
+bound or changing a confirmed operation sequence. A feasibility probe
+may inform a design decision without becoming user-path acceptance.
 
 If the §13 mixing rule reads as "any open item blocks Design
 final", the design side and the implementation side fall into
@@ -302,7 +323,7 @@ None implies the others. Do not collapse them.
 
 Closing the feedback loop is not the end. The Main Agent (not the user) resumes the original task that was paused when the cross-layer issue surfaced.
 
-- After §2.5 returns `Accepted` (or the originating Skill's analogue), load `# Resume Notes` for the originating task — for a module, the module's `DESIGN.md` is the canonical home; the Implementation Skill reads / writes there too (it does not start a separate log).
+- After the owning layer's resolution passes §2.5.c, load `# Resume Notes` for the originating task — for a module, the module's `DESIGN.md` is the canonical home; the Implementation Skill reads / writes there too. `Accepted` feedback alone does not release the task.
 - Continue from the recorded position. Do not restart the task from the top.
 - A routine correction (a local fix inside the originating Skill's authority) does not require a fresh user confirmation. Reserved confirmations are for material changes to goal / scope / key constraints / new trade-offs; those still go to the User.
 - If the cycle completed but the original task is now materially different from what the user originally asked for, surface the delta. Otherwise resume silently and report only when the work produces a normal delivery moment.
@@ -382,7 +403,7 @@ Anything beyond that is over-engineering.
 | State | Definition | Who marks it |
 |---|---|---|
 | **Review Executed** | The Review ran and returned its report. The Independent Reviewer supports two flavors under this single state: **Independent Review** (Mode A, full scope) and **Targeted Resolution Verification** (Mode B, focused on a specific change after an authorized fix). The Reviewer records the flavor and scope it actually executed under. | Independent Reviewer |
-| **Authority Resolved** | The owning layer has, with evidence, confirmed, modified, or rejected the issue. | Owning Skill (Intent / Spec / Architecture / Module Design / Implementation) |
+| **Authority Resolved** | The owning layer has applied or justified the resolution, completed applicable review and handoff checks for the affected scope, and supplied evidence the originating layer can reread. | Owning Skill |
 | **Implementation Verified** | Actual runtime / data / contracts have been observed to satisfy the resolved requirement. | Verification (Test, runtime observation, code review) |
 
 Trigger rules for invoking the Reviewer in either flavor, the shared
@@ -394,6 +415,8 @@ delegate, triage, or sequence a verification call.
 Rules:
 
 - The Reviewer must never claim `Authority Resolved` or `Implementation Verified`.
+- Feedback received and document edited are progress events only; name
+  them literally. Review Executed means a report returned, not a pass.
 - The Owning Skill must never claim `Implementation Verified` without Verification evidence; this includes asserting `Authority Resolved` after a Targeted Resolution Verification has merely returned — see `.claude/references/verification.md` §6 for the loop bounding.
 - Verification never claims `Authority Resolved` — that is the upstream layer's decision.
 - These are **logical states**, not new document lifecycle statuses. They are recorded in `# Resume Notes`, `# Unknowns and Upstream Feedback`, etc., as plain language — never as a `closed` field on a Finding.

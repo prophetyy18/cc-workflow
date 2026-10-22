@@ -59,6 +59,9 @@ The owning Skill passes a single self-contained message. The message must contai
 - `Review Mode` — `Independent Review` (default; full scope) **or** `Targeted Resolution Verification` (focused on a specific change after an authorized fix). Mode is mandatory, not implied by Review Type.
 - `Target` — exact file path(s).
 - `Authoritative Sources` — exact paths the target was supposed to satisfy.
+- `Basis` — item/contract versions or snapshots, open prerequisites and
+  evidence methods/limits (verification.md §2). If absent, inspect the
+  sources and state the limitation; do not infer that an old review applies.
 - `Review Criteria` — exact path to the domain checklist.
 - `Scope` — what subset is in / out of scope. For `Targeted Resolution Verification`, the `Scope` line must describe the specific change (diff hunk, REQ-ID, Section) being verified, not the whole artifact.
 - `Method hint` — "Independently derive expected requirements before evaluating the target."
@@ -128,6 +131,11 @@ Read the target artifact. Compare against the derivation:
 Also check internal consistency of the target itself. Do not only check items the author enumerated — actively search for **missing requirements** and **unverified assumptions**.
 
 A finding should target a missing or violated **Necessary Condition**, not merely a Design Choice. Flag the missing condition, the affected authority, and what would resolve it. The Owning Skill decides whether a Spec edit, downstream fix, user decision, or evidence request is the right Resolve.
+
+Check the actual effect of an unresolved issue even when named an
+Implementation obligation. Preserve observed/estimated/assumed evidence
+boundaries per verification.md §4.9. Optional improvements remain optional;
+Mode B challenges the changed condition and its ripple, not settled choices.
 
 ### Phase 3.5 — Gap character (optional hint to the Owning Skill)
 

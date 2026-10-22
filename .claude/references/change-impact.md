@@ -33,8 +33,10 @@ For every changed item, state the old and new behavior, input/output,
 ordering, failure, acceptance, or contract semantics with file/line or Git
 evidence. A wording-only edit with the same meaning ends here after a local
 reference check. A semantic change starts a read-only impact analysis before
-downstream edits. An uncommitted working-tree version is provisional: inspect
-it and plan against it, but do not call it an adopted or completed handoff.
+downstream edits. For a working-tree version, distinguish an edit in progress
+from a snapshot whose owning layer completed its scoped review/handoff checks.
+Neither Git cleanliness nor dirtiness decides readiness: apply cross-layer
+coordination §2.5.c. Never describe a dirty snapshot as committed delivery.
 
 Walk only dependency edges justified by citations, Architecture ownership,
 provided/consumed contracts, or actual code and test usage. For a changed
@@ -71,6 +73,13 @@ location. A dirty run may be useful evidence but cannot certify a committed
 handoff; a later commit or semantic change requires checking applicability.
 No repeated approval is needed for in-authority corrections; use the existing
 impact-based authorization rule for genuine product choices.
+
+On entry, resume, cross-layer return and handoff, use cross-layer §2.5.c
+to select work against this evidence. An impact report is an input to that
+check, not permission to start every downstream action it lists. Preserve
+the interrupted work's return point while its prerequisite is being fixed.
+When quoting evidence in another layer, preserve observation vs estimate vs
+assumption and the tested boundary (verification.md §4.9).
 
 The chain closes only after each affected authority is corrected or confirmed
 current, its impacted code and tests are checked, and required real user-path

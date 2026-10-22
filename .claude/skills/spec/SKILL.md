@@ -281,15 +281,14 @@ automatic Mode A/B/C triggers, use `.claude/references/verification.md`
 7. **Independent Triage.** This Skill does **not** rubber-stamp the Reviewer's recommendations. For each finding, run the Triage procedure in [references/review.md §2.7](references/review.md#27-triage-procedure). For cross-layer issues, load the cross-layer rules from `.claude/references/cross-layer-coordination.md`.
 8. **Resolution paths.** Each triaged finding produces a resolution path owned by the **highest necessary** authority whose content must change. Most findings will be triaged to: Accept (modify Spec wording), Reject (with evidence), Request evidence, Redirect (to Spec / Architecture / Module / Implementation / Verification / User), or already covered by an existing downstream guarantee. **Do not** route every finding to Spec.
 9. **Closure language discipline.** Record `Review Executed` (Mode A) or `Targeted Verification Executed` (Mode B) after this Skill finishes. Do not record `Authority Resolved` until the actual authoritative content has been changed (or formally rejected). Do not record `Implementation Verified` — that belongs to Verification. See [references/review.md §2.7.4](references/review.md#274-closure-language-discipline) and `.claude/references/verification.md` §7.
-10. **No auto-edit.** This Skill does not auto-modify any authoritative file. All material edits wait for user authorization.
-11. **Post-fix verification (Trigger B).** When an Accept verdict has been authorized and the Spec edit has been applied, evaluate whether the fix meets the Trigger B criteria in `.claude/references/verification.md` §3. If yes, automatically delegate a follow-up `Targeted Resolution Verification` to the same Independent Reviewer Subagent — do not rely on the Triage verdict alone to claim the issue is closed. See §14.6 for the procedure.
+10. **Review is read-only; authorized resolution is not.** The Reviewer and triage do not edit. The Spec owner applies corrections covered by the current task authorization under cross-layer §2.5.b, then obtains applicable post-fix verification. A change to confirmed product meaning still needs a user decision.
+11. **Post-fix verification (Trigger B).** When an Accept verdict has been authorized and the Spec edit has been applied, evaluate whether the fix meets the Trigger B criteria in `.claude/references/verification.md` §3. If yes, delegate a follow-up `Targeted Resolution Verification` to a fresh Independent Reviewer with the same scoped basis — do not rely on the Triage verdict alone to claim the issue is closed. See §14.6 for the procedure.
 
 ### 14.2 If the Independent Reviewer cannot be spawned
 
-- If the Agent tool returns an error or no fresh-context subagent is available, **report that Independent Review was not executed** and offer:
-  1. A Self-check using this Skill's own review criteria (clearly labeled "Self-check, not Independent Review"), OR
-  2. A manual review based on [references/review.md](references/review.md#2-spec-review-spec-review-spec-id).
-- Do **not** present a Self-check as an Independent Review.
+Use `verification.md` §6.3.a: preserve the scoped basis and return point,
+diagnose and retry at most once, then keep any required Independent Review
+open. Self-check can aid diagnosis but cannot substitute for that gate.
 
 ### 14.3 Reviewer reasoning frame
 
@@ -297,7 +296,10 @@ The Reviewer uses a **Derive → Locate** reasoning frame: derive what the autho
 
 ### 14.4 Output: a structured findings report
 
-No automatic edits; the user decides what to change. The report format and severity rules live in `.claude/agents/independent-reviewer.md` §3.
+For a standalone review, report findings. Under an already authorized repair
+or whole-goal continuation, the owning Skill triages and applies necessary
+corrections using cross-layer §2.5.b; ordinary suggestions do not expand the
+task. The report format lives in `.claude/agents/independent-reviewer.md` §3.
 
 ### 14.5 Reviewer boundary
 
@@ -346,11 +348,17 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
 
 1. Load `SPEC.md`.
 2. Render a final summary: capabilities, Requirements, invariants, acceptance conditions, handoff items.
-3. **Confirmation rule.** When called as a slash command, confirm with the user explicitly. When called via the natural-language completion flow (the user just said "确认，继续" / "SPEC-001 没问题了" / "需求已经确定" in response to a recent completion proposal), reuse that confirmation — do not prompt a second time. If the response is ambiguous, ask for clarification rather than assume.
+3. **Authorization rule.** Apply cross-layer §2.5.b. A confirmed stage or
+   instruction to complete the goal covers the necessary internal correction
+   and archive once the completion checks pass. Ask only for an unresolved
+   change to confirmed product meaning or a material trade-off outside that
+   scope; archive is not a separate approval round.
 4. **Completion check before archive, for both command and natural-language flows.** Verify by reading the actual artifact, not the prose summary:
 
    - saved;
-   - **No entry in `# Unknowns and Upstream Feedback` is still flagged Blocking AND is a *Spec prerequisite*** (per `cross-layer-coordination.md` §2.5.e). An entry described as resolved but whose status line still says "Blocking" is unresolved. Reclassify or remove first; do not archive over it.
+   - no unresolved Spec prerequisite for the affected scope, regardless of
+     its label; apply cross-layer §2.5.c/e, including applicable review and
+     actual upstream closure, rather than deleting a Blocking marker;
    - important Requirements have sources and acceptance;
    - the source Intent's user sequence is covered in both directions per §13.1, including the real starting state and the next reachable action; `# Acceptance and Verification` specifies the full path rather than only isolated features;
    - no `_TBD_` or equivalent draft placeholder remains in a current Requirement, acceptance condition, or handoff claim;
@@ -368,8 +376,10 @@ Coverage is about **Requirement definition**, not implementation. It does NOT pr
    stop — do not silently archive. Non-Blocking issues are
    recorded in `# Unknowns and Upstream Feedback` and do not block.
 5. Spec can be archived when its Requirements are sufficiently defined for downstream. Architecture / Module Design can proceed in parallel or later.
-6. On confirmation: set `status: archived`, update `updated`. Append a note to `# Resume Notes`.
-7. **Downstream Routing (post-archive).** After successful archive, run the routing check (§19) and surface the recommendation to the user. The routing is informational — the user decides whether to follow.
+6. When authorized and the checks pass: set `status: archived`, update `updated`. Append a note to `# Resume Notes`.
+7. **Downstream Routing (post-archive).** Run §19. Under an authorized
+   whole-goal continuation, execute the next ready work after §2.5.c;
+   for a standalone Spec request, report the route without extending scope.
 
 ## 17. Subcommand: `reopen <spec-id>`
 
@@ -380,24 +390,21 @@ shape.
 
 1. **Determine the dimension** by impact (per
    `cross-layer-coordination.md` §2.5.b).
-   - *Material change* — adds / removes / changes a goal, scope,
-     key constraint, or user-visible behavior that was previously
-     approved. Requires fresh user authorization of the scope
-     change.
-   - *Routine correction* — an internally inconsistent
-     artifact element that the Spec Skill resolves from the Spec's
-     own contents (fixture typo, parameter rename that does not
-     change the Requirement meaning, an acceptance case
-     contradicting the Spec's own formula, an internally
-     inconsistent cross-document reference). The Spec Skill
-     makes the edit; no fresh user authorization is required.
+   - *Product change* — adds / removes / changes a confirmed goal,
+     scope, key constraint, or user-visible behavior without a
+     pinned upstream answer. Requires a fresh user decision.
+   - *Necessary correction* — the confirmed upstream source pins
+     the answer, including a contradiction between this Spec and its
+     Intent. Use the same reopen and applicable review even if the
+     old Spec wording changes materially; the authorized goal covers
+     the correction under cross-layer §2.5.b.
 2. **Apply the shape**:
    - Set `status: active`, update `updated`.
    - Apply the edit.
    - **Run the applicable completion checks** before closing:
-     - Read the artifact's `# Unknowns and Upstream Feedback`
-       section; if any entry is still flagged Blocking AND is
-       a Spec prerequisite (§2.5.e), the gate fails.
+     - Read actual unresolved conditions in `# Unknowns and Upstream
+       Feedback`; apply §2.5.c/e regardless of their labels, including
+       outstanding required review for this revision.
      - Read every Reference to other authoritative content; if
        any is now stale, reconcile or surface.
      - For material changes, the additional review /
@@ -446,7 +453,10 @@ When existing architecture / contracts already exist, Spec may reference them bu
 
 ## 19. Downstream Routing (post-archive)
 
-After successful archive, the Spec skill performs a **lightweight downstream routing check**. The check is informational — the user decides whether to follow the recommendation. Spec only proposes the route; it does not make Architecture decisions.
+After successful archive, perform a **lightweight downstream routing check**.
+Spec identifies the route; Architecture owns Architecture decisions. The Main
+Agent continues through the appropriate Skill when the broader task is already
+authorized, using cross-layer §2.5.c before dependent work.
 
 ### 19.1 Routing inputs
 
@@ -628,7 +638,7 @@ If the spec skill is not invokable from this environment, record the feedback in
 7. **System-level correctness survives decomposition.** Cross-capability invariants must be captured, not lost.
 8. **Coverage is semantic.** "Covered" requires the Requirement to actually satisfy the goal, not just share a name.
 9. **Modify, don't create.** A Spec for the same capability is modified, not duplicated.
-10. **No auto-archive, no auto-reopen, no auto-modify.** Material changes to authoritative content always require user authorization.
+10. **Authorization follows impact.** Reopen, correction, review and archive needed to complete an already authorized goal may proceed under cross-layer §2.5.b and §2.5.c. Changing confirmed product meaning, scope or key constraints requires a fresh user decision. No status edit bypasses completion checks.
 11. **Archive independent of downstream.** Spec can be archived before Architecture / Module Design is done.
 12. **Material archived change → reopen.** Material changes to archived Specs follow the reopen flow.
 13. **Lightweight by default.** Don't add approval workflows, multi-stage states, or extra lifecycle beyond `active` / `archived`.
@@ -637,6 +647,9 @@ If the spec skill is not invokable from this environment, record the feedback in
 16. **Classify load-bearing facts.** For every load-bearing factual claim that supports a Requirement, classify as Verified / Supported / Unverified. Do not silently rely on unverified claims — record them in `# Unknowns and Upstream Feedback` with the required evidence and acceptance obligation, or block the Requirement until resolved. See [references/fact-verification.md](references/fact-verification.md).
 17. **Documentation ≠ empirical evidence.** Runtime availability, data completeness, performance, and reconstruction accuracy cannot be closed as Verified from documentation alone. They require observation or measurement, or an explicit acceptance obligation on a downstream stage.
 18. **One explicit confirmation is enough.** When the user has explicitly confirmed the current stage's completion ("确认，继续" / "需求已经确定" / "SPEC-001 没问题了"), that single confirmation authorizes the corresponding archive and the immediate handoff (including the post-archive Downstream Routing). Do not prompt a second time to "are you sure?". Do not extend the authorization to unrelated Specs or unrequested changes.
-19. **Completion check before natural-language archive.** A natural-language completion confirmation is not a license to skip the completion check. The check (saved, no Blocking Unknown, important Requirements sourced, traceability valid, no major upstream conflict) still runs. Blocking issues stop the archive; the user must resolve them before re-confirming.
+19. **Completion check before natural-language archive.** Authorization
+    does not waive completion checks. The Main Agent resolves internal
+    blockers at their owner, then rechecks; only a genuine product decision
+    goes to the user, not routine repair or another archive confirmation.
 20. **Don't claim sync that didn't happen.** If a downstream artifact (Architecture, Module Design, or another Spec) cannot be modified from this skill, return a clear result for its owner to apply. Do not claim the artifact was updated.
-21. **Routing is a recommendation, not a decision.** Spec proposes Route A / B / C based on available evidence. It does not modify architecture, modules, or contracts. If the Architecture Skill is not invocable from the current environment, surface the manual command — do not pretend to invoke it.
+21. **Routing does not transfer authority.** Spec proposes Route A / B / C from evidence; Architecture owns its artifacts. Under an authorized whole-goal task, the Main Agent invokes that Skill or reads and follows it when callable tools permit. Report a genuinely unavailable capability without pretending it ran.
