@@ -12,8 +12,9 @@ operation actually needs one of these procedures — `list`, `show`, and
 | Operation | Entry point |
 |---|---|
 | Create or match a new goal | `SKILL.md` §6 · §2 below |
-| Split into a child | `SKILL.md` §8 · §3 below |
 | Modify an existing intent | `SKILL.md` §7 · §4 below |
+| Classify a target (Modify / Child / Independent / Reconcile) | `SKILL.md` §8 — the single authority |
+| Create a child intent | `SKILL.md` §7.1 · §3 below |
 | Archive | `SKILL.md` §10 · §5 below |
 | Reopen or resume | `SKILL.md` §9 · §6 below |
 | Feedback on an archived intent | §7 below |
@@ -29,18 +30,14 @@ statuses (`SKILL.md` §14, invariant 9).
    read the frontmatter and the `# Clarified Intent` of plausible
    candidates. Match on the **user objective** (the outcome the owner
    wants), not on topic, product area, or technical stack.
-3. Classify:
-
-   | Path | Test | Result |
-   |---|---|---|
-   | A — Modify | Same user objective, wider or narrower scope | Edit in place, keep the ID |
-   | B — Child | A user-valued sub-goal with its own outcome and priority | New ID, `parent` set |
-   | C — Independent | A separate user objective, subordinate to nothing | New top-level intent |
-   | D — Reconcile | Semantic overlap, shared abstraction, or constraint conflict | `SKILL.md` §19 |
-
+3. Classify the target with the one rule in `SKILL.md` §8 — **Modify** /
+   **Child** / **Independent** / **Reconcile**. That table is the
+   authority; the modify flow uses it too, and there is no second
+   boundary test anywhere in this skill.
 4. If the request is primarily about a technical capability (RPC access, DB
    schema, API shape, a specific algorithm), do not create an intent for it.
-   Capture the user goal behind it and route the capability downstream.
+   Capture the user goal behind it and route the capability downstream
+   (`SKILL.md` §8.3).
 5. Generate the ID for a new intent: highest existing `INT-NNN` plus one,
    zero-padded to three digits. An explicit user-supplied ID is used only
    after confirming it does not collide. Never overwrite an existing ID.
@@ -53,34 +50,28 @@ statuses (`SKILL.md` §14, invariant 9).
    clarification or research result. Run the semantic consistency check
    (`SKILL.md` §13.4) before handing the intent over.
 
-Explain an A-path routing: name the matching objective and the reused ID, so
+Explain a **Modify** routing: name the matching objective and the reused ID, so
 the user can see that nothing was duplicated. Ask only when the user
 explicitly required a separate identity or the choice would change confirmed
 product meaning.
 
 ## 3. Split and Child Creation
 
-A split is justified by boundaries, never by size. The three conditions and
-the three outcomes (Modify / Create child / Keep) are stated in `SKILL.md`
-§9; this section is the execution.
+A split is justified by boundaries, never by size. It is the **Child**
+outcome of the classification in `SKILL.md` §8, executed inside the modify
+flow (§7.1 there); this section is the execution.
 
 1. Load the parent intent, its parent (if any), and directly related
    intents. Check existing children (`Glob` for `parent: <id>`) so a
    duplicate is not created.
-2. Evaluate the candidate sub-goal:
-   - **Independent outcome** — can the owner prioritize, revise, accept,
-     defer, or remove it on its own?
-   - **Independent decision space** — does it carry its own key decisions,
-     facts, unknowns, or trade-offs?
-   - **Meaningful benefit** — does separate management improve clarity,
-     decision boundaries, context, or traceability?
-   A capability with independent technical decisions does not qualify.
+2. Apply the **Child test** in `SKILL.md` §8.1 — independent outcome,
+   independent decision space, meaningful benefit. If it does not pass, the
+   outcome is **Modify**: no new file, no new ID, and the reason is
+   explained to the user. A capability with independent technical decisions
+   does not qualify.
 3. Choose the outcome and record the reason in `# Resume Notes`.
 
    **Modify** — extend the existing intent. No new file, ID preserved.
-
-   **Keep** — no file change. Explain why the candidate does not clear the
-   boundary.
 
    **Create child** — classify the effect on the parent's authoritative
    content:
@@ -106,7 +97,11 @@ produce several Specs. Do not split to tidy the document tree.
 
 1. Resolve the target intent: the given ID, else the intent under
    discussion, else the most recently active one.
-2. Classify the change by impact
+2. Classify the target with the one rule in `SKILL.md` §8 — **Modify**
+   (edit in place) · **Child** (create a child, §3 below) · **Independent**
+   (a separate top-level intent) · **Reconcile** (`SKILL.md` §19). The
+   creation flow uses the same rule; do not derive a second one here.
+3. Classify the change by impact
    (`../../references/cross-layer-coordination.md` §2.5.b):
    - **Necessary correction** — the confirmed upstream sources determine the
      answer and confirmed meaning is preserved. Apply it under the current
@@ -114,16 +109,16 @@ produce several Specs. Do not split to tidy the document tree.
    - **Product change** — the result would change confirmed product meaning,
      order, scope, a key constraint, or compatibility. Ask the user.
    Investigate a compliant solution before asking.
-3. Apply the edit in place. Preserve the intent ID and every stable item ID
+4. Apply the edit in place. Preserve the intent ID and every stable item ID
    (`item-ids.md`).
-4. Record the change **once**, in the section that owns its meaning
+5. Record the change **once**, in the section that owns its meaning
    (`SKILL.md` §7): a new outcome goes to `# Clarified Intent`, a new limit
    to `# Constraints and Success Criteria`, a choice the user made to
    `# Decisions`, an open choice to `# Unknowns`, an external fact to
    `# Facts and Research`. Update the `updated` field, and record the effect
    on other intents or downstream Specs in `# Relationships and Impact`.
-5. Run the semantic consistency check (`SKILL.md` §13.4).
-6. If the target is archived, use `reopen` (§6) first.
+6. Run the semantic consistency check (`SKILL.md` §13.4).
+7. If the target is archived, use `reopen` (§6) first.
 
 ## 5. Archive Completion Gate
 

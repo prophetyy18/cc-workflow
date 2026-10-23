@@ -1,6 +1,6 @@
 ---
 name: intent
-description: Capture, clarify, persist, and evolve user Intent. Turns a rough request into a minimal INTENT.md — the user's goal, their constraints, the choices they made, and the choices still open — that downstream Spec Agents can read. Use when the user wants to start, modify, resume, link, archive, or review an intent. Also use when the user says "I want to build X", "let's plan Y", "create a new intent for Z", or asks to clarify, scope, or refine an existing intent.
+description: Capture, clarify, persist, and evolve user Intent. Turns a rough request into a minimal INTENT.md — the user's goal, their constraints, the choices they made, and the choices still open — that downstream Spec Agents can read. Use when the user wants to start, modify, split, resume, link, archive, or review an intent. Also use when the user says "I want to build X", "let's plan Y", "create a new intent for Z", or asks to clarify, scope, or change an existing intent.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash(date*), Bash(mkdir*), Bash(git*), WebFetch, WebSearch
 ---
 
@@ -87,7 +87,8 @@ single ID or empty.
 | `new` | `<title or description>` | Create an intent, then clarify (§6) |
 | `list` | — | List all intents grouped by status |
 | `show` | `<id>` | Print the full `INTENT.md` |
-| `refine` | `<id> [topic]` | Modify, split into a child, or keep (§8) |
+| `modify` | `<id> [topic]` | Change an intent: classify the target (§8), then edit in place (§7) |
+| `refine` | `<id> [topic]` | Legacy spelling of `modify` — same flow, same classification (§7) |
 | `resume` | `<id>` | Continue work on an existing intent (§9) |
 | `archive` | `<id>` | Finalize and mark archived after the completion gate (§10) |
 | `reopen` | `<id>` | Re-open an archived intent (§9) |
@@ -95,6 +96,11 @@ single ID or empty.
 | `tree` | — | Show parent / child / related hierarchy |
 
 Unknown subcommand: show help and stop. Do not guess.
+
+There is **no separate refine workflow**. `refine` is a legacy spelling of
+`modify`; both run the one classification rule (§8) and the one edit path
+(§7). Splitting is not a command of its own — it is the **Child** outcome of
+that classification, requested in ordinary language.
 
 ## 4. Natural-Language Routing
 
@@ -107,7 +113,8 @@ Unknown subcommand: show help and stop. Do not guess.
 | "show me X", "what's the status of INT-002?" | `show` |
 | "list everything" | `list` |
 | "show the hierarchy" | `tree` |
-| "is INT-001 too big?", "把 X 拆成子 Intent" | `refine` (§8) |
+| "is INT-001 too big?" | Answer with a goal-independence assessment (§8.1, §16) — name the outcomes that could be managed separately, if any. Size, technical complexity, and Spec count are not split reasons; change nothing unless the user then asks for a split |
+| "把 X 拆成子 Intent", "split INT-001" | Modify flow with the **Child** classification (§8) — create the child, update the relationship, migrate what moved (§7) |
 | "we're done with X" | `archive` after the completion gate (§10) |
 | "确认，继续" / "INT-001 没问题了，继续 Spec" | `archive` + handoff — do not prompt twice (§10, §18) |
 | "spec found an issue with INT-001" | `feedback` (§11) |
@@ -125,8 +132,8 @@ Unknown subcommand: show help and stop. Do not guess.
 | `list` | Discover only — frontmatter of every intent; print `id`, `title`, `status`, `parent`, `related` (count), `updated`, `active` first |
 | `show` | Discover only — print the file, edit nothing; an ambiguous partial ID lists candidates and asks |
 | `tree` | Discover only — walk `parent` / `related`; orphans are roots, `related` in parentheses, cycles / self-parent / missing parent reported as warnings |
-| `new` | Discover → Classify (existing vs. new) → Clarify → Persist |
-| `refine` | Discover → Classify (modify / child / keep) → Persist |
+| `new` | Discover → Classify (§8) → Clarify → Persist |
+| `modify` | Discover → Classify (§8) → Apply (§7) → Persist |
 | `resume` | Discover → Persist, continuing the open frontier |
 | `archive` | Discover → Completion gate → Persist → Handoff |
 | `feedback` | Discover → Classify (ownership level) → Persist the outcome |
@@ -135,23 +142,21 @@ Unknown subcommand: show help and stop. Do not guess.
 
 1. Capture `# Original Intent` from the user's raw input — verbatim, with no
    agent interpretation added.
-2. Discover existing intents and classify: **Modify** (same user objective —
-   keep the ID) · **Child** (a user-valued sub-goal with its own outcome and
-   priority, §16) · **Independent** (a separate objective, subordinate to
-   nothing) · **Reconcile** (material semantic overlap, shared abstraction,
-   or constraint conflict, §19). Ask only when two plausible paths change
+2. Discover existing intents and classify the target with the **one**
+   classification rule (§8): **Modify** · **Child** · **Independent** ·
+   **Reconcile**. The same rule governs the modify flow (§7) — never
+   re-derive a second test here. Ask only when two plausible paths change
    confirmed product meaning or the requested identity. Same product or
    system does not mean same intent.
-3. **Technical capabilities are not independent intents.** RPC access, DB
-   schema design, API definitions, and specific algorithms are not user
-   goals: surface that and route to Spec / Architecture / Module Design. If
-   the user wants a capability to support their goal, capture the goal and
-   let downstream choose the means.
-4. **One goal per independent outcome.** A goal is an outcome the user wants,
-   not a module or a screen. If the request mixes two business models that
-   the user may not have noticed — e.g. "keep my position size unchanged" and
-   "open a new delta-neutral pair" — record the request as stated and ask
-   which outcome is meant. Do not merge, average, or silently pick one.
+3. **Technical capabilities are not independent intents** (§8.3): RPC
+   access, DB schema design, API definitions, and specific algorithms are
+   not user goals. If the user wants a capability to support their goal,
+   capture the goal and let downstream choose the means.
+4. **One goal per independent outcome** (§8). If the request mixes two
+   business models that the user may not have noticed — e.g. "keep my
+   position size unchanged" and "open a new delta-neutral pair" — record the
+   request as stated and ask which outcome is meant. Do not merge, average,
+   or silently pick one.
 5. Create the file and frontmatter (§2, §13). Write `# Original Intent`
    only; other sections appear as content is confirmed. Never create a
    section as a placeholder for later.
@@ -167,12 +172,21 @@ Procedure: `references/lifecycle.md` §2.
 
 ## 7. Modifying an Intent
 
-Resolve the target (given ID, else the intent under discussion, else the
-most recently active one), classify the change by impact
-(`../../references/cross-layer-coordination.md` §2.5.b), then edit in place:
-preserve the intent ID and every stable item ID (§17), update `updated`, and
-record the effect on other intents or downstream Specs in
-`# Relationships and Impact` while warning the user.
+This is the single flow for every change to an existing intent, and the
+only entry point for a split. There is no separate refinement workflow.
+
+1. Resolve the target (given ID, else the intent under discussion, else the
+   most recently active one).
+2. **Classify the target** with the one classification rule (§8) —
+   **Modify** (edit in place) · **Child** (create a child, §7.1) ·
+   **Independent** (a separate top-level intent) · **Reconcile** (§19). The
+   creation flow (§6) uses the same rule; there is no second boundary
+   algorithm.
+3. Classify the change by impact
+   (`../../references/cross-layer-coordination.md` §2.5.b).
+4. Edit in place: preserve the intent ID and every stable item ID (§17),
+   update `updated`, and record the effect on other intents or downstream
+   Specs in `# Relationships and Impact` while warning the user.
 
 **Record the change where it belongs — exactly once:**
 
@@ -193,29 +207,88 @@ authorization; a new product choice goes to the user. An archived target is
 reopened first (§9). Run the semantic consistency check (§13.4) after the
 edit.
 
-Procedure: `references/lifecycle.md` §4.
+### 7.1 When the user asks to split
 
-## 8. Refining and Splitting (`refine`)
+An explicit request to split ("拆成子 Intent", "split INT-001") is not a
+separate command — it is the **Child** outcome of the classification in
+§8, executed inside this flow.
 
-Refinement is **boundary-driven, not size-driven**. A split is justified
-only when the candidate sub-goal has an **independent outcome** the owner
-can manage on its own (§16), an **independent decision space**, and a
-**meaningful benefit** for clarification, boundaries, context, or
-traceability.
+1. Apply the **Child test** (§8.1) to the proposed sub-goal. If it does not
+   pass, say so and keep one intent — no file is created, no ID is issued.
+   Size, technical complexity, and the number of downstream Specs are never
+   reasons to split (§16). If the user then insists on the split anyway,
+   record that instruction as a confirmed user decision (§13.5) and carry
+   the split out — the structure is the user's call, not the agent's.
+2. If it passes, create the child: fresh ID, `parent: <parent-id>`, the
+   parent's global constraints inherited by reference rather than copied,
+   and the parent's `# Relationships and Impact` updated.
+3. Migrate what moved: keep the original wording as history in the parent's
+   `# Resume Notes` or a migration map, and make every old pointer still
+   resolve (`references/item-ids.md` §5).
+4. Classify the effect on the parent's authoritative content — no parent
+   meaning change (the parent is not reopened, even when archived) ·
+   material change to the parent (reopen first) · content moved to the
+   child (reopen first, keep the original wording as history).
+5. Apply `../../references/change-impact.md` to the moved or changed items
+   and to any downstream artifact that cited them.
 
-Outcomes: **Modify** (no new file, ID preserved) · **Create child** (explain
-the independently valuable outcome) · **Keep** (explain why no split is
-needed). If a sub-intent already covers the topic, surface it instead of
-duplicating. Do not split a large but clear intent just because it is large,
-cross-domain, or will produce multiple Specs.
+If a sub-intent already covers the topic, surface it instead of
+duplicating.
 
-A child creation is classified by its effect on the parent's authoritative
-content — no parent meaning change (the parent is not reopened, even when
-archived) · material change to the parent (reopen first) · content moved to
-the child (reopen first, keep the original wording as history, migrate
-references so old pointers still resolve).
+Procedure: `references/lifecycle.md` §3 (child creation) and §4 (the edit).
 
-Procedure: `references/lifecycle.md` §3.
+## 8. Target Classification — the Single Authority
+
+Every flow that can create or change an intent classifies the **target**
+with this one rule: `new` (§6) and `modify` (§7) both land here. There is
+no second boundary test anywhere in this skill.
+
+| Class | Test | Result |
+|---|---|---|
+| **Modify** | Same user objective, wider or narrower scope | Edit in place, keep the ID |
+| **Child** | A distinct user-valued sub-goal inside the parent objective, with an independent outcome, an independent decision space, and a real benefit from separate management | New ID, `parent` set, relationship and history updated (§7.1) |
+| **Independent** | A separate user objective, subordinate to nothing | New top-level intent |
+| **Reconcile** | Material semantic overlap, shared abstraction, or inherited-constraint conflict with an existing intent | `/intent-reconcile` (§19) |
+
+A class is chosen by the **user objective** — never by topic, product area,
+technical stack, document size, or the number of Specs the intent will
+produce.
+
+**Reconcile** is the only class that reaches another skill, and it reaches
+`/intent-reconcile` for overlap, conflict, or shared abstraction **between
+two or more intents**. An ordinary parent/child split is not a reconcile
+case — it is the Child outcome executed in this skill (§7.1).
+
+### 8.1 The Child test
+
+Create a child Intent only when **all three** hold:
+
+1. **Independent outcome** — the owner can prioritize, revise, accept,
+   defer, or remove the sub-goal on its own.
+2. **Independent decision space** — it carries its own key decisions,
+   facts, unknowns, or trade-offs.
+3. **Meaningful benefit** — separate management improves clarity, decision
+   boundaries, context, or traceability.
+
+A capability with independent technical decisions does not qualify. Neither
+does size: a large, cross-domain intent with a clear goal stays one intent
+(§16).
+
+### 8.2 One goal per independent outcome
+
+A goal is an outcome the user wants, not a module or a screen. If a
+request mixes two business models that the user may not have noticed — e.g.
+"keep my position size unchanged" and "open a new delta-neutral pair" —
+record the request as stated and ask which outcome is meant. Do not merge,
+average, or silently pick one.
+
+### 8.3 Requests that are not a class of their own
+
+A request about a technical capability (RPC access, DB schema, API shape, a
+specific algorithm) is not a user objective. Capture the user goal behind
+it as **Modify** of the covering intent, and route the capability to Spec /
+Architecture / Module Design. A separate intent is created only for a user
+objective.
 
 ## 9. Resuming and Reopening
 
@@ -437,7 +510,7 @@ load it when creating a new `INTENT.md` or restructuring an existing one.
 |---|---|
 | 1 | **Confirmed meaning is the user's.** Never silently change a confirmed goal, constraint, decision, or the confirmed operation order. Within an authorized goal the owning layer fixes its own contradictions; that is not a second approval round. |
 | 2 | **Modify before creating.** If the objective is the same, modify the existing intent and preserve its ID. Creation is the exception. |
-| 3 | **A child needs independent user value** the owner can manage on its own (§16). |
+| 3 | **A child needs independent user value** the owner can manage on its own (§8.1). |
 | 4 | **IDs are immutable.** The intent ID is never re-numbered or reused, and a stable item ID is never reassigned to a different meaning (§17). |
 | 5 | **Separate what is known from what is assumed.** Verified facts carry a source and date; unverified claims live in `# Unknowns`; agent inference is labeled `(assumed)` and never appears as a confirmed decision. A user's claim is a fact about what the user said, not a fact about the world. |
 | 6 | **Keep history.** Material edits, splits, and migrations are recorded with date, old meaning, new meaning, and reason; superseded items stay traceable; downstream pointers still resolve. |
@@ -481,9 +554,9 @@ architecture, module, interface, implementation; belongs to Architecture /
 Module Design. Which content belongs to which layer is tabulated in §13.3.
 
 Create a child Intent only when it represents a distinct user-valued outcome
-within the parent objective, the owner can manage its scope or priority
-separately, and separate management improves clarity, evolution, or
-traceability.
+within the parent objective that the owner can manage on its own — the
+**Child test** in §8.1 is the authority; do not restate its conditions
+here.
 
 Do **not** create a child Intent merely because the capability has
 independent technical decisions, the module can be implemented or tested
@@ -557,7 +630,7 @@ misread the core flow. The shared rule is
 
 ## 19. Reconcile Trigger
 
-During `new`, a material modification, or `refine`, run one lightweight
+During `new` and any material modification (`modify`), run one lightweight
 semantic check against existing intents:
 
 > Does this change expose a material semantic overlap, shared abstraction,
@@ -573,3 +646,7 @@ that changes confirmed product meaning needs a user decision
 Domain similarity — same tech stack, same data source — is not sufficient on
 its own. Do not loop: at most one reconcile suggestion per change; further
 iterations require an explicit user request.
+
+A requested parent/child split is **not** a reconcile case. It is the
+**Child** outcome of §8.1, handled by this skill; `/intent-reconcile` owns
+overlap, conflict, and shared abstraction between two or more intents.

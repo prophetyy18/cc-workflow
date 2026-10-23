@@ -70,7 +70,7 @@ frontier: ask the other questions now.
 
 **Do not split the intent because the request is complex, spans several
 modules, or will produce several Specs.** A split is a boundary decision
-(`SKILL.md` §16), not a reaction to workload.
+(`SKILL.md` §8.1), not a reaction to workload.
 
 ## 4. How Many, and How
 
