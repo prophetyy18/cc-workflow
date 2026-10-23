@@ -164,6 +164,11 @@ goal sits with that goal>
 - **Action**: <the specific next step and the return point>
 ```
 
+The block above is the **full skeleton**, not a form to fill in. Keep the
+section names and their order; keep only the sections that carry real
+content. `# Original Intent` and `# Clarified Intent` always appear; every
+other section appears only when it has something to say (§3).
+
 ## 2. Single Authority
 
 The section map is in `SKILL.md` §13.1 — one piece of business meaning, one
@@ -193,16 +198,19 @@ home. The rules that follow from it, in the form they apply while writing:
 
 ## 3. Required, Optional, and Empty
 
-- Always written: `# Original Intent`, `# Clarified Intent`,
-  `# Constraints and Success Criteria` — they may each be very short.
-- Written when they have content: `# Decisions`, `# Facts and Research`,
-  `# Unknowns`, `# Evaluation`, `# Relationships and Impact`, `# Spec Input`,
-  `# Resume Notes`.
+- Always written: `# Original Intent` and `# Clarified Intent`.
+- Written when they have content: `# Constraints and Success Criteria`,
+  `# Decisions`, `# Facts and Research`, `# Unknowns`, `# Evaluation`,
+  `# Relationships and Impact`, `# Spec Input`, `# Resume Notes`.
 - **A section with no real content is omitted**, not filled with a
   placeholder. At creation time only `# Original Intent` exists; the others
   appear as content is confirmed.
 - A goal with nothing under it yet is better expressed as a single open
   question in `# Unknowns` than as an empty section.
+- A downstream reader treats an absent section as *nothing of that kind was
+  recorded* — no constraints, no open questions, no decisions. Absence is
+  never an error, so no empty section is created to satisfy a reader
+  (`SKILL.md` §13.1).
 
 ## 4. Writing Rules
 
@@ -248,7 +256,7 @@ Fee schedules, funding-rate snapshots, and API parameter lists are
 research, not Intent content, unless one of them changes the goal's
 feasibility or a user's decision (`references/research.md` §2).
 
-## 5. Two Short Examples
+## 5. Worked Examples
 
 A simple request produces a short document:
 
@@ -285,6 +293,58 @@ its history — not as a new goal, and not copied into `# Decisions`:
 - **C-02**: 待办事项必须支持按截止日期排序。
   **Check**: 排序结果对用户可见。
 ```
+
+A high-risk request with real product decisions stays short as well — each
+section is present only because it carries content the user needs:
+
+```markdown
+# Original Intent
+
+## User Request
+
+我想把 PHA 的持仓从现货换成永续。置换完成后，PHA 的净敞口要和我现在一样，不要变。
+
+# Clarified Intent
+
+## Goal / Desired Outcome
+
+- **G-01**: 完成 PHA 持仓从现货到永续的置换，置换后 PHA 的净敞口与置换前一致。
+  **Success evidence**: 用户看到的 PHA 净敞口与置换前相同（按同一计价基准），且没有多出 PHA 的方向性仓位。
+
+# Constraints and Success Criteria
+
+## Hard Constraints
+
+- **C-01**: 置换过程中 PHA 的净敞口不得超过置换前的水平。
+  **Check**: 置换前后按同一计价基准计算的净敞口可比。
+
+# Unknowns
+
+## Blocking
+
+- **Question**: 置换过程中允许出现多大的临时净敞口偏移，持续多久？
+  **Why it matters**: 决定"净敞口保持不变"是全过程约束还是结算时点约束。
+  **Owner**: user
+
+# Facts and Research
+
+## Verified Facts
+
+- **Fact**: 资金费率为负时，永续空头向多头支付资金费。
+  **Source**: docs/intents/INT-00X/research/funding.md
+  **Verified on**: 2026-10-20
+  **Scope**: 仅覆盖结算时点为负的资金费率，不覆盖未来费率。
+  **Uncertainty**: 未来资金费率方向未知；不得写成每笔必定盈利。
+```
+
+Three traps this example is shaped against: "净敞口保持不变" is **not** the
+same as 净敞口归零 and **not** the same as building a separate delta-neutral
+组合 — that is a different product goal, so it belongs in `# Unknowns` or in
+a confirmed decision, never silently inside the goal; the funding fact is
+recorded in the direction the mechanism actually works (negative rate →
+shorts pay longs) and is scoped to the moment it was checked; and no
+`# Evaluation` and no `# Decisions` section appears, because the user has
+not made a decision and no evaluation was requested.
 
 ## 6. Compatibility
 

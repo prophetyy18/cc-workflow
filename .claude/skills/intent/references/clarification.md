@@ -39,6 +39,11 @@ not a question to ask now.
 
 - **What the user already said.** A stated constraint is not a question.
   Read `# Original Intent` and `# Decisions` before asking anything.
+- **A change the user already specified.** A bounded request that names the
+  object — "add constraint C to INT-001", "record that the fee is
+  configurable" — is not a reason to open a clarification round. Edit the
+  object (`SKILL.md` §7.2); ask only when the instruction leaves the goal
+  itself unclear.
 - **Engineering decisions.** Order type, retry strategy, idempotency key,
   state-machine shape, storage format, language and framework — Spec,
   Architecture, and Module Design own these.

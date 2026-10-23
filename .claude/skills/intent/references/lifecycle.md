@@ -13,6 +13,7 @@ operation actually needs one of these procedures — `list`, `show`, and
 |---|---|
 | Create or match a new goal | `SKILL.md` §6 · §2 below |
 | Modify an existing intent | `SKILL.md` §7 · §4 below |
+| Edit a named object under a bounded request | `SKILL.md` §7.2 · §4 below |
 | Classify a target (Modify / Child / Independent / Reconcile) | `SKILL.md` §8 — the single authority |
 | Create a child intent | `SKILL.md` §7.1 · §3 below |
 | Archive | `SKILL.md` §10 · §5 below |
@@ -29,7 +30,9 @@ statuses (`SKILL.md` §14, invariant 9).
 2. Discover the existing intents: `Glob docs/intents/INT-*/INTENT.md`, then
    read the frontmatter and the `# Clarified Intent` of plausible
    candidates. Match on the **user objective** (the outcome the owner
-   wants), not on topic, product area, or technical stack.
+   wants), not on topic, product area, or technical stack. This sweep is
+   proportional (`SKILL.md` §5.1): read the frontmatter of everything, and
+   the body only of the intents that could plausibly be the same objective.
 3. Classify the target with the one rule in `SKILL.md` §8 — **Modify** /
    **Child** / **Independent** / **Reconcile**. That table is the
    authority; the modify flow uses it too, and there is no second
@@ -41,6 +44,9 @@ statuses (`SKILL.md` §14, invariant 9).
 5. Generate the ID for a new intent: highest existing `INT-NNN` plus one,
    zero-padded to three digits. An explicit user-supplied ID is used only
    after confirming it does not collide. Never overwrite an existing ID.
+   Re-check the allocated ID with `Glob docs/intents/<id>/INTENT.md`
+   immediately before writing — if it appeared in the meantime, take the
+   next free number.
 6. Create `docs/intents/INT-NNN/INTENT.md` (create `docs/intents/` if
    missing) with `status: active` and the frontmatter fields in
    `references/intent-template.md`. Write `# Original Intent` verbatim — and
@@ -95,13 +101,20 @@ produce several Specs. Do not split to tidy the document tree.
 
 ## 4. Modification and Authorization
 
-1. Resolve the target intent: the given ID, else the intent under
-   discussion, else the most recently active one.
-2. Classify the target with the one rule in `SKILL.md` §8 — **Modify**
-   (edit in place) · **Child** (create a child, §3 below) · **Independent**
-   (a separate top-level intent) · **Reconcile** (`SKILL.md` §19). The
-   creation flow uses the same rule; do not derive a second one here.
-3. Classify the change by impact
+1. Resolve the target intent: the ID or file the user named, else the intent
+   under discussion, else the most recently active one.
+2. **Scoped direct edit?** If the user named the object and asked for a
+   bounded change to it, take `SKILL.md` §7.2: edit that object under the
+   current authorization, skip the repository sweep and the reconcile check,
+   and escalate only on the four conditions listed there. Steps 4–6 below
+   then apply to that edit; the consistency check (step 7) and the archived
+   target (step 8) still apply.
+3. Otherwise classify the target with the one rule in `SKILL.md` §8 —
+   **Modify** (edit in place) · **Child** (create a child, §3 below) ·
+   **Independent** (a separate top-level intent) · **Reconcile**
+   (`SKILL.md` §19). The creation flow uses the same rule; do not derive a
+   second one here.
+4. Classify the change by impact
    (`../../references/cross-layer-coordination.md` §2.5.b):
    - **Necessary correction** — the confirmed upstream sources determine the
      answer and confirmed meaning is preserved. Apply it under the current
@@ -109,16 +122,21 @@ produce several Specs. Do not split to tidy the document tree.
    - **Product change** — the result would change confirmed product meaning,
      order, scope, a key constraint, or compatibility. Ask the user.
    Investigate a compliant solution before asking.
-4. Apply the edit in place. Preserve the intent ID and every stable item ID
+5. Apply the edit in place. Preserve the intent ID and every stable item ID
    (`item-ids.md`).
-5. Record the change **once**, in the section that owns its meaning
+6. Record the change **once**, in the section that owns its meaning
    (`SKILL.md` §7): a new outcome goes to `# Clarified Intent`, a new limit
    to `# Constraints and Success Criteria`, a choice the user made to
    `# Decisions`, an open choice to `# Unknowns`, an external fact to
    `# Facts and Research`. Update the `updated` field, and record the effect
    on other intents or downstream Specs in `# Relationships and Impact`.
-6. Run the semantic consistency check (`SKILL.md` §13.4).
-7. If the target is archived, use `reopen` (§6) first.
+7. Run the semantic consistency check (`SKILL.md` §13.4).
+8. If the target is archived, use `reopen` (§6) first.
+
+A **wording-only** change stops after step 6: it does not trigger a
+downstream re-review. A **semantic** change to a goal, constraint, or
+decision continues into `../../references/change-impact.md`, scoped to the
+changed items.
 
 ## 5. Archive Completion Gate
 

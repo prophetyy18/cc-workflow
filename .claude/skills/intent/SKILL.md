@@ -87,7 +87,7 @@ single ID or empty.
 | `new` | `<title or description>` | Create an intent, then clarify (§6) |
 | `list` | — | List all intents grouped by status |
 | `show` | `<id>` | Print the full `INTENT.md` |
-| `modify` | `<id> [topic]` | Change an intent: classify the target (§8), then edit in place (§7) |
+| `modify` | `<id> [topic]` | Change an intent: a bounded edit of a named intent takes the scoped direct edit path (§7.2); otherwise classify the target (§8), then edit in place (§7) |
 | `refine` | `<id> [topic]` | Legacy spelling of `modify` — same flow, same classification (§7) |
 | `resume` | `<id>` | Continue work on an existing intent (§9) |
 | `archive` | `<id>` | Finalize and mark archived after the completion gate (§10) |
@@ -98,9 +98,11 @@ single ID or empty.
 Unknown subcommand: show help and stop. Do not guess.
 
 There is **no separate refine workflow**. `refine` is a legacy spelling of
-`modify`; both run the one classification rule (§8) and the one edit path
-(§7). Splitting is not a command of its own — it is the **Child** outcome of
-that classification, requested in ordinary language.
+`modify`: it resolves to `modify` before anything else happens, runs the one
+classification rule (§8) and the one edit path (§7), and keeps the same ID,
+history, and impact analysis. A compatibility alias is not a second boundary
+algorithm. Splitting is not a command of its own — it is the **Child** outcome
+of that classification, requested in ordinary language.
 
 ## 4. Natural-Language Routing
 
@@ -120,6 +122,7 @@ that classification, requested in ordinary language.
 | "spec found an issue with INT-001" | `feedback` (§11) |
 | "I need to change X but it's archived" | `reopen` (§9) |
 | "add constraint C to INT-001" | Modify in place (§7) — a confirmed constraint lands in `# Constraints and Success Criteria`, not in `# Decisions` |
+| "在 INT-002 里把结算口径改成 X", "edit docs/intents/INT-002/INTENT.md" | Scoped direct edit (§7.2) — edit the named object under the current authorization; no repository-wide sweep |
 | "is Y technically feasible?" | Evidence in `# Facts and Research` when it bears on the goal; otherwise Research / Spec. Unresolved facts go to `# Unknowns` (non-blocking) |
 | "does X still make sense?" | Ask the user — product value and priority are not engineering assessments |
 
@@ -133,10 +136,27 @@ that classification, requested in ordinary language.
 | `show` | Discover only — print the file, edit nothing; an ambiguous partial ID lists candidates and asks |
 | `tree` | Discover only — walk `parent` / `related`; orphans are roots, `related` in parentheses, cycles / self-parent / missing parent reported as warnings |
 | `new` | Discover → Classify (§8) → Clarify → Persist |
-| `modify` | Discover → Classify (§8) → Apply (§7) → Persist |
+| `modify` | Discover → Scoped direct edit (§7.2) or Classify (§8) → Apply (§7) → Persist |
 | `resume` | Discover → Persist, continuing the open frontier |
 | `archive` | Discover → Completion gate → Persist → Handoff |
 | `feedback` | Discover → Classify (ownership level) → Persist the outcome |
+
+### 5.1 Proportional discovery
+
+Discovery is **proportional to the operation**. Read what the operation needs
+and nothing else:
+
+| Operation | What is read |
+|---|---|
+| `list` | frontmatter of every intent — nothing else |
+| `show`, `tree` | frontmatter of every intent, plus the requested `INTENT.md` |
+| Scoped direct edit (§7.2) | the target `INTENT.md` only |
+| `modify`, `resume` | the target, plus its `parent`, `related`, and children by ID |
+| `new` | frontmatter of every intent, then `# Clarified Intent` of the plausible matches |
+
+A user who names a file and a bounded change gets that file edited. Do not
+sweep and restructure the rest of `docs/intents/` on the way, and do not
+re-read a file that has not changed.
 
 ## 6. Creating an Intent
 
@@ -159,7 +179,9 @@ that classification, requested in ordinary language.
    or silently pick one.
 5. Create the file and frontmatter (§2, §13). Write `# Original Intent`
    only; other sections appear as content is confirmed. Never create a
-   section as a placeholder for later.
+   section as a placeholder for later. Re-check the allocated ID immediately
+   before writing (`Glob docs/intents/<id>/INTENT.md`): if it now exists,
+   take the next free number. An existing ID is never overwritten.
 6. Clarify (`references/clarification.md`) — ask only the questions whose
    answers change the goal, the scope, a key constraint, or a product
    choice (§13.1). Persist after every meaningful clarification or research
@@ -175,13 +197,14 @@ Procedure: `references/lifecycle.md` §2.
 This is the single flow for every change to an existing intent, and the
 only entry point for a split. There is no separate refinement workflow.
 
-1. Resolve the target (given ID, else the intent under discussion, else the
-   most recently active one).
-2. **Classify the target** with the one classification rule (§8) —
-   **Modify** (edit in place) · **Child** (create a child, §7.1) ·
-   **Independent** (a separate top-level intent) · **Reconcile** (§19). The
-   creation flow (§6) uses the same rule; there is no second boundary
-   algorithm.
+1. Resolve the target: the ID or file the user named, else the intent under
+   discussion, else the most recently active one.
+2. **If the user named the object and asked for a bounded change to it, take
+   the scoped direct edit path (§7.2).** Otherwise **classify the target**
+   with the one classification rule (§8) — **Modify** (edit in place) ·
+   **Child** (create a child, §7.1) · **Independent** (a separate top-level
+   intent) · **Reconcile** (§19). The creation flow (§6) uses the same rule;
+   there is no second boundary algorithm.
 3. Classify the change by impact
    (`../../references/cross-layer-coordination.md` §2.5.b).
 4. Edit in place: preserve the intent ID and every stable item ID (§17),
@@ -237,6 +260,43 @@ duplicating.
 
 Procedure: `references/lifecycle.md` §3 (child creation) and §4 (the edit).
 
+### 7.2 Scoped direct edit
+
+When the user names the object — `INT-002` or
+`docs/intents/INT-002/INTENT.md` — and asks for a bounded change to it, edit
+that object under the current authorization. This is the default for "add
+constraint C to INT-001" or "in INT-003, record that the fee is
+configurable".
+
+Do **not**: sweep the other intents, run the reconcile check (§19),
+restructure sections that were not mentioned, open a clarification round, or
+start a research task.
+
+Escalate out of this path only when the change:
+
+1. introduces a **separate user objective** — then classify (§8);
+2. **contradicts** a confirmed goal, constraint, or decision — then the
+   conflict goes to the user (`../../references/cross-layer-coordination.md`
+   §2.5.b);
+3. changes a **relationship** or another intent's authoritative content —
+   then apply `../../references/change-impact.md`;
+4. needs a **product choice** that is the user's to make.
+
+Otherwise: read the target file, write the change into the section that owns
+its meaning (the table above), keep the intent ID and every stable item ID
+(§17), update `updated`, run the consistency check (§13.4), and report what
+changed and what it affects.
+
+A wording-only change does not trigger a downstream re-review. A semantic
+change to a goal, constraint, or decision does — through
+`../../references/change-impact.md`, scoped to the changed items. "Preserve
+the ID, the confirmation record, and the impact path" (§7) applies here too:
+never drop a history entry to make room for the new text.
+
+This path is **self-contained**: no reference file needs to be loaded unless
+the edit escalates — then load the reference named at the escalation point
+and nothing more.
+
 ## 8. Target Classification — the Single Authority
 
 Every flow that can create or change an intent classifies the **target**
@@ -253,6 +313,12 @@ no second boundary test anywhere in this skill.
 A class is chosen by the **user objective** — never by topic, product area,
 technical stack, document size, or the number of Specs the intent will
 produce.
+
+Classification answers one question: **is this the same object, a sub-goal, a
+separate objective, or a conflict?** It is not a ritual every request must
+pass through. When the user already named the object and the change is
+bounded (§7.2), the answer is **Modify** and the edit proceeds; classify only
+when one of the escalation conditions in §7.2 holds.
 
 **Reconcile** is the only class that reaches another skill, and it reaches
 `/intent-reconcile` for overlap, conflict, or shared abstraction **between
@@ -425,21 +491,29 @@ many of them exist.
 |---|---|---|
 | `# Original Intent` | always | The user's own words, verbatim |
 | `# Clarified Intent` | always | The desired outcome and its success evidence; the user-visible flow when the goal has an ordered path |
-| `# Constraints and Success Criteria` | always | Limits, boundaries, exclusions; success criteria that are not attached to a goal |
+| `# Constraints and Success Criteria` | when it has content | Limits, boundaries, exclusions; success criteria that are not attached to a goal |
 | `# Decisions` | when a choice was made | Choices the user made, each labeled by who made it (§13.5); agent inferences stay in their own subsection and are never counted as decisions |
-| `# Facts and Research` | optional | External facts that bear on the goal's feasibility or on a user decision |
-| `# Unknowns` | optional | Undecided product choices, split into blocking and non-blocking |
-| `# Evaluation` | optional | Engineering feasibility and engineering risk only |
-| `# Relationships and Impact` | optional | Parent / child / related, impact scope |
-| `# Spec Input` | optional | Handoff pointers plus what the Spec Agent must not decide |
-| `# Resume Notes` | optional | Position, next owner, next action |
+| `# Facts and Research` | when it has content | External facts that bear on the goal's feasibility or on a user decision |
+| `# Unknowns` | when it has content | Undecided product choices, split into blocking and non-blocking |
+| `# Evaluation` | when it has content | Engineering feasibility and engineering risk only |
+| `# Relationships and Impact` | when it has content | Parent / child / related, impact scope |
+| `# Spec Input` | when it has content | Handoff pointers plus what the Spec Agent must not decide |
+| `# Resume Notes` | when it has content | Position, next owner, next action |
 
 A section with no real content is **omitted**, not filled with a
 placeholder. Only `# Original Intent` is written when the file is created.
 The ten-section shape is no longer the default output: a simple request
-yields three short sections; a rich request fills what it actually needs.
+yields two or three short sections; a rich request fills what it actually
+needs.
 **Document length follows the number of independent product decisions, not
 the number of modules, Specs, or API surfaces involved.**
+
+Downstream readers read INTENT.md by heading, so an absent section means
+**nothing of that kind was recorded** — an absent
+`# Constraints and Success Criteria` means "no hard constraints", an absent
+`# Unknowns` means "no open question", an absent `# Decisions` means "no
+choice was made". Absence is never an error, and no empty section is created
+to satisfy a reader.
 
 ### 13.2 Rules of single authority
 
@@ -451,6 +525,9 @@ the number of modules, Specs, or API surfaces involved.**
   repeated as a Constraint.
 - `# Spec Input` never copies content — it points at item IDs and names the
   choices the Spec Agent must return to the user.
+- `# Resume Notes` and `# Relationships and Impact` record **position,
+  history, and effect**, never a second copy of a goal, a constraint, or a
+  decision. They point at item IDs or name the section.
 - Item IDs are optional, and only for content a downstream layer must cite
   (§17).
 
@@ -522,6 +599,7 @@ load it when creating a new `INTENT.md` or restructuring an existing one.
 | 12 | **Intent stays minimal.** Content enters the authoritative sections only through the inclusion test (§1.1). A longer document is not a better document. |
 | 13 | **An expectation is not a guarantee.** A user hope ("make money", "be fast") is a desired outcome, never a per-instance system guarantee or an acceptance the system can be held to. |
 | 14 | **Never decide for the user.** A product choice that belongs to the user goes to the user (`../../references/cross-layer-coordination.md` §2.5.b), even when the agent has a recommendation. |
+| 15 | **A named, bounded edit is executed, not re-planned.** When the user points at an object and asks for a bounded change to it, that object is edited under the current authorization (§7.2). Editing it is not an invitation to sweep the repository, restructure untouched sections, open a clarification round, or start a reconcile. |
 
 ## 15. Reference Loading
 
@@ -530,9 +608,9 @@ references, and do not re-read an unchanged file in the same context.
 
 | Reference | Load it when | Do not load it for |
 |---|---|---|
-| `references/clarification.md` | A user decision is unresolved and must be asked, or a clarification round resumes | `list`, `show`, `tree`; editorial edits |
+| `references/clarification.md` | A user decision is unresolved and must be asked, or a clarification round resumes | `list`, `show`, `tree`; editorial edits; a scoped direct edit (§7.2) that changes no goal, constraint, or product choice |
 | `references/research.md` | A fact must be established, a claim verified, or conflicting sources reconciled | Decisions the user owns; `list`, `show` |
-| `references/lifecycle.md` | Creating, matching, splitting, archiving, reopening, or resuming an intent | `list`, `show`, `tree`; plain feedback triage |
+| `references/lifecycle.md` | Creating, matching, splitting, modifying, archiving, reopening, or resuming an intent | `list`, `show`, `tree`; plain feedback triage |
 | `references/intent-template.md` | Creating a new `INTENT.md` or restructuring an existing one | `list`, `show`; small content edits |
 | `references/item-ids.md` | Assigning, renaming, moving, or citing a stable item ID | Prose edits that touch no item ID |
 | `../../references/cross-layer-coordination.md` | Work or feedback crosses an authority layer, or an ownership / authorization question arises | In-Intent work that stays in this layer |
@@ -543,6 +621,11 @@ If a rule requires one of these files, read it before acting on that rule.
 Never reconstruct a protocol from memory because its reference is not loaded —
 load it, or state that the capability is unavailable and keep the return
 point.
+
+`list`, `show`, and `tree` load **no** reference file. A scoped direct edit
+(§7.2) loads only what its escalation point names. Reference loading is
+itself proportional work: load the file the current step needs, not the
+directory.
 
 ## 16. Intent Boundary
 
@@ -619,6 +702,14 @@ without one specific Spec in mind. Intent hierarchy does not determine Spec
 decomposition: a large cross-domain Intent can feed several Specs without
 being split into children.
 
+**When the next stage cannot be invoked** — the Spec Skill is unavailable,
+out of authorization, or not installed — say so plainly and leave the pointer:
+the `INTENT.md` path, the item IDs a downstream layer must satisfy, the open
+product choices it must return rather than settle, and the impact scope. A
+handoff nobody can read is not a handoff; an honest pointer with the return
+point is. Never state that a downstream artifact was updated when it was
+not (§14, invariant 8).
+
 `# Clarified Intent` states the user's **operation sequence from a real
 starting point**: what the user knows and provides at the start, who supplies
 each input, the confirmed order of operations, and what the user observes
@@ -630,8 +721,9 @@ misread the core flow. The shared rule is
 
 ## 19. Reconcile Trigger
 
-During `new` and any material modification (`modify`), run one lightweight
-semantic check against existing intents:
+During `new`, and during any material modification that is **not** a scoped
+direct edit (§7.2), run one lightweight semantic check against existing
+intents:
 
 > Does this change expose a material semantic overlap, shared abstraction,
 > inherited-constraint conflict, or incompatible goal with an existing intent?
@@ -650,3 +742,10 @@ iterations require an explicit user request.
 A requested parent/child split is **not** a reconcile case. It is the
 **Child** outcome of §8.1, handled by this skill; `/intent-reconcile` owns
 overlap, conflict, and shared abstraction between two or more intents.
+
+**What does not trigger a reconcile:** a scoped direct edit (§7.2), an
+ordinary child creation (§7.1), a wording change inside one intent, and an
+inconsistency inside one document — that last one is a consistency issue
+(§13.4), fixed in place. Reconcile is for a real conflict **between** two or
+more intents, and it is the only path out of this skill that reaches
+`/intent-reconcile`.
