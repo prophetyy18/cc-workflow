@@ -1,12 +1,54 @@
-# Stable Item IDs
+# Stable IDs
 
-The single authority for stable item IDs inside an Intent. `SKILL.md` §17
-introduces the format; this file governs assignment, immutability,
-migration, and downstream citation. Load it when assigning, renaming,
-moving, superseding, or citing an item ID — not for prose edits that touch
-no item.
+The single authority for the stable IDs inside the intent workflow: the
+**intent ID** (`INT-NNN`) that names an intent, and the **item IDs**
+(`INT-001/G-01`) that name a goal, constraint, success criterion, or
+decision inside it. This file governs allocation, immutability, migration,
+and downstream citation. Load it when assigning, renaming, moving,
+superseding, or citing an ID — not for prose edits that touch no ID.
 
-## 1. Format
+## 1. Scope
+
+| ID | Names | Assigned by |
+|---|---|---|
+| `INT-NNN` | one intent document | §2 |
+| `INT-NNN/X-NN` | one item inside an intent | §3 |
+
+Both are stable: a downstream artifact that cites one keeps resolving after
+the surrounding text is edited.
+
+## 2. The Intent ID
+
+**Format and storage.** `INT-NNN`, three digits, in the `id` frontmatter
+field — the source of truth.
+
+```text
+docs/intents/
+├── INT-001/
+│   ├── INTENT.md      (required)
+│   └── research/      (optional, only when deep research was done)
+└── INT-002/
+    └── INTENT.md
+```
+
+Flat, no nesting for parent/child. Discover with
+`Glob docs/intents/INT-*/INTENT.md`.
+
+**Allocation.**
+
+1. New ID = highest existing `INT-NNN` + 1, zero-padded to three digits.
+2. An explicit user-supplied ID is used only after confirming it does not
+   collide.
+3. Re-check the allocated ID immediately before writing
+   (`Glob docs/intents/<id>/INTENT.md`). If it exists in the meantime, take
+   the next free number.
+4. A duplicate ID is never overwritten — ask the user to disambiguate.
+
+**Immutability.** The intent ID is never re-numbered, never reused, and
+never changed by title, parent, or scope. A removed intent keeps its ID so
+old references still resolve.
+
+## 3. Item ID Format
 
 ```text
 INT-001/G-01  Goal
@@ -19,7 +61,7 @@ The prefix is always the owning intent ID. The kind letter is fixed: `G`
 goal, `C` constraint, `S` success criterion, `D` decision. The number is
 sequential within that kind inside that intent, zero-padded to two digits.
 
-## 2. When to Assign
+## 4. When to Assign
 
 Assign an ID only to content with real traceability value — something a
 downstream layer will cite, or something whose meaning must survive an
@@ -35,17 +77,15 @@ IDs that do not exist yet, and do not retrofit IDs across existing intents
 in bulk — assign them when a downstream artifact needs to reference them.
 Not every intent uses item IDs, and a short intent may use none.
 
-## 3. Immutability
+## 5. Immutability
 
-- The intent ID (`INT-NNN`) is immutable: never re-numbered, never reused
-  (`SKILL.md` §2).
 - An assigned item ID is never reassigned to a different meaning.
 - A wording-only edit keeps the ID. The same `INT-001/C-01` still refers to
   the same constraint after a paraphrase or reformatting.
-- IDs are never recycled after deletion: a removed item keeps its ID in the
-  history so old references still resolve.
+- IDs are never recycled after deletion: a removed item keeps its ID in
+  the history so old references still resolve.
 
-## 4. Superseding
+## 6. Superseding
 
 When the meaning of an item materially changes:
 
@@ -57,7 +97,7 @@ When the meaning of an item materially changes:
 A phrasing change that preserves the meaning is not a supersession — keep
 the ID and update the text.
 
-## 5. Migration Between Intents
+## 7. Migration Between Intents
 
 When an item moves to a child intent, or is split across intents:
 
@@ -70,7 +110,7 @@ When an item moves to a child intent, or is split across intents:
 - A moved item keeps its kind and number when it stays the same constraint
   or decision; a genuinely different constraint needs a new ID.
 
-## 6. Downstream Citation
+## 8. Downstream Citation
 
 A Spec, Architecture, Module, or Implementation document cites an Intent item
 as `INT-NNN/X-NN` — for example `INT-001/C-01` or `INT-001/G-01`. The
@@ -82,10 +122,10 @@ the file and section location. When that reference is edited, add a precise
 citation to the owning document.
 
 The Intent skill never edits a downstream artifact to add or fix an item ID;
-it returns the correction for that layer's owner (`SKILL.md` §14,
-invariant 7).
+it returns the correction for that layer's owner (`SKILL.md` §5, invariant
+6).
 
-## 7. In `INTENT.md`
+## 9. In `INTENT.md`
 
 Use a bold item ID followed by the content:
 
@@ -112,8 +152,8 @@ Use a bold item ID followed by the content:
 ```
 
 The item ID sits inside the canonical section that owns the content
-(`SKILL.md` §13.1). The `# Spec Input` handoff map cites those IDs; it does
-not copy the text.
+(`references/intent-template.md` §1.1). The `# Spec Input` handoff map cites
+those IDs; it does not copy the text.
 
 Success evidence that belongs to one goal stays with that goal. A
 standalone `S-xx` entry exists only for a criterion that spans goals.

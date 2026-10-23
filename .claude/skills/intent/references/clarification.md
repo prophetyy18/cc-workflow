@@ -2,7 +2,7 @@
 
 Read this when handling `new`, `resume`, or any clarification round within
 the intent skill, and when a user decision must be asked. The load condition
-is listed in `SKILL.md` §15.
+is listed in `SKILL.md` §6.
 
 ## Goal
 
@@ -42,11 +42,11 @@ not a question to ask now.
 - **A change the user already specified.** A bounded request that names the
   object — "add constraint C to INT-001", "record that the fee is
   configurable" — is not a reason to open a clarification round. Edit the
-  object (`SKILL.md` §7.2); ask only when the instruction leaves the goal
-  itself unclear.
+  object (`SKILL.md` §3, `references/lifecycle.md` §4); ask only when the
+  instruction leaves the goal itself unclear.
 - **Engineering decisions.** Order type, retry strategy, idempotency key,
-  state-machine shape, storage format, language and framework — Spec,
-  Architecture, and Module Design own these.
+  state-machine shape, storage format, language and framework — those belong
+  to the layer that owns them (`references/intent-template.md` §5).
 - **Numbers that can be configured at runtime.** Threshold values,
   fee schedules, position sizes, limits — the user usually wants them
   configurable, not decided during Intent. Ask only when the *number itself
@@ -75,7 +75,7 @@ frontier: ask the other questions now.
 
 **Do not split the intent because the request is complex, spans several
 modules, or will produce several Specs.** A split is a boundary decision
-(`SKILL.md` §8.1), not a reaction to workload.
+(`SKILL.md` §4.1), not a reaction to workload.
 
 ## 4. How Many, and How
 
@@ -94,16 +94,12 @@ modules, or will produce several Specs.** A split is a boundary decision
 
 ## 5. Where the Answer Goes
 
-| The answer is | Record it as |
-|---|---|
-| The outcome the user wants | A goal in `# Clarified Intent` |
-| A limit the user set | A constraint in `# Constraints and Success Criteria` |
-| A choice the user made | A decision in `# Decisions`, labeled `CONFIRMED` |
-| Something the agent inferred | `## Inferred, Not Authorized` — never a decision. If it needs an answer, it is one non-blocking question in `# Unknowns` instead, not both |
-| A choice that is still open | `# Unknowns` (blocking or non-blocking) |
-
-Record each answer **once**. If the user's answer is already visible in the
-goal or the constraint, do not also write it as a decision.
+Record each answer **once**, in the section that owns its meaning — the
+placement table is in `references/intent-template.md` §2. An inference goes
+to `## Inferred, Not Authorized`, never to `# Decisions`; if it still needs
+an answer, it is one non-blocking question in `# Unknowns`, not both. If the
+user's answer is already visible in the goal or the constraint, do not also
+write it as a decision.
 
 ## 6. Facts vs. Decisions
 
@@ -152,9 +148,6 @@ For a one-line or clearly-scoped request, skip the taxonomy:
 
 ## 11. Self-Review Before Persisting
 
-Run the semantic consistency check in `SKILL.md` §13.4. It replaces a
-separate review pass: placeholder scan, contradiction against the original
-request, provenance of every claim, goal-versus-constraint coherence,
-expectation written as guarantee, duplicate entries, early design
-decisions, and any key term that still has two readings. Fix inline; do not
-hand a half-baked intent to the user or to a Spec Agent.
+Run the semantic consistency check (`references/intent-template.md` §7). It
+replaces a separate review pass. Fix inline; do not hand a half-baked
+intent to the user or to a Spec Agent.

@@ -1,9 +1,11 @@
 # INTENT.md Template
 
-The field-level contract for a new or restructured `INTENT.md`. Load it when
-creating a new intent file or reorganizing an existing one. The section set
-and the reasoning behind it are in `SKILL.md` §13; this file is the template
-and the writing rules.
+The field-level contract for a new or restructured `INTENT.md`: the
+template, the section map, where each kind of content belongs, the layer
+ownership table, the semantic consistency check, and the decision provenance
+labels. Load it when creating a new intent file or reorganizing an existing
+one. The Intent's identity, classification rule, and routing live in
+`SKILL.md`.
 
 The `#` section names are a **compatibility surface** — Spec, Architecture,
 Implementation and Intent-Reconcile read INTENT.md by these headings. Keep
@@ -166,13 +168,38 @@ goal sits with that goal>
 
 The block above is the **full skeleton**, not a form to fill in. Keep the
 section names and their order; keep only the sections that carry real
-content. `# Original Intent` and `# Clarified Intent` always appear; every
-other section appears only when it has something to say (§3).
+content (`references/intent-template.md` §3).
+
+### 1.1 Section map
+
+| Section | When | Authoritative for |
+|---|---|---|
+| `# Original Intent` | always | The user's own words, verbatim |
+| `# Clarified Intent` | always | The desired outcome and its success evidence; the user-visible flow when the goal has an ordered path |
+| `# Constraints and Success Criteria` | when it has content | Limits, boundaries, exclusions; success criteria that are not attached to a goal |
+| `# Decisions` | when a choice was made | Choices the user made, each labeled by who made it (§8); agent inferences stay in their own subsection and are never counted as decisions |
+| `# Facts and Research` | when it has content | External facts that bear on the goal's feasibility or on a user decision |
+| `# Unknowns` | when it has content | Undecided product choices, split into blocking and non-blocking |
+| `# Evaluation` | when it has content | Engineering feasibility and engineering risk only |
+| `# Relationships and Impact` | when it has content | Parent / child / related, impact scope |
+| `# Spec Input` | when it has content | Handoff pointers plus what the Spec Agent must not decide |
+| `# Resume Notes` | when it has content | Position, next owner, next action |
+
+**Document length follows the number of independent product decisions, not
+the number of modules, Specs, or API surfaces involved.**
 
 ## 2. Single Authority
 
-The section map is in `SKILL.md` §13.1 — one piece of business meaning, one
-home. The rules that follow from it, in the form they apply while writing:
+One piece of business meaning has one home. The rules that follow, in the
+form they apply while writing:
+
+| What changed | Where it goes |
+|---|---|
+| The desired outcome | `# Clarified Intent` (a new goal item, the old one kept as history) |
+| A limit or exclusion | `# Constraints and Success Criteria` |
+| A choice the user made | `# Decisions`, with date and provenance label |
+| An open product choice | `# Unknowns` (blocking or non-blocking) |
+| An external fact | `# Facts and Research` |
 
 - **A goal is stated once.** `# Constraints and Success Criteria`,
   `# Decisions`, and `# Spec Input` point at it; they never restate it.
@@ -181,10 +208,10 @@ home. The rules that follow from it, in the form they apply while writing:
 - **A stated limit is not also a Decision.** A Decision is not also a
   Constraint. Two homes for one fact is how two authoritative records drift
   apart and start contradicting each other.
-- **A user-stated choice that is already a Goal or a Constraint is not
-  copied into `# Decisions`.** `# Decisions` holds the choices that were
-  *made* — typically after a clarification, and typically with a history
-  worth keeping.
+- **A user-stated choice that is already a Goal or a Constraint is not copied
+  into `# Decisions`.** `# Decisions` holds the choices that were *made* —
+  typically after a clarification, and typically with a history worth
+  keeping.
 - **`# Spec Input` never copies content.** It points at item IDs and names
   the choices the Spec Agent must return to the user.
 - **An inference is never a decision.** `(assumed)` items live under
@@ -193,8 +220,11 @@ home. The rules that follow from it, in the form they apply while writing:
   user is one non-blocking question in `# Unknowns` — not an `(assumed)`
   entry and a question about the same thing.
 - **An undecided product choice lives in `# Unknowns` only** — blocking when
-  the answer changes the goal, scope, or a core constraint; non-blocking
-  when a later stage can settle it.
+  the answer changes the goal, scope, or a core constraint; non-blocking when
+  a later stage can settle it.
+- **`# Resume Notes` and `# Relationships and Impact` record position,
+  history, and effect** — never a second copy of a goal, a constraint, or a
+  decision. They point at item IDs or name the section.
 
 ## 3. Required, Optional, and Empty
 
@@ -207,10 +237,12 @@ home. The rules that follow from it, in the form they apply while writing:
   appear as content is confirmed.
 - A goal with nothing under it yet is better expressed as a single open
   question in `# Unknowns` than as an empty section.
-- A downstream reader treats an absent section as *nothing of that kind was
-  recorded* — no constraints, no open questions, no decisions. Absence is
-  never an error, so no empty section is created to satisfy a reader
-  (`SKILL.md` §13.1).
+- Downstream readers read INTENT.md by heading, so an absent section means
+  **nothing of that kind was recorded** — an absent
+  `# Constraints and Success Criteria` means "no hard constraints", an absent
+  `# Unknowns` means "no open question", an absent `# Decisions` means "no
+  choice was made". Absence is never an error, and no empty section is
+  created to satisfy a reader.
 
 ## 4. Writing Rules
 
@@ -218,7 +250,9 @@ home. The rules that follow from it, in the form they apply while writing:
 Prefer business outcomes; keep the user's own vocabulary. Do not enumerate
 internal steps — a goal may describe the necessary user-visible scenario
 without spelling out the system's internal sequence. One goal = one
-independent outcome; a goal may feed several Specs.
+independent outcome; a goal may feed several Specs. When a request mixes two
+business models that the user may not have noticed, record it as stated and
+ask which outcome is meant (`references/clarification.md` §7).
 
 **Success evidence.** "The user can see that the strategy stopped after the
 single-leg failure and the exposure was reported" — user-observable, not
@@ -228,21 +262,16 @@ cannot observe belongs to Spec acceptance, not here.
 **Constraints.** Record only limits the user stated, business boundaries
 that must not move, risk limits the user asked for, and explicit exclusions.
 Do not promote ordinary engineering practice into a hard constraint:
-"a single-leg fill failure must be handled" is a constraint, "use
-`clientOrderId` and a durable event log" is a design decision for Spec and
-Architecture.
+"the fill failure must be handled" is a constraint, "use an idempotency key
+and a durable event log" is a design decision for Spec and Architecture.
 
 **Expectations are not guarantees.** "I want to make money" is a desired
-outcome. It does not become "every executed trade must be profitable" —
-that is a promise the system cannot keep, and writing it as one creates a
-goal the downstream layers cannot satisfy. Keep the four things apart:
-expected return, execution cost, realized profit, and the uncertainty of
-future market conditions.
+outcome, not "every executed trade must be profitable" — that is a promise
+the system cannot keep. Keep expected return, execution cost, realized
+profit, and the uncertainty of future market conditions apart
+(`references/research.md` §5).
 
-**Decisions.** Every entry carries a date and a provenance label:
-`USER-STATED`, `CONFIRMED`, `INFERRED`, or `UNRESOLVED` (`SKILL.md` §13.5).
-An `UNRESOLVED` decision is a blocking entry in `# Unknowns`; it is not
-repeated here.
+**Decisions.** Every entry carries a date and a provenance label (§8).
 
 **Open questions.** Only questions whose answers change the goal, the
 scope, or a core constraint are worth tracking as blocking. Runtime
@@ -256,103 +285,73 @@ Fee schedules, funding-rate snapshots, and API parameter lists are
 research, not Intent content, unless one of them changes the goal's
 feasibility or a user's decision (`references/research.md` §2).
 
-## 5. Worked Examples
+## 5. Layer Ownership
 
-A simple request produces a short document:
+| Layer | Decides | Never pulled into Intent |
+|---|---|---|
+| **Intent** | why the user wants it, what result they want, what must not change, which product choices are still the user's, how the user knows it worked | — |
+| **Spec** | observable system behavior, states and error paths, inputs and outputs, functional requirements, acceptance | system behavior and acceptance |
+| **Architecture / Module Design** | module responsibility, interfaces, data and persistence, algorithms, technical dependencies | design and mechanisms |
+| **Research** | external fact verification, feasibility evidence, dynamic parameter snapshots, sources and their limits | general technical research |
 
-```markdown
-# Original Intent
+Cross-layer background may be repeated briefly, but the authoritative
+definition lives in exactly one place. The test is whether the content
+carries the **meaning of the user's goal** — not whether it happens to
+contain a technical term.
 
-## User Request
+## 6. Relationships
 
-我需要一个个人待办事项工具。
+- `parent` — exactly one parent; "this is a sub-goal of X". The parent must
+  exist, walking up must not include the child (no cycle), and an intent
+  cannot be its own parent. An archived parent is allowed, with a warning.
+- `related` — a loose "this affects that" link; multiple allowed. Add one
+  only for a real cross-effect, not topical similarity.
+- `impact_scope` — what this intent touches in the real world: modules or
+  files, public interfaces, related Specs, related intents, existing
+  user-facing behavior. Not the same as `parent` or `related`. Populate it as
+  clarification progresses; mark unknown entries explicitly instead of
+  inventing module names.
 
-# Clarified Intent
+## 7. Semantic Consistency Check
 
-## Goal / Desired Outcome
+Run it before saving a new or changed Intent, and again at archive. It is a
+check, not a deliverable — do not produce a review report for it.
 
-- **G-01**: 我能记录、查看和完成自己的待办事项。
-  **Success evidence**: 待办事项在一次会话中保持可见，并能标记完成。
+1. **Fidelity** — does any statement contradict `# Original Intent`?
+2. **Provenance** — is an inference written as confirmed fact? Is any
+   `(assumed)` item sitting in `# Decisions` as a confirmed choice?
+3. **Constraint provenance** — is a limit present that the user never
+   stated, with ordinary engineering practice promoted to a hard constraint?
+4. **Coherence** — do the goals and the constraints contradict each other?
+5. **Expectation vs. guarantee** — is an outcome the system cannot promise
+   (profit, price, uptime, third-party behavior) written as a system
+   guarantee?
+6. **No duplication** — are there two entries with the same meaning?
+7. **Layer discipline** — has a design decision been made early?
+8. **Ambiguity** — does a key term in a goal still have two readings that
+   would change the goal?
 
-# Constraints and Success Criteria
+Fix what is wrong in the document and keep the history. If a fix would change
+a meaning the user confirmed, ask the user instead of editing.
 
-## Hard Constraints
+## 8. Decision Provenance
 
-- **C-01**: 待办事项保存在本地，不需要账号登录。
-```
+Every entry in `# Decisions` says who made it:
 
-A confirmed constraint added later lands in the constraints section, with
-its history — not as a new goal, and not copied into `# Decisions`:
+| Label | Meaning |
+|---|---|
+| `USER-STATED` | The user said it outright. It usually also appears as a Goal or a Constraint — do not copy it there again. |
+| `CONFIRMED` | The user explicitly confirmed it after a clarification. |
+| `INFERRED` | The agent inferred it. Inference is not authorization; it never appears as a confirmed decision. |
+| `UNRESOLVED` | A product choice still open. It lives in `# Unknowns` as blocking and is not repeated in `# Decisions`. |
 
-```markdown
-# Constraints and Success Criteria
-
-## Hard Constraints
-
-- **C-01**: 待办事项保存在本地，不需要账号登录。
-- **C-02**: 待办事项必须支持按截止日期排序。
-  **Check**: 排序结果对用户可见。
-```
-
-A high-risk request with real product decisions stays short as well — each
-section is present only because it carries content the user needs:
-
-```markdown
-# Original Intent
-
-## User Request
-
-我想把 PHA 的持仓从现货换成永续。置换完成后，PHA 的净敞口要和我现在一样，不要变。
-
-# Clarified Intent
-
-## Goal / Desired Outcome
-
-- **G-01**: 完成 PHA 持仓从现货到永续的置换，置换后 PHA 的净敞口与置换前一致。
-  **Success evidence**: 用户看到的 PHA 净敞口与置换前相同（按同一计价基准），且没有多出 PHA 的方向性仓位。
-
-# Constraints and Success Criteria
-
-## Hard Constraints
-
-- **C-01**: 置换过程中 PHA 的净敞口不得超过置换前的水平。
-  **Check**: 置换前后按同一计价基准计算的净敞口可比。
-
-# Unknowns
-
-## Blocking
-
-- **Question**: 置换过程中允许出现多大的临时净敞口偏移，持续多久？
-  **Why it matters**: 决定"净敞口保持不变"是全过程约束还是结算时点约束。
-  **Owner**: user
-
-# Facts and Research
-
-## Verified Facts
-
-- **Fact**: 资金费率为负时，永续空头向多头支付资金费。
-  **Source**: docs/intents/INT-00X/research/funding.md
-  **Verified on**: 2026-10-20
-  **Scope**: 仅覆盖结算时点为负的资金费率，不覆盖未来费率。
-  **Uncertainty**: 未来资金费率方向未知；不得写成每笔必定盈利。
-```
-
-Three traps this example is shaped against: "净敞口保持不变" is **not** the
-same as 净敞口归零 and **not** the same as building a separate delta-neutral
-组合 — that is a different product goal, so it belongs in `# Unknowns` or in
-a confirmed decision, never silently inside the goal; the funding fact is
-recorded in the direction the mechanism actually works (negative rate →
-shorts pay longs) and is scoped to the moment it was checked; and no
-`# Evaluation` and no `# Decisions` section appears, because the user has
-not made a decision and no evaluation was requested.
-
-## 6. Compatibility
+## 9. Compatibility
 
 Existing `INTENT.md` files keep working: the section names and order are
 unchanged, and every older field label is still valid. When an older
-document repeats the same content in several places, the repetition may
-stay — it is no longer required, and new content does not create more of it.
+document repeats the same content in several places, the repetition may stay
+— it is no longer required, and new content does not create more of it.
 Restructuring an old document into this template is allowed, but it is never
-required and it is never done in bulk: migrate one intent when it is
-touched anyway, and keep every old pointer resolvable
-(`references/item-ids.md` §5).
+required and it is never done in bulk: migrate one intent when it is touched
+anyway, and keep every old pointer resolvable
+(`references/item-ids.md` §7).

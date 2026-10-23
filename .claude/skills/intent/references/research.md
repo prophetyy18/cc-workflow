@@ -1,7 +1,7 @@
 # Research Methodology
 
 Read this when a fact must be established, a claim verified, or conflicting
-sources reconciled. The load condition is listed in `SKILL.md` §15.
+sources reconciled. The load condition is listed in `SKILL.md` §6.
 
 ## Goal
 
