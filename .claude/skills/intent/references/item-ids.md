@@ -21,9 +21,11 @@ sequential within that kind inside that intent, zero-padded to two digits.
 
 ## 2. When to Assign
 
-Assign an ID only to content with real traceability value:
+Assign an ID only to content with real traceability value — something a
+downstream layer will cite, or something whose meaning must survive an
+edit:
 
-- a confirmed goal the downstream layers must satisfy;
+- a goal the downstream layers must satisfy;
 - a hard constraint that must not be weakened;
 - a success criterion that decides acceptance;
 - a confirmed decision whose reasoning matters later.
@@ -31,7 +33,7 @@ Assign an ID only to content with real traceability value:
 Plain explanation, examples, and minor text do not need IDs. Do not invent
 IDs that do not exist yet, and do not retrofit IDs across existing intents
 in bulk — assign them when a downstream artifact needs to reference them.
-Not every intent uses item IDs.
+Not every intent uses item IDs, and a short intent may use none.
 
 ## 3. Immutability
 
@@ -88,6 +90,13 @@ invariant 7).
 Use a bold item ID followed by the content:
 
 ```markdown
+# Clarified Intent
+
+## Goal / Desired Outcome
+
+- **G-01**: 回测系统能按用户选择的策略回放历史行情，并给出可复现的绩效结果。
+  **Success evidence**: 同一数据集与同一策略参数下，两次运行得到相同的绩效结果。
+
 # Constraints and Success Criteria
 
 ## Hard Constraints
@@ -95,17 +104,16 @@ Use a bold item ID followed by the content:
 - **C-01**: 历史回测不得使用未来数据。
 - **C-02**: 资产净值必须按统一计价基准计算。
 
-## Success Criteria
-
-- **S-01**: 同一数据集的回测结果可复现。
-
 # Decisions
 
 ## Confirmed Decisions
 
-- **D-01** (2026-10-08): 支持策略驱动的仓位调整。
+- **D-01** (2026-10-08 · CONFIRMED): 支持策略驱动的仓位调整。
 ```
 
-The item ID sits inside the canonical section that owns the content. The
-`# Spec Input` handoff map cites those IDs; it does not copy the text
-(`SKILL.md` §13).
+The item ID sits inside the canonical section that owns the content
+(`SKILL.md` §13.1). The `# Spec Input` handoff map cites those IDs; it does
+not copy the text.
+
+Success evidence that belongs to one goal stays with that goal. A
+standalone `S-xx` entry exists only for a criterion that spans goals.

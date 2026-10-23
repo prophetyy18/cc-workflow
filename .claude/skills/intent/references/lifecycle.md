@@ -46,10 +46,12 @@ statuses (`SKILL.md` §14, invariant 9).
    after confirming it does not collide. Never overwrite an existing ID.
 6. Create `docs/intents/INT-NNN/INTENT.md` (create `docs/intents/` if
    missing) with `status: active` and the frontmatter fields in
-   `SKILL.md` §13. Fill `# Original Intent` verbatim; other sections start
-   as `_TBD_`.
+   `references/intent-template.md`. Write `# Original Intent` verbatim — and
+   nothing else. The other sections are created when they have real content;
+   a section with no content is omitted, not filled with a placeholder.
 7. Clarify (see `clarification.md`), then persist after every meaningful
-   clarification or research result.
+   clarification or research result. Run the semantic consistency check
+   (`SKILL.md` §13.4) before handing the intent over.
 
 Explain an A-path routing: name the matching objective and the reused ID, so
 the user can see that nothing was duplicated. Ask only when the user
@@ -114,10 +116,14 @@ produce several Specs. Do not split to tidy the document tree.
    Investigate a compliant solution before asking.
 3. Apply the edit in place. Preserve the intent ID and every stable item ID
    (`item-ids.md`).
-4. Record the change: a dated entry in `# Decisions`, an updated `updated`
-   field, and the effect on other intents or downstream Specs in
-   `# Relationships and Impact`.
-5. If the target is archived, use `reopen` (§6) first.
+4. Record the change **once**, in the section that owns its meaning
+   (`SKILL.md` §7): a new outcome goes to `# Clarified Intent`, a new limit
+   to `# Constraints and Success Criteria`, a choice the user made to
+   `# Decisions`, an open choice to `# Unknowns`, an external fact to
+   `# Facts and Research`. Update the `updated` field, and record the effect
+   on other intents or downstream Specs in `# Relationships and Impact`.
+5. Run the semantic consistency check (`SKILL.md` §13.4).
+6. If the target is archived, use `reopen` (§6) first.
 
 ## 5. Archive Completion Gate
 
@@ -127,28 +133,31 @@ it does not waive the checks.
 
 1. Read the saved `INTENT.md` against `# Original Intent`.
 2. Verify:
-   - the clarified goal still expresses the same objective as the original
-     request, and the confirmed operation order is intact;
-   - user-confirmed constraints and decisions are present, current, and
-     internally consistent with the goal;
-   - no Blocking unknown remains. A user-owned product choice that is still
-     open blocks. A known, recorded, non-blocking unknown does not.
-   - load-bearing facts carry a source and a verification date; confirmed
-     decisions and relationships are traceable;
-   - the current account has no `_TBD_` placeholder and no stale scope
-     claim. Correct what is stale and record the reason in `# Resume Notes`.
-     Historical decisions stay traceable.
+   - the goals still express the same objective as the original request, and
+     the confirmed user-visible order, when the goal has one, is intact;
+   - user-stated constraints are present and current, and the confirmed
+     decisions are consistent with the goals;
+   - no blocking product choice remains in `# Unknowns`. A user-owned choice
+     that is still open blocks. A known, recorded, non-blocking unknown does
+     not;
+   - the facts that bear on the goal carry a source and a verification date;
+     confirmed decisions and relationships are traceable;
+   - the current account has no placeholder and no stale scope claim.
+     Correct what is stale and record the reason in `# Resume Notes`.
+     Historical decisions stay traceable;
    - feedback received for this intent is recorded with its status. Accepted
      feedback is not evidence that the downstream artifact was updated.
-3. Deepen the check for complex or high-risk intents — money and financial
+3. Run the semantic consistency check (`SKILL.md` §13.4). An unresolved
+   blocking ambiguity keeps the intent `active`.
+4. Deepen the check for complex or high-risk intents — money and financial
    calculation, security and permission boundaries, core data correctness
    (state reconstruction, replay, NAV, idempotency), a multi-step user path
    whose order is necessary to the goal, or a change that materially moves a
    downstream contract.
-4. If the path, outcome, or authoritative meaning is still unclear, name
+5. If the path, outcome, or authoritative meaning is still unclear, name
    the specific gap and keep the intent `active`. Do not pass an Intent gap
    downstream as if it were complete.
-5. When the checks pass and the authorization covers it: set
+6. When the checks pass and the authorization covers it: set
    `status: archived`, update `updated`, append a `# Resume Notes` entry,
    then hand off (`SKILL.md` §18).
 
