@@ -1,152 +1,153 @@
 # Clarification Methodology
 
-Read this when handling `new`, `resume`, or any clarification round within the intent skill.
+Read this when handling `new`, `resume`, or any clarification round within
+the intent skill, and when a user decision must be asked. The load condition
+is listed in `SKILL.md` §6.
 
 ## Goal
 
-Turn ambiguous intent into testable, scoped, traceable input for a downstream Spec Agent — without writing code or designing solutions.
+Remove the ambiguity that would change **the user's goal** — nothing more.
+The clarification effort is proportional to the uncertainty of the user's
+*product decisions*, not to the engineering complexity of the goal. A
+five-module feature with three settled decisions needs one question; a
+one-line request whose economics can be read two ways needs that question
+answered before anything else happens.
 
-## 1. Frontier Model (Decision Dependency)
+Clarification is not a phase that must produce a questionnaire. It is a way
+to avoid writing down something the user never meant.
 
-Model the intent as a **tree of decisions**. A question is on the **frontier** if all its prerequisite decisions are answered.
+## 1. The Worth-Asking Test
 
-Each round:
+A question belongs to the user when a wrong answer would change the **goal,
+the scope, a key constraint, or a product choice** — something only the user
+can settle. Everything else is research, configuration, or a downstream
+design decision.
 
-1. Compute the frontier (questions whose dependencies are resolved).
-2. Ask all frontier questions in one batch (or split if too many — see §3 quota).
-3. Record answers in `# Decisions`. The frontier expands.
-4. Repeat until the frontier is empty, the user stops, or remaining questions are low-impact.
+Ask it when **all three** hold:
 
-A question whose answer depends on another still-open question belongs to a **later round**. Do not ask it yet.
+1. Different answers produce a materially different goal, scope, constraint,
+   or product choice.
+2. No evidence available to the agent settles it.
+3. Waiting for the answer blocks the next meaningful step — a Spec cannot
+   be written correctly without it.
 
-## 2. Question Taxonomy (Intent-Focused)
+If only 1 holds, record the uncertainty and let the downstream layer settle
+it. If 1 and 2 hold but 3 does not, it is a **non-blocking** open question,
+not a question to ask now.
 
-Cover these categories when relevant. Skip any that don't apply:
+## 2. Never Ask
 
-1. **Goal**: what the user actually wants to achieve (vs. the surface request).
-2. **Scope**: in / out of bounds — features, modules, users.
-3. **Constraints**: hard limits (tech stack, time, compatibility, budget, platform).
-4. **Success criteria**: how we know it worked. Must be testable.
-5. **Assumptions**: things the user is taking for granted that we should make explicit.
-6. **Risks**: what could go wrong, what the user is worried about.
-7. **Relationships**: parent / child / related intents this goal should be linked to.
-8. **Impact scope**: what existing modules, interfaces, or behaviors this goal will likely touch.
+- **What the user already said.** A stated constraint is not a question.
+  Read `# Original Intent` and `# Decisions` before asking anything.
+- **A change the user already specified.** A bounded request that names the
+  object — "add constraint C to INT-001", "record that the fee is
+  configurable" — is not a reason to open a clarification round. Edit the
+  object (`SKILL.md` §3, `references/lifecycle.md` §4); ask only when the
+  instruction leaves the goal itself unclear.
+- **Engineering decisions.** Order type, retry strategy, idempotency key,
+  state-machine shape, storage format, language and framework — those belong
+  to the layer that owns them (`references/intent-template.md` §5).
+- **Numbers that can be configured at runtime.** Threshold values,
+  fee schedules, position sizes, limits — the user usually wants them
+  configurable, not decided during Intent. Ask only when the *number itself
+  is the business rule* the user is trying to express.
+- **Facts.** "What does this API return?", "what is the current rate?" —
+  look it up (`references/research.md`).
+- **Edge cases the user did not raise.** If the user is comfortable leaving
+  it undefined, leave it undefined downstream.
+- **A question whose default is obvious and whose wrong answer would not
+  change the goal.** Do not spend the user's attention on it.
 
-Categories 1–6 are the core. 7–8 are only invoked when the user already has a populated intent tree (e.g., during `resume` on a large project) or when the goal clearly crosses existing scope.
+## 3. Frontier Model
 
-## 3. Quota: Max-5 + Deferred
+Model the intent as a **tree of decisions**. A question is on the frontier
+when all its prerequisites are answered. Each round:
 
-Hard cap: **5 questions per clarification pass**. Re-asks for the same question do not count as new questions. When quota is exhausted with unresolved high-impact items remaining, they go into a `## Deferred` block in `# Unknowns`:
+1. Compute the frontier — only questions that pass §1.
+2. Ask the frontier questions in one batch (see §4).
+3. Record each answer where it belongs (§5). The frontier expands.
+4. Repeat until the frontier is empty, the user stops, or the remaining
+   questions are non-blocking.
 
-```markdown
-## Deferred (clarification quota reached)
+A question whose answer depends on another still-open question belongs to a
+later round. A fact that is still being researched does not block the whole
+frontier: ask the other questions now.
 
-- <unanswered question> — why it matters
-```
+**Do not split the intent because the request is complex, spans several
+modules, or will produce several Specs.** A split is a boundary decision
+(`SKILL.md` §4.1), not a reaction to workload.
 
-A new `resume` opens a fresh quota. Deferred items are re-considered first.
+## 4. How Many, and How
 
-Avoid asking two low-impact questions when a single high-impact area is unresolved.
+- **Prefer one to three questions.** The cap is **five per pass**; a
+  genuine goal-level ambiguity rarely needs more than three.
+- Ask in one batch, ordered by impact. Split the batch only when the user
+  is visibly saturated.
+- Every question is a real interrogative, has a one-sentence "why it
+  matters", and offers 2–4 mutually exclusive options when the choice is
+  clear — or a free-form answer when the user's own framing is needed.
+- Offer a recommendation only when evidence supports one, and state the
+  assumption and its reason. Do not phrase an unresolved product choice so
+  that agreement is the easiest answer.
+- Do not re-ask a question already answered; check `# Decisions` and
+  `# Original Intent` first.
 
-## 4. Question Format
+## 5. Where the Answer Goes
 
-Every frontier question must have:
+Record each answer **once**, in the section that owns its meaning — the
+placement table is in `references/intent-template.md` §2. An inference goes
+to `## Inferred, Not Authorized`, never to `# Decisions`; if it still needs
+an answer, it is one non-blocking question in `# Unknowns`, not both. If the
+user's answer is already visible in the goal or the constraint, do not also
+write it as a decision.
 
-- A real interrogative ending in `?` (not a label like "FR-023").
-- A one-sentence "Why it matters."
-- A recommended answer only when existing evidence supports one;
-  state the assumption and its reason. Do not phrase an unresolved
-  product choice so that agreement is the easiest response.
-- 2–4 mutually exclusive options when choices are clear, or a
-  free-form answer when the user's own framing is needed.
+## 6. Facts vs. Decisions
 
-Keep questions concise without constraining the length of the
-user's answer. Clarify an ambiguous answer in the next round.
+**Facts are the agent's job. Decisions are the user's.** Before asking
+anything, ask: "Could I find this out by reading code, docs, or running a
+search?" If yes, dispatch the search and use the result — do not hand the
+user a research task. A fact that cannot be established is recorded as an
+unknown with a resolution path, not as a question for the user.
 
-## 5. Prioritization
+## 7. Do Not Introduce a Business Model
 
-For each candidate question, score **impact × uncertainty**:
+The agent's job is to capture the user's economics, not to improve them.
+When a request contains two readings with materially different business
+meaning — "keep my position size unchanged" versus "open a new offsetting
+position", "arbitrage the spread" versus "arbitrage the fee difference" —
+record the request as stated, name the two readings, and ask which one is
+meant. Do not merge them, do not pick the more elegant one, and do not write
+a blended version into the goal.
 
-- **Impact**: if we get this wrong, how much downstream rework?
-- **Uncertainty**: how confident are we in the current answer?
+## 8. Validate Understanding
 
-Ask high-impact, high-uncertainty first. Skip questions where:
+After the first round, and whenever major new information arrives, restate
+the goal in the user's own language inside `# Clarified Intent` and ask for
+confirmation or correction. This is the cheapest way to catch a
+misunderstanding before it propagates into a Spec.
 
-- The answer is agent-verifiable — research it instead (see `research.md`).
-- The downstream Spec Agent can decide it without blocking correctness.
-- The user has already answered — check `# Decisions` first.
-
-## 6. Facts vs. Decisions Split
-
-**Facts are the agent's job. Decisions are the user's.** Before asking anything, ask: "Could I find this out by reading code, docs, or running a search?" If yes, dispatch the search and use the result; do not put the user to work for it.
-
-When a fact needs exploration, treat it as an unsettled prerequisite. **Do not block the whole frontier** waiting for it. Ask the other frontier questions now; only questions downstream of that fact wait.
-
-## 7. Recording Decisions
-
-Append to `# Decisions` after every confirmed answer:
-
-```markdown
-- YYYY-MM-DD: <decision> — <one-line context or rationale the user gave>
-```
-
-Decisions are append-only. **If a new answer contradicts an old one, replace the contradicted text** in the affected section (e.g., `# Clarified Intent`, `# Constraints`). Do not leave the contradiction standing. Note the replacement in `# Resume Notes` if it was non-trivial.
-
-## 8. Stated vs. Assumed
-
-When writing the `# Clarified Intent` restatement (see §10), distinguish:
-
-- What the **user said** — record verbatim in `# Original Intent`; restate faithfully.
-- What the **agent inferred** — label every inferred piece as "(assumed)" inline.
-
-Example:
-
-> User wants a shared calendar. It will support remote teams (assumed). Updates must appear within one minute (assumed).
-
-The user can strike any "(assumed)" they don't agree with.
-
-## 9. 4-Point Self-Review
-
-Run this checklist before persisting each major update:
-
-1. **Placeholder scan** — any "TBD", "TODO", unfilled blanks? Either fill or move to `# Unknowns`.
-2. **Internal consistency** — contradictions? Does `# Clarified Intent` agree with `# Decisions`?
-3. **Scope check** — does this intent's clarification and decision space benefit from independent management? If yes, propose a child intent. If no, keep as is. Do not split just because the intent is large, cross-domain, or will produce multiple Specs.
-4. **Ambiguity check** — could any sentence be interpreted two different ways? If yes, pick one and make it explicit.
-
-Fix inline. Do not hand a half-baked intent to the user or to a Spec Agent.
-
-## 10. Validate Understanding
-
-After the first round (and whenever major new info arrives), write a one-paragraph restatement of the clarified intent into `# Clarified Intent` and ask the user to confirm or correct. This is the cheapest way to catch misunderstanding before it propagates.
-
-## 11. Scope Boundaries
-
-- **Do not propose solutions.** Stay at goal / scope / constraint level. The Spec Agent handles solution design.
-- **Do not start Spec writing or implementation.**
-- **Do not pad with speculative edge cases** the user didn't raise. If the user is okay with an undefined edge, leave it in `# Unknowns`.
-- **Do not re-ask settled questions.** `# Decisions` is the source of truth.
-
-## 12. Refinement Hints
-
-During clarification, if a sub-goal surfaces, apply the **user-objective test** (see SKILL.md §21): is it a user-valued outcome the owner can independently prioritize, revise, accept, defer, or remove? If yes, and it has its own decision space and meaningful benefit from independent management, you may suggest the user run `/intent refine <id>` to evaluate a split. If the sub-goal is a system capability or technical responsibility, do not propose a split — let Spec or Architecture handle it. Do not interrupt ordinary clarification, and do not propose splitting in every round. A large cross-domain intent that is already clear does not need to be split just because Specs will eventually multiply.
-
-## 13. Stop Conditions
+## 9. Stop Conditions
 
 Stop asking when:
 
-- The frontier is empty.
-- The user says stop.
-- 5-question quota is reached; defer the rest.
-- Remaining questions are low-impact (impact × uncertainty below threshold).
-- The user has reached fatigue — defer remaining items and let the Spec Agent handle them.
+- the frontier is empty;
+- the user says stop;
+- the pass quota is reached — the rest go to `# Unknowns` as non-blocking
+  unless they change the goal, in which case name the one that does;
+- the remaining questions are non-blocking;
+- the user is clearly saturated — record what is open and hand it on.
 
-## 14. Lightweight Override
+## 10. Lightweight Path
 
-For one-line or trivially clear requests, do not run the full taxonomy. Skip directly to:
+For a one-line or clearly-scoped request, skip the taxonomy:
 
-- A one-paragraph `# Clarified Intent` restatement.
-- One round of frontier questions (≤3).
-- Persist and stop.
+1. Write `# Original Intent` verbatim.
+2. Restate the goal in one or two sentences in `# Clarified Intent`.
+3. Ask at most one question, only if §1 holds.
+4. Persist and stop.
 
-The full methodology is for genuinely ambiguous or large intents. Default to lightweight.
+## 11. Self-Review Before Persisting
+
+Run the semantic consistency check (`references/intent-template.md` §7). It
+replaces a separate review pass. Fix inline; do not hand a half-baked
+intent to the user or to a Spec Agent.
