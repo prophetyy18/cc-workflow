@@ -1,0 +1,203 @@
+# Intent Lifecycle
+
+How the Intent skill executes the lifecycle operations: creating and
+matching, splitting, archiving, reopening, resuming, and handling feedback
+on archived intents. The entry point, the invariants, and the command
+routing live in `SKILL.md`; this file is the method. Load it when an
+operation actually needs one of these procedures — `list`, `show`, and
+`tree` never need it.
+
+## 1. Scope
+
+| Operation | Entry point |
+|---|---|
+| Create or match a new goal | `SKILL.md` §6 · §2 below |
+| Split into a child | `SKILL.md` §8 · §3 below |
+| Modify an existing intent | `SKILL.md` §7 · §4 below |
+| Archive | `SKILL.md` §10 · §5 below |
+| Reopen or resume | `SKILL.md` §9 · §6 below |
+| Feedback on an archived intent | §7 below |
+
+Nothing here adds lifecycle states. `active` and `archived` remain the only
+statuses (`SKILL.md` §14, invariant 9).
+
+## 2. Creation and Matching
+
+1. Record the user's raw words as `# Original Intent` before interpreting
+   anything.
+2. Discover the existing intents: `Glob docs/intents/INT-*/INTENT.md`, then
+   read the frontmatter and the `# Clarified Intent` of plausible
+   candidates. Match on the **user objective** (the outcome the owner
+   wants), not on topic, product area, or technical stack.
+3. Classify:
+
+   | Path | Test | Result |
+   |---|---|---|
+   | A — Modify | Same user objective, wider or narrower scope | Edit in place, keep the ID |
+   | B — Child | A user-valued sub-goal with its own outcome and priority | New ID, `parent` set |
+   | C — Independent | A separate user objective, subordinate to nothing | New top-level intent |
+   | D — Reconcile | Semantic overlap, shared abstraction, or constraint conflict | `SKILL.md` §19 |
+
+4. If the request is primarily about a technical capability (RPC access, DB
+   schema, API shape, a specific algorithm), do not create an intent for it.
+   Capture the user goal behind it and route the capability downstream.
+5. Generate the ID for a new intent: highest existing `INT-NNN` plus one,
+   zero-padded to three digits. An explicit user-supplied ID is used only
+   after confirming it does not collide. Never overwrite an existing ID.
+6. Create `docs/intents/INT-NNN/INTENT.md` (create `docs/intents/` if
+   missing) with `status: active` and the frontmatter fields in
+   `SKILL.md` §13. Fill `# Original Intent` verbatim; other sections start
+   as `_TBD_`.
+7. Clarify (see `clarification.md`), then persist after every meaningful
+   clarification or research result.
+
+Explain an A-path routing: name the matching objective and the reused ID, so
+the user can see that nothing was duplicated. Ask only when the user
+explicitly required a separate identity or the choice would change confirmed
+product meaning.
+
+## 3. Split and Child Creation
+
+A split is justified by boundaries, never by size. The three conditions and
+the three outcomes (Modify / Create child / Keep) are stated in `SKILL.md`
+§9; this section is the execution.
+
+1. Load the parent intent, its parent (if any), and directly related
+   intents. Check existing children (`Glob` for `parent: <id>`) so a
+   duplicate is not created.
+2. Evaluate the candidate sub-goal:
+   - **Independent outcome** — can the owner prioritize, revise, accept,
+     defer, or remove it on its own?
+   - **Independent decision space** — does it carry its own key decisions,
+     facts, unknowns, or trade-offs?
+   - **Meaningful benefit** — does separate management improve clarity,
+     decision boundaries, context, or traceability?
+   A capability with independent technical decisions does not qualify.
+3. Choose the outcome and record the reason in `# Resume Notes`.
+
+   **Modify** — extend the existing intent. No new file, ID preserved.
+
+   **Keep** — no file change. Explain why the candidate does not clear the
+   boundary.
+
+   **Create child** — classify the effect on the parent's authoritative
+   content:
+
+   | Case | Parent meaning | Parent handling |
+   |---|---|---|
+   | A — Child without parent change | No new sub-goal, constraint, or decision on the parent | Parent is **not** reopened, even when archived. Child is `active`. Only `# Relationships and Impact` changes. |
+   | B — Material change to the parent | Goal, scope, constraints, success criteria, or confirmed decisions added, removed, or materially changed | Reopen an archived parent first, then edit. A new product choice goes to the user (`../../references/cross-layer-coordination.md` §2.5.b) |
+   | C — Content moved to the child | A goal, constraint, or decision is relocated | Treated as a material change: reopen first if archived. Keep the original wording in the parent's `# Resume Notes` or a migration map, and make every old pointer still resolve to the new location or to the historical record. |
+
+4. The child gets a fresh ID and `parent: <parent-id>`. The parent keeps its
+   overall goal and its global constraints; the child takes only the specific
+   sub-goal and its own decisions. Constraint inheritance is by reference,
+   not by copy: the child cites the parent's constraint item IDs rather than
+   restating them (`SKILL.md` §13, single-authority rule).
+5. Apply `../../references/change-impact.md` to the moved or changed items
+   and to any downstream artifact that cited them.
+
+Do not split an intent because it is large, spans several domains, or will
+produce several Specs. Do not split to tidy the document tree.
+
+## 4. Modification and Authorization
+
+1. Resolve the target intent: the given ID, else the intent under
+   discussion, else the most recently active one.
+2. Classify the change by impact
+   (`../../references/cross-layer-coordination.md` §2.5.b):
+   - **Necessary correction** — the confirmed upstream sources determine the
+     answer and confirmed meaning is preserved. Apply it under the current
+     authorization and record it.
+   - **Product change** — the result would change confirmed product meaning,
+     order, scope, a key constraint, or compatibility. Ask the user.
+   Investigate a compliant solution before asking.
+3. Apply the edit in place. Preserve the intent ID and every stable item ID
+   (`item-ids.md`).
+4. Record the change: a dated entry in `# Decisions`, an updated `updated`
+   field, and the effect on other intents or downstream Specs in
+   `# Relationships and Impact`.
+5. If the target is archived, use `reopen` (§6) first.
+
+## 5. Archive Completion Gate
+
+The gate is read against the saved document, not against a summary of it.
+Authorization to complete the goal covers the archive once the checks pass;
+it does not waive the checks.
+
+1. Read the saved `INTENT.md` against `# Original Intent`.
+2. Verify:
+   - the clarified goal still expresses the same objective as the original
+     request, and the confirmed operation order is intact;
+   - user-confirmed constraints and decisions are present, current, and
+     internally consistent with the goal;
+   - no Blocking unknown remains. A user-owned product choice that is still
+     open blocks. A known, recorded, non-blocking unknown does not.
+   - load-bearing facts carry a source and a verification date; confirmed
+     decisions and relationships are traceable;
+   - the current account has no `_TBD_` placeholder and no stale scope
+     claim. Correct what is stale and record the reason in `# Resume Notes`.
+     Historical decisions stay traceable.
+   - feedback received for this intent is recorded with its status. Accepted
+     feedback is not evidence that the downstream artifact was updated.
+3. Deepen the check for complex or high-risk intents — money and financial
+   calculation, security and permission boundaries, core data correctness
+   (state reconstruction, replay, NAV, idempotency), a multi-step user path
+   whose order is necessary to the goal, or a change that materially moves a
+   downstream contract.
+4. If the path, outcome, or authoritative meaning is still unclear, name
+   the specific gap and keep the intent `active`. Do not pass an Intent gap
+   downstream as if it were complete.
+5. When the checks pass and the authorization covers it: set
+   `status: archived`, update `updated`, append a `# Resume Notes` entry,
+   then hand off (`SKILL.md` §18).
+
+Routine editorial cleanup inside the authorized scope needs no second
+confirmation. A changed user goal or a new product decision does.
+
+## 6. Reopen and Resume
+
+**Reopen** — the single edit path for an archived intent, used for material
+changes and for routine corrections alike. The difference is the
+authorization dimension, not the lifecycle shape.
+
+1. Classify by impact (`../../references/cross-layer-coordination.md`
+   §2.5.b): a necessary correction that preserves confirmed meaning uses the
+   authorized goal; a change to confirmed meaning needs a user decision.
+2. Set `status: active`, update `updated`, note why in `# Resume Notes`.
+3. Apply the edit (see §4). Preserve IDs.
+4. Run `../../references/change-impact.md` over the changed items: record
+   changed item IDs, affected downstream references, uncertain links, and the
+   next owner and action. Old downstream `final` / PASS evidence stays scoped
+   to the basis it checked.
+5. If the gate of §5 can no longer pass, keep the intent `active` and record
+   the failing condition and the resume position instead of writing a
+   completion claim.
+
+**Resume** — continue an active intent where the last session stopped.
+
+1. Load the intent and read `# Resume Notes` for the saved position.
+2. Apply `../../references/change-impact.md` to any changed Goal / Constraint
+   / Decision and to the downstream items that cite them.
+3. Read `# Decisions` before asking anything — answered questions are not
+   asked again.
+4. Continue the open frontier: unresolved decisions are clarified
+   (`clarification.md`), unresolved facts are researched (`research.md`).
+5. Record the affected IDs, the owner, and the next action in
+   `# Resume Notes`.
+
+## 7. Feedback on an Archived Intent
+
+An archived intent can receive feedback. Feedback alone does **not** trigger
+`reopen`.
+
+1. Identify source and target, and load the source artifact by path. Never
+   invent a source.
+2. Assess the problem and its ownership level (`SKILL.md` §11).
+3. If the assessment shows that only authoritative Intent content must
+   change materially, use `reopen` (§6) before editing. If the archived
+   content is correct and the problem belongs to another layer, return the
+   result to that layer's owner and leave the intent archived.
+4. Record the outcome and the routing in `# Relationships and Impact` or
+   `# Resume Notes` — the archive state does not stop the record from being
+   current.

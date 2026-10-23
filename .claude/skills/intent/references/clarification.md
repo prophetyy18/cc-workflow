@@ -1,6 +1,6 @@
 # Clarification Methodology
 
-Read this when handling `new`, `resume`, or any clarification round within the intent skill.
+Read this when handling `new`, `resume`, or any clarification round within the intent skill, and when a user decision must be asked. The load condition is listed in `SKILL.md` §15.
 
 ## Goal
 
@@ -9,6 +9,8 @@ Turn ambiguous intent into testable, scoped, traceable input for a downstream Sp
 ## 1. Frontier Model (Decision Dependency)
 
 Model the intent as a **tree of decisions**. A question is on the **frontier** if all its prerequisite decisions are answered.
+
+The size of the frontier is driven by the **uncertainty of the user's decisions and the risk of the change** — not by the technical difficulty of the goal. A technically hard goal whose product decisions are already settled does not need more questions; investigate the technical side instead (§6).
 
 Each round:
 
@@ -129,7 +131,7 @@ After the first round (and whenever major new info arrives), write a one-paragra
 
 ## 12. Refinement Hints
 
-During clarification, if a sub-goal surfaces, apply the **user-objective test** (see SKILL.md §21): is it a user-valued outcome the owner can independently prioritize, revise, accept, defer, or remove? If yes, and it has its own decision space and meaningful benefit from independent management, you may suggest the user run `/intent refine <id>` to evaluate a split. If the sub-goal is a system capability or technical responsibility, do not propose a split — let Spec or Architecture handle it. Do not interrupt ordinary clarification, and do not propose splitting in every round. A large cross-domain intent that is already clear does not need to be split just because Specs will eventually multiply.
+During clarification, if a sub-goal surfaces, apply the **user-objective test** (see `SKILL.md` §16): is it a user-valued outcome the owner can independently prioritize, revise, accept, defer, or remove? If yes, and it has its own decision space and meaningful benefit from independent management, you may suggest the user run `/intent refine <id>` to evaluate a split. If the sub-goal is a system capability or technical responsibility, do not propose a split — let Spec or Architecture handle it. Do not interrupt ordinary clarification, and do not propose splitting in every round. A large cross-domain intent that is already clear does not need to be split just because Specs will eventually multiply.
 
 ## 13. Stop Conditions
 

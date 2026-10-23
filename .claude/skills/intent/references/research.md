@@ -1,6 +1,6 @@
 # Research Methodology
 
-Read this when verifying facts, checking API behavior, or investigating claims the user makes.
+Read this when a fact must be established, a claim verified, or conflicting sources reconciled. The load condition is listed in `SKILL.md` §15.
 
 ## Goal
 

@@ -6,633 +6,365 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash(date*), Bash(mkdir*), Bash(gi
 
 # Intent Skill
 
-Lightweight intent management. Each intent is a small folder with one `INTENT.md`. The skill is a single, focused workflow: understand → clarify → record → research → hand off. It does not design solutions, write code, or run specs.
+Capture user objectives as authoritative `INTENT.md` documents. This file is
+the entry point: **when** to act, **what** the result is, and the
+**invariants** that always hold. Method lives in the references — load one
+only when its trigger fires (§15).
 
-## 1. Identity & Storage
+## 1. Identity & Scope
 
-Every intent has a stable ID `INT-NNN` (3-digit zero-padded). IDs are **immutable** — they do not change when the title, parent, or scope changes. Re-numbering is not supported; create a new intent if a re-number is truly needed.
+An Intent is an independently meaningful **user objective** — a result the
+owner can prioritize, revise, accept, defer, or remove on their own. Not a
+technical capability, module, API, algorithm, or implementation task.
 
-Storage layout (flat, **no nesting for parent/child**):
+Intent owns the user's original intent, the clarified goal / scope /
+constraints / decisions, confirmed decisions and verified facts, open
+unknowns, intent relationships, change tracking, and a trustworthy basis for
+a downstream Spec. It does not own system behavior (Spec), module
+responsibility or contracts (Architecture / Module Design), or code
+(Implementation), and never designs a solution.
+
+Effort scales with the **uncertainty of user decisions and the risk of the
+change**, not technical difficulty: a hard goal whose decisions are settled
+needs a short clarification, not a long questionnaire.
+
+## 2. Storage & Stable IDs
+
+Stable ID `INT-NNN` (3-digit) in the `id` frontmatter field, the source of
+truth. IDs are immutable — never changed by title, parent, or scope, never
+reused.
 
 ```text
 docs/intents/
 ├── INT-001/
 │   ├── INTENT.md      (required)
 │   └── research/      (optional, only when deep research was done)
-│       └── <topic>.md
-├── INT-002/
-│   └── INTENT.md
-└── ...
+└── INT-002/
+    └── INTENT.md
 ```
 
-Discover all intents with `Glob` for `docs/intents/INT-*/INTENT.md`. The `id` field in frontmatter is the source of truth.
+Flat, no nesting for parent/child. Discover with `Glob docs/intents/INT-*/INTENT.md`.
+New ID = highest existing + 1, zero-padded. A duplicate ID is never
+overwritten — ask the user to disambiguate.
 
-## 2. Subcommand Routing
+## 3. Command Routing
 
-Read `$ARGUMENTS`. Split on whitespace: first token is the subcommand, the rest is the target. The target is taken as a single string with original spacing preserved for `new` (titles can have spaces). For other subcommands, the target is a single ID or empty.
+Read `$ARGUMENTS`; the first token is the subcommand, the rest is the target.
+For `new` the target is the whole remaining string; for other subcommands a
+single ID or empty.
 
 | Subcommand | Target | Behavior |
 |---|---|---|
 | (empty) or `help` | — | Show this help |
-| `new` | `<title or description>` (rest of args) | Create a new intent, begin clarifying |
+| `new` | `<title or description>` | Create an intent, then clarify (§6) |
 | `list` | — | List all intents grouped by status |
 | `show` | `<id>` | Print the full `INTENT.md` |
-| `refine` | `<id>` or `<id> <topic>` | Assess whether to modify, split into a child, or keep an existing intent |
-| `resume` | `<id>` | Continue work on an existing intent |
-| `archive` | `<id>` | Finalize and mark as archived after the completion gate |
-| `reopen` | `<id>` | Re-open an archived intent (warns about downstream impact) |
-| `feedback` | `<intent-id>` (optional: source path or ID) | Receive and route upstream feedback from Spec / Architecture / Module |
+| `refine` | `<id> [topic]` | Modify, split into a child, or keep (§8) |
+| `resume` | `<id>` | Continue work on an existing intent (§9) |
+| `archive` | `<id>` | Finalize and mark archived after the completion gate (§10) |
+| `reopen` | `<id>` | Re-open an archived intent (§9) |
+| `feedback` | `<intent-id> [source]` | Route upstream feedback to its owner (§11) |
 | `tree` | — | Show parent / child / related hierarchy |
 
-If the subcommand is unknown, do not guess. Show help and stop. Natural-language triggers (see §3) are also valid — they route to the same subcommand.
+Unknown subcommand: show help and stop. Do not guess.
 
-## 3. Natural-Language Operations
+## 4. Natural-Language Routing
 
-Users do not have to know the subcommand names. The model routes these intents:
-
-| User intent (paraphrased) | Action |
+| User intent | Action |
 |---|---|
-| "I want to build X", "plan Y", "let's do Z" | If no existing intent matches → `new`; if one does → modify it |
-| "update INT-NNN to add …", "change the goal of …" | Modify the named intent (or the only active one) |
-| "make this a sub-intent of INT-002" | Set `parent` on the current intent |
-| "link INT-001 and INT-003", "X is related to Y" | Add to `related` on both |
-| "what's the status of INT-002?", "show me X" | `show` |
-| "list everything", "what intents do we have?" | `list` |
-| "show the hierarchy", "how are these related?" | `tree` |
-| "is INT-001 too big?", "should I split this?", "把 X 拆成子 Intent" | `refine` |
-| "we're done with X", "archive INT-002" | `archive` after the completion gate |
-| "确认，继续" / "INT-001 没问题了，继续 Spec" (after a recent completion proposal) | `archive` + handoff to Spec — do not prompt a second time |
-| "spec found an issue with INT-001", "architecture needs INT-002 changed" | `feedback` |
-| "I need to change X but it's archived" | `reopen` with impact and authorization check |
-| "is Y technically feasible?" | Record evidence in `# Evaluation`; put unresolved facts in `# Unknowns` |
-| "does X still make sense?" | Ask the user; product value and priority are not engineering assessments |
-
-**Modification is the default, not creation.** Before creating a new intent, search for an existing one whose goal is still the same. Only create new when the goal is genuinely independent.
-
-## 4. Subcommand: `new <title or description>`
-
-1. Read `# Original Intent` from the user's raw input. Verbatim, no paraphrase.
-2. **Before creating**, scan existing intents. Classify the new goal into one of four paths:
-   - **A — Modify existing.** The new content extends the same user-objective as an existing intent. Update in place.
-   - **B — Create child.** The new content is a user-valued sub-goal with its own outcome (passes the user-objective test, see §21) and independent priority. Make it a child of the closest parent.
-   - **C — Create independent.** The new content is a separate user-objective that should not be subordinate to any existing intent. Create a new top-level intent.
-   - **D — Reconcile.** The new content has material semantic overlap, shared abstraction, or constraint conflict with existing intents. Enter the reconcile flow under current authorization.
-3. Choose the path from the user objective and repository evidence. Ask only when two plausible paths change confirmed product meaning or the requested identity; apply cross-layer §2.5.b. Same product / system does not mean same intent.
-4. **Technical capabilities are not independent intents.** RPC access, DB schema design, API definitions, and specific algorithms are not user goals. If the request is primarily about these, surface that and route to Spec / Architecture / Module Design instead of creating an intent. If the user wants a capability to support their goal, capture the goal and let downstream decide the technical means.
-5. Follow the selected path:
-   - **A** → modify the existing intent in place. Preserve ID. Use the modification flow (§15).
-   - **B** → either invoke `/intent refine` on the parent to formally split, or directly create a child with the parent's confirmation. New child gets a fresh ID with `parent: <existing-id>`.
-   - **C** → continue to step 6 (ID generation, file creation, clarification).
-   - **D** → use the reconcile Skill and retain the return point; report a genuinely unavailable capability.
-6. For path C, generate ID: scan `docs/intents/INT-*/INTENT.md`, find max `INT-NNN`, take `INT-` + (max+1) zero-padded to 3 digits. If user provided an explicit ID, use it (after confirming no conflict).
-7. Create `docs/intents/INT-NNN/INTENT.md` with `status: active`. Create `docs/intents/` if missing.
-8. Fill the frontmatter (`id`, `title`, `status`, `created`, `updated`). Leave `parent`, `related`, `impact_scope` empty unless the user named them.
-9. Fill `# Original Intent` verbatim. Other sections start as `_TBD_`.
-10. Begin clarification. Read `references/clarification.md` for the methodology.
-11. Persist after every meaningful clarification or research result. Don't batch at the end.
-
-A duplicate ID is never overwritten. If collision, ask the user to disambiguate.
-
-## 5. Subcommand: `list`
-
-1. `Glob` `docs/intents/INT-*/INTENT.md`.
-2. Read frontmatter of each.
-3. Print a compact table. `active` first, then `archived`. Columns: `id`, `title`, `status`, `parent`, `related` (count), `updated`.
-
-## 6. Subcommand: `show <id>`
-
-Read and print the full `INTENT.md`. No editing. If the ID is ambiguous (partial match returns multiple), list candidates and ask.
-
-## 7. Subcommand: `refine <id> [topic]`
-
-Assess whether to modify the existing intent, split it into a child intent, or keep it as-is. Refinement is **boundary-driven, not size-driven** — splitting is only justified when a sub-goal has its own outcome and decision space (see §19 hard rules).
-
-1. Load the target `INTENT.md`. If `$topic` is given, focus the assessment on that topic within the intent.
-2. Read the parent intent (if any) and directly related intents for context.
-3. Check for existing children to avoid duplication. `Glob docs/intents/INT-*/INTENT.md` and look for `parent: <id>` in their frontmatter.
-4. Evaluate three refinement conditions:
-   - **Independent outcome** — is there a *user-valued* outcome (something the owner can independently prioritize, revise, accept, defer, or remove) that can be stated as its own goal? A system capability or technical responsibility does not qualify — those belong to Spec and Architecture respectively (see §21).
-   - **Independent decision space** — does it have its own key user decisions, fact-investigation scope, constraints, unknowns, or trade-offs?
-   - **Meaningful benefit** — would splitting clearly improve clarification, decision boundaries, context, or downstream traceability?
-5. Choose one of three outcomes:
-   - **Modify** — extend the existing intent. No new file. Preserve ID. Update `# Resume Notes`.
-   - **Create child** — explain the independently valuable outcome and create it when covered by the user's goal; apply §2.5.b if the split changes confirmed product meaning or identity.
-   - **Keep** — explain why no split is needed. No file changes.
-6. On "Create child", classify by impact on the parent's authoritative content:
-   - **Case A — Create child without changing parent meaning.** No new sub-goal, constraint, or decision is added to the parent; only its `Relationships and Impact` may record the new child. The parent intent is **not** reopened, even if `archived`. The new child is `active`.
-   - **Case B — Materially change parent intent.** Adding, removing, or materially changing the parent's goal, scope, constraints, success criteria, or confirmed decisions. Reopen an archived parent first; apply §2.5.b to decide whether a new user decision is needed, then edit.
-   - **Case C — Move existing content from parent to child.** A goal, constraint, or decision is relocated from the parent to the new child. This is treated as a material change to the parent: **reopen first** if the parent is `archived`. Preserve the original wording in the parent's `# Resume Notes` (or a migration map), and update any downstream references so old pointers still resolve to either the new location or the historical record.
-7. On "Modify" or "Keep": just update `# Resume Notes`.
-
-If a sub-intent already covers the candidate topic, surface the existing one and ask whether to modify it instead. Do not create duplicates. Do not split a large but clear intent just because it is large, cross-domain, or will produce multiple Specs.
-
-## 8. Subcommand: `resume <id>`
-
-1. Load `INTENT.md`.
-2. Check Git and apply `../../references/change-impact.md` to any
-   changed Goal/Constraint/Decision and its cited downstream items.
-   Existing downstream final/PASS evidence is scoped to its old basis.
-3. Read `# Resume Notes` to see where the last session left off.
-4. Read `# Decisions` first. **Do not re-ask answered questions.**
-5. Continue clarification or research from the open frontier.
-6. Update `# Resume Notes` with affected IDs, owner and next action.
-
-If the ID is partial and exactly one intent matches, proceed. If multiple match, list and ask.
-
-## 9. Subcommand: `archive <id>`
-
-1. Load `INTENT.md`.
-2. Render a final summary: clarified intent, constraints, decisions, facts, unknowns, spec input.
-3. **Authorization.** Apply the shared impact rule (§2.5.b). A user
-   instruction to complete this goal or confirmed stage covers archive once
-   its checks pass. Ask only for an unresolved change to confirmed meaning.
-4. **Completion check before archive — required for both the command and natural-language flow.** Read the saved document against `# Original Intent`, then verify: confirmed decisions, sources, traceability, and cross-layer feedback are current; no Blocking issue remains. In addition:
-   - Walk the user's goal from the real starting state: at each step, what does the user already know and provide, what does the system return, what can the user do next, and what can they see or do after failure? Investigate missing factual prerequisites before asking the user; ask only when a product choice is genuinely unresolved. Preserve the confirmed operation order (`cross-layer-coordination.md` §8).
-   - For each major original pain point, identify an observable success outcome or an explicit deferral. Reconcile `# Original Intent`, `# Clarified Intent`, decisions, success criteria, `# Spec Input`, scope, Unknowns, and Resume Notes. Remove `_TBD_` and resolved Unknowns from the current account; correct stale scope claims and contradictions, recording the reason in `# Resume Notes`. Keep historical decisions traceable. Do not treat an unresolved product choice as editorial cleanup.
-   If the path, outcome, or authoritative meaning remains unclear, surface the specific gap and keep the intent active. If the Intent already specifies a step but a downstream artifact reverses it, send feedback to that artifact's owner under the existing cross-layer contract (§3); do not reopen the product choice. Do not archive on user confirmation alone or pass an Intent gap downstream as if it were complete. Routine document cleanup needs no second confirmation; a changed user goal or product decision does.
-5. **Archive does not require downstream Spec to be complete.** Intent is considered ready for archive when the user confirms the goal, scope, and decisions are sufficiently clarified. Spec, Architecture, and Module work may proceed in parallel or later. If a downstream artifact later finds a real upstream problem, it can route the issue back through `/intent feedback`, which may lead to `reopen` — but that is not automatic.
-6. When authorized and the checks pass, set `status: archived`, update
-   `updated` and append a short `# Resume Notes` entry.
-7. Tell the user: archived intents can be reopened with `reopen`, and can also receive `feedback` without reopening.
-8. **Handoff.** Under an authorized whole-goal continuation, invoke the next
-   owning Skill or read its file when invocation is unavailable. Report a
-   genuinely unavailable capability and keep the return point; do not make
-   the user schedule the next stage.
-
-### Modifying an Archived Intent (Natural-Language Reopen)
-
-When the user explicitly asks to change an already-archived intent (e.g., "改一下 INT-001 的目标" / "INT-001 缺一个约束"), treat that as authorization to run the reopen-and-modify flow:
-
-- Reopen the intent (status → active), update `updated`, log a note in `# Resume Notes`.
-- Apply the modification, preserving ID and stable item IDs.
-- Compare changed item semantics and record the downstream impact path
-  under `../../references/change-impact.md` before forwarding work.
-- If the change is materially different from the user's authorization (e.g., they asked to add a constraint, but a Decision also seems to require revision), stop and confirm the scope before extending.
-- After modification, the user may again confirm and re-archive.
-
-## 10. Subcommand: `reopen <id>`
-
-1. Apply `cross-layer-coordination.md` §2.5.b. An authorized goal
-   covers a necessary correction that preserves confirmed user meaning;
-   ask only if the Intent's confirmed goal or constraint would change.
-   Identify downstream Specs whose accepted basis may be affected.
-2. Set `status: active`, update `updated`.
-3. Append a note to `# Resume Notes` explaining why it was reopened.
-   After the edit, record changed item IDs, affected Spec references,
-   uncertain links and the next owner/action per `change-impact.md`;
-   do not infer impact from the Intent filename alone.
-
-## 11. Subcommand: `tree`
-
-Walk parent/related links across all intents. Print a hierarchy:
-
-```text
-INT-001  Team coordination         [active]
-├── INT-002  Shared calendar        [active, parent=INT-001]
-├── INT-003  Availability          [active, parent=INT-001]
-│   └── (no children)
-└── INT-004  Meeting scheduling    [active, parent=INT-001, related=INT-003]
-
-INT-005  Notifications             [active]
-└── (no parent, related=INT-001, INT-003)
-
-INT-006  Old prototype             [archived]
-```
-
-Orphans (no parent) are roots. `related` is shown in parentheses, not as a tree edge. Detect and report cycles, self-parent, and missing-parent references as warnings.
-
-## 12. Subcommand: `feedback <intent-id> [source]`
-
-Receive upstream feedback from Spec, Architecture, Module Design, or Implementation, and route the issue to the right ownership level. A short natural-language message ("spec found an issue with INT-001") is also valid feedback.
-
-### Independent verification at the Intent layer
-
-Intent is the user-decision layer. It normally does **not** delegate to the
-Independent Reviewer, because the authoritative content here is the
-user's stated goals, constraints, and decisions — not a verifiable
-system artifact. Self-check by this Skill, plus the user's own
-confirmation, is the standard verification.
-
-A Targeted Resolution Verification (Mode B in
-`.claude/references/verification.md`) is appropriate **only when** all
-of the following hold:
-
-- The Intent change has material downstream system-level correctness
-  implications (not just wording or scope).
-- An authorized fix at this layer materially changes a downstream
-  Requirement / constraint / System Invariant / public contract /
-  load-bearing decision.
-- The Material Resolution trigger in `.claude/references/verification.md` §3 Trigger B fires.
-
-For ordinary `feedback`, `refine`, `new`, or `modify` flows, do not
-delegate to the Independent Reviewer. The cross-layer feedback contract
-(`.claude/references/cross-layer-coordination.md` §3) plus the user's
-authorization is the standard. A rare case where this Skill might
-delegate is when a downstream layer's verified finding contradicts a
-confirmed Intent item (e.g., the user said "no future-data leakage" but
-the Spec's Targeted Verification shows the constraint cannot be
-satisfied) — that is a cross-layer issue, not a routine Intent review;
-route via the feedback contract, do not invoke the Reviewer directly.
-
-### Arguments
-
-- `<intent-id>` — the target intent to inspect (required).
-- `[source]` — file path or ID of the source artifact, e.g. `docs/specs/SPEC-002/SPEC.md`. Strongly recommended when available. If only the intent ID is given, inspect existing feedback, Resume Notes and relevant Git changes before asking for an unidentifiable source. **Do not fabricate a source.**
-
-### Minimal feedback contract
-
-```yaml
-source: SPEC-002
-target: INT-001
-target_item: INT-001/C-01      # optional
-problem: >
-  Existing constraint conflicts with the required behavior.
-evidence:
-  - INT-001/C-01
-  - SPEC-002/REQ-003
-requested_resolution: >
-  Clarify the scope of the existing constraint.
-```
-
-Not all fields are required for every feedback. A short natural-language message with an intent ID is acceptable when the context is clear.
-
-### Processing
-
-1. Identify source and target.
-2. Load the target `INTENT.md`. Load the source artifact by path; do not assume its contents.
-3. If only an intent ID is given, investigate repository feedback and relevant changes. Ask for the source only if it remains unidentifiable; do not invent feedback.
-4. Assess whether the feedback describes a real problem.
-5. Determine the **ownership level**:
-   - **Intent problem** — user goal ambiguity, conflicting user goals, conflicting user constraints, decisions to revisit, facts that invalidate the original user goal. **Handle here.**
-   - **Spec problem** — incomplete system behavior, missing acceptance criteria, missing functional requirements. **Route to Spec.**
-   - **Architecture problem** — unclear module ownership, missing cross-module capability, conflicting dependencies, unclear public contract ownership. **Route to Architecture.**
-   - **Module / Implementation problem** — wrong implementation, algorithm bugs, DB design issues, code/spec mismatch. **Route back to source** for the implementer to fix.
-6. If handled here, apply cross-layer §2.5.b: repair an internal contradiction determined by confirmed sources under the existing goal; seek a user decision only for changed product meaning. A material archived edit uses `reopen` (§10).
-7. If multiple intents share a semantic conflict, enter `/intent-reconcile` under the authorized goal when available; preserve the return point. Ask only if reconciliation exposes a product choice.
-8. Record the conclusion in the target intent's `# Relationships and Impact` or `# Resume Notes`. Do not create a separate feedback file.
-9. Return a result to the source owner (see format below).
-
-### Result format
-
-Return to the source owner:
-
-- **Status**: `Accepted` · `Rejected` · `Redirected` (to Spec / Architecture / Module) · `Needs Owner Decision`
-- **Rationale**: brief reasoning, including which ownership level applies
-- **Intent changes**: list of items modified (or "none")
-- **Downstream impact**: list of downstream artifacts that may need to re-check
-- **Suggested next step**: what the source owner should do
-
-These are not new intent lifecycle states. They are outcomes of a single feedback event.
-
-If the source artifact cannot be modified from this skill (it almost always cannot, since Spec / Architecture / Module are separate Skills), return the result text for the source owner to apply. **Do not claim the source artifact was updated.**
-
-### Cross-layer triggers
-
-When receiving feedback that itself concerns another authority layer (e.g. an Architecture-level concern was misrouted here), or when this Skill needs to forward to another layer (e.g. a Spec-level gap found while reviewing an Intent), load the minimum common feedback contract and discipline from `.claude/references/cross-layer-coordination.md`. Do not load the whole file for in-Intent work; load it only when the issue crosses authority layers.
-
-In particular:
-
-- Use the feedback contract in `cross-layer-coordination.md` §3.
-- Apply **Minimum necessary escalation** (§4): do not push the issue higher than necessary. A Spec-level finding rarely needs an Intent change.
-- Record the outcome under `# Relationships and Impact` or `# Resume Notes` — not in a parallel issue log.
-- Distinguish **Review Executed / Authority Resolved / Implementation Verified** per `cross-layer-coordination.md` §5.
-
-### Archived intent
-
-An `archived` intent can receive feedback. Feedback alone does not trigger `reopen`. Only when the assessment shows authoritative content needs material change, follow the existing `reopen` flow.
-
-## 13. Relationships
-
-### 13.1 `parent`
-
-A child has exactly one parent. Parent is for "this is a sub-goal of X" — a logical ownership relationship. Setting/changing parent requires:
-
-- The target parent must exist.
-- Walking up the new parent's ancestors must not include the child (no cycle).
-- An intent cannot be its own parent.
-- Archived parents are allowed as a parent, but warn.
-
-### 13.2 `related`
-
-A loose "this affects that" link. Multiple related links allowed. Add a related link only when there is a real cross-effect, not just topical similarity.
-
-### 13.3 `impact_scope`
-
-What this intent touches in the project. Examples:
-
-- Modules / files in this repo.
-- Public interfaces.
-- Related Specs.
-- Related other intents (by id).
-- Existing user-facing behavior.
-
-`impact_scope` is not the same as `parent` or `related`. It is "what real-world things will move?" Populate it as clarification progresses. Mark unknown entries explicitly rather than fabricating module names.
-
-## 14. INTENT.md Template
-
-Keep the `#` section names and order below: downstream readers use them. For
-each section you retain, use its specified `##` headings and field labels so a
-reader can distinguish confirmed input, inference, evidence, and open work.
-Omit a subsection with no applicable content; do not invent data to fill the
-shape. Item IDs are optional and follow §22 when traceability is needed.
-
-```markdown
----
-id: INT-NNN
-title: <short title>
-status: active
-parent: INT-NNN        # omit this field if none
-related:               # omit this field if none
-  - INT-NNN
-impact_scope: []       # YAML list of known affected areas; [] until known
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
----
-
-# Original Intent
-
-## User Request
-
-<verbatim user input — do not paraphrase>
-
-# Clarified Intent
-
-## Confirmed Goal
-
-- **Goal**: <outcome stated or confirmed by the user; keep their constraints intact>
-
-## Assumptions to Confirm
-
-- **(assumed)**: <agent inference, not a confirmed decision>
-  **Confirm by**: <specific question for the user>
-
-# Constraints and Success Criteria
-
-## Hard Constraints
-
-- **Constraint**: <non-negotiable requirement stated by the user>
-  **Check**: <how a later stage can verify it>
-
-## Success Criteria
-
-- **Outcome**: <observable result the user wants>
-  **Measure**: <what would show that it succeeded>
-
-# Decisions
-
-## Confirmed Decisions
-
-- **Decision** (YYYY-MM-DD): <choice the user actually confirmed>
-  **Rationale**: <brief context; do not present agent advice as confirmation>
-
-# Facts and Research
-
-## Verified Facts
-
-- **Fact**: <one sentence, the minimum claim>
-  **Source**: <URL or path:line in this repo>
-  **Verified on**: <YYYY-MM-DD>
-  **Method**: <how verified>
-  **Scope**: <what this covers and does not cover>
-  **Uncertainty**: <remaining doubt>
-
-# Unknowns
-
-## Open Questions
-
-- **Unknown**: <what is unknown>
-  **Why it matters**: <downstream impact>
-  **How to resolve**: <specific action>
-
-## Deferred Questions
-
-- **Question**: <unanswered question deliberately deferred>
-  **Return when**: <trigger or next stage that must resolve it>
-
-# Evaluation
-
-## Engineering Feasibility
-
-- **Assessment**: <brief technical feasibility assessment based on known evidence>
-  **Evidence**: <verified fact or explicit uncertainty supporting the assessment>
-
-## Engineering Risks
-
-- **Risk**: <technical failure mode, not a product or priority judgment>
-  **Signal**: <earliest observable indication>
-  **Mitigation**: <engineering action or question for a later stage>
-
-# Relationships and Impact
-
-## Links
-
-- **Parent**: <INT-NNN or none>
-- **Children**: <INT-NNN list or none>
-- **Related**: <INT-NNN list or none>
-
-## Impact Scope
-
-- **Affected behavior**: <user-facing behavior that may change>
-- **Modules or interfaces**: <verified paths or interfaces; otherwise record as Unknown>
-- **Downstream Specs**: <known Spec IDs or none>
-
-# Spec Input
-
-## Goal and Context
-
-- **Goal**: <what the user wants, understandable without this conversation>
-- **Why**: <reason stated by the user; mark any inference (assumed)>
-
-## Requirements and Evidence
-
-- **Success criteria**: <observable outcomes and measures>
-- **Hard constraints**: <non-negotiable requirements>
-- **Confirmed decisions**: <user-confirmed choices, with dates>
-- **Verified facts**: <claims with source and verification date>
-- **Open unknowns**: <questions and how to resolve them>
-
-## Decision Boundaries
-
-- **Impact scope**: <affected behavior, known modules and interfaces>
-- **Do not decide**: <choices the Spec Agent must return to the user>
-
-# Resume Notes
-
-## Current State
-
-- **Last action** (YYYY-MM-DD): <what was done>
-- **Open questions**: <unresolved items or none>
-
-## Next Action
-
-- **Owner**: <user, this skill, or downstream agent>
-- **Action**: <specific next step and return point>
-```
-
-For example, if the user only says "I want a shared team calendar," external
-calendar sync is **not** confirmed. Record it under `## Assumptions to Confirm`
-as `- **(assumed)**: The calendar must sync with external providers.` followed
-by `**Confirm by**: Ask which providers, if any, are required.` Do not put it
-under `## Confirmed Goal` or `## Confirmed Decisions` until the user answers.
-
-`# Evaluation` is limited to engineering feasibility and engineering risks.
-Keep it brief. Product value, market fit, priority, and whether the goal is
-worth pursuing belong to the user; raise such points as questions instead.
-While drafting, a section with no real content may use `_TBD_`; resolve or
-remove it before archive under §9 step 4. Never pad with fake content.
-
-## 15. Modification Flow (vs Creation)
-
-When the user asks to change an existing intent:
-
-1. Identify which intent. Use `$id` if given; otherwise infer from context (most recently active, or the one the user is currently discussing).
-2. Apply cross-layer §2.5.b to the actual impact. A necessary correction that preserves confirmed meaning uses current authorization; a new product choice goes to the user.
-3. Edit in place. Preserve the ID. Add a new entry to `# Decisions` for the change (`YYYY-MM-DD: <what changed> — <why>`).
-4. Update `updated` to today.
-5. If the change affects other intents (parent, related, or downstream Specs), note this in `# Relationships and Impact` and warn the user.
-
-For an `archived` intent that needs editing, `reopen` first.
-
-## 16. Clarification Method
-
-Read [references/clarification.md](references/clarification.md) for the full algorithm. Summary:
-
-- Model intent as a **frontier** of decisions. Each round, ask all questions whose prerequisites are settled.
-- Recommend an answer only when evidence supports it; leave genuine
-  product choices open for the user to frame.
-- Research is the agent's job. Ask the user only about decisions.
-- Hard cap **5 questions per clarification pass** with a `## Deferred` bucket for the rest. Re-validate after every answer; replace contradicted text, do not append.
-- After meaningful new info, write back a "stated vs assumed" restatement and confirm.
-- Stop when the frontier is empty, the user says stop, or fatigue sets in.
-
-## 17. Research Method
-
-Read [references/research.md](references/research.md). Summary:
-
-- Verify before recording. Cite the URL or repo path. Do not paraphrase repo contents from memory.
-- Distinguish user-stated facts from agent-verified facts.
-- A research file in `research/<topic>.md` is justified when multiple sources were consulted, sources conflicted, verification involved running code, or the fact is load-bearing for downstream Spec.
-- Single-page lookups stay inline. Don't create files for one fact.
-
-## 18. Hand-off
-
-The skill never writes code or designs solutions. Its output is the `INTENT.md`. The `# Spec Input` section must let a Spec Agent with no prior conversation context understand:
-
-- The user's actual goal and why.
-- Success criteria and hard constraints.
-- Confirmed decisions and the date they were made.
-- Verified facts and their sources.
-- Remaining unknowns.
-- Impact scope and relationships.
-- What the Spec Agent is **not** allowed to decide on its own.
-
-A downstream Spec should cite the intents it consumes (by ID) so this skill can detect when an intent changes.
-
-**An Intent may produce zero, one, or many Specs.** The `# Spec Input` section is the contract each consuming Spec reads; do not write it with a single specific Spec in mind. Intent hierarchy does not determine Spec decomposition — a large cross-domain Intent can directly feed multiple Specs without first being split into children.
-
-### 18.1 End-to-end user sequence (anchor to shared rule)
-
-The `# Clarified Intent` restatement must cover the **user's
-operational sequence from a real starting point** — what the user
-knows at the start, what the system already has, who provides each
-input, the order of operations, and the user-observable success
-or failure at each step. This sequence is the anchor every downstream layer
-preserves; the shared rule and its application per layer are in
-`cross-layer-coordination.md` §8. The sequence is not a fixed
-template, table, or state machine — express it in plain language
-under `# Clarified Intent`, as a concise list of steps if it helps
-clarity. Cite an existing Goal / Constraint / Decision ID for the
-critical path (or this section if no item ID exists) in
-`# Spec Input`, so downstream acceptance can trace to it without
-a separate per-layer checklist.
-
-## 19. Hard Rules
-
-1. **Owner authority.** Never silently change user intent or constraints. If disagreeing, ask the user or record an open question in `# Unknowns`; do not edit the user's words.
-2. **Evidence before assumption.** Facts need sources. Unverified claims go in `# Unknowns`, never in `# Facts and Research`.
-3. **No fabricated requirements.** Omit empty sections. Don't pad.
-4. **Modification is the default, creation is the exception.** If the underlying objective is the same, modify.
-5. **Persist early, persist often.** Save `INTENT.md` after every meaningful clarification or research result. Don't wait until the end of the session.
-6. **Archive follows authorization and its completion gate.** A confirmed
-   stage or whole-goal instruction covers completion within its scope.
-7. **Reopen follows impact.** Use §10 and the shared authorization rule.
-8. **ID is immutable.** Never re-number. Never change `id` field.
-9. **Lightweight by default.** A one-line request gets a one-line clarification. Don't force the full taxonomy.
-10. **Don't escape into Spec.** This skill never writes code, never proposes a solution architecture. That is the Spec Agent's job.
-11. **Validate relationships.** No self-parent, no cycles, no missing-parent refs. Check on every change.
-12. **Stated vs assumed split.** When restating the clarified intent, label anything the agent inferred (not the user said) as "(assumed)".
-13. **Refinement is boundary-driven, not size-driven.** Do not split an intent because it is large, cross-domain, or will produce many Specs. Split only when a sub-goal has its own outcome and decision space, and the split yields meaningful benefit.
-14. **Intent hierarchy does not mirror Spec decomposition or module structure.** A single intent can produce multiple Specs; multiple intents can support one Spec. The Spec skill owns that slicing, not the Intent skill.
-15. **Modify is the default for refinement.** If the new content extends the existing goal, modify. Splitting requires a genuinely independent sub-goal.
-16. **Preserve parent goal on split.** When creating a child, the parent's overall goal and global constraints stay on the parent. The child takes only the specific sub-goal and its own decisions.
-17. **No silent deletion on split.** Items moved from parent to child must be replaced in the parent by a pointer (e.g., "see INT-XXX"). Downstream Specs that cite the original location must still resolve.
-18. **Archived parents stay archived.** Creating a child of an `archived` parent does not reopen the parent. The new child is `active`.
-19. **Use the owning reconcile flow.** For semantic overlap, shared abstraction, or inherited-constraint conflict, use `/intent-reconcile` under the authorized goal; keep the return point. See §20.
-20. **User-objective test.** Before creating a child Intent, ask: does the candidate represent a distinct user-valued outcome that the owner can independently prioritize, revise, accept, defer, or remove? If no, do not create a child — the candidate is system behavior (Spec's job) or technical responsibility (Architecture's job). See §21.
-21. **Explain a `new` → `modify` route.** Show the matching objective and reused ID. Ask only if the user explicitly required a separate identity or the choice changes confirmed meaning (§2.5.b).
-22. **Technical capabilities are not new intents.** RPC access, DB schema design, API definitions, and specific algorithms are not user goals. They belong to Spec, Architecture, or Module Design. Do not create intents for them.
-23. **Archived edits use reopen.** Apply §10 and the shared impact rule;
-    a change to confirmed user meaning needs a user decision.
-24. **Stable item IDs are immutable on wording.** Reformatting or rewording an item does not change its `INT-NNN/X-NN` ID. Reassigning an ID to a different meaning is forbidden.
-25. **Authorization follows the goal.** Within a confirmed goal, the owning
-    Skill repairs internal contradictions and completes applicable checks;
-    it does not silently change the user's confirmed meaning.
-26. **Don't claim sync that didn't happen.** If a downstream artifact cannot be modified from this skill (almost always), return a clear result for its owner to apply. Do not claim the artifact was updated.
-27. **One explicit confirmation is enough.** When the user has explicitly confirmed the current stage's completion ("确认，继续" / "需求已经确定" / "INT-001 没问题了"), that single confirmation authorizes the corresponding archive and the immediate handoff. Do not prompt a second time to "are you sure?". Do not extend the authorization to unrelated changes (other intents, unrequested Specs, architectural decisions, code).
-28. **Completion check before every archive.** User confirmation does not waive §9 step 4 for the command or natural-language flow. Keep the intent active while a material gap remains; do not ask for a second confirmation after routine cleanup when the original authorization still applies.
-29. **Engineering-only evaluation.** Keep `# Evaluation` to technical feasibility and engineering risks with evidence. Do not assess product value, market fit, or user priority there.
-
-## 20. Lightweight Reconcile Trigger
-
-During `new`, material `modify`, or `refine`, perform a lightweight semantic check against existing intents. Ask one question:
-
-> Does this change expose a material semantic overlap, shared abstraction, inherited-constraint conflict, or incompatible goal with an existing intent?
-
-**If no** — continue the normal flow.
-
-**If yes** — name the candidate intents and reason, then use the reconcile Skill under the authorized goal. If invocation is unavailable, read and follow that Skill when tools permit; otherwise record the missing capability and return point. Reconciliation that changes confirmed product meaning needs a user decision under §2.5.b.
-
-Domain similarity (same tech stack, same data source) is not sufficient on its own. Only trigger on a real semantic overlap, conflict, or shared abstraction.
-
-Do not loop. At most one reconcile suggestion per change. Further iterations require explicit user request.
-
-## 21. Intent Boundary and Decomposition
-
-An Intent represents an independently meaningful **user objective**, not a technical capability, module, feature list, or implementation task.
-
-### Three Layers
-
-1. **User Objective** — a result the owner wants and can independently prioritize, revise, accept, defer, or remove. This is what an Intent captures.
-2. **System Capability** — behavior required to fulfill one or more user objectives. Belongs primarily to **Spec**.
-3. **Technical Responsibility** — architecture, module, interface, implementation. Belongs to **Architecture / Module Design**.
-
-### Create a child Intent only when
-
-- It represents a distinct user-valued outcome within the parent objective.
-- The owner can meaningfully manage its scope or priority separately.
-- Separate management improves clarity, evolution, or traceability.
-
-### Do not create a child Intent merely because
-
-- A capability has independent technical decisions.
-- A module can be implemented or tested independently.
-- A feature requires substantial research.
-- The system uses multiple domains or technologies.
-- A parent Intent produces multiple Specs.
-- A document has become large.
-
-### Routing Specific Concerns
-
-- If the proposed separation is primarily about **system behavior** → retain the Intent; let Spec decompose capabilities.
-- If the proposed separation is primarily about **module ownership, APIs, data storage, or algorithms** → defer to Architecture or Module Design.
-
-When uncertain, compare alternative structures and explain which user objectives would actually become independently manageable.
-
-Preserve the owner's original goals and all applicable constraints. Do not split or generalize merely to achieve a cleaner document hierarchy.
-
-## 22. Stable Item IDs
-
-Important goals, constraints, success criteria, and decisions may be assigned **stable item IDs** so downstream artifacts (Spec, Architecture, Module) can refer to them precisely:
+| "I want to build X", "plan Y" | `new`, or modify the intent that already covers it (§6) |
+| "change the goal of INT-001" | Modify in place (§7) |
+| "make this a sub-intent of INT-002" | Set `parent` (§12) |
+| "link INT-001 and INT-003" | Add to `related` on both (§12) |
+| "show me X", "what's the status of INT-002?" | `show` |
+| "list everything" | `list` |
+| "show the hierarchy" | `tree` |
+| "is INT-001 too big?", "把 X 拆成子 Intent" | `refine` (§8) |
+| "we're done with X" | `archive` after the completion gate (§10) |
+| "确认，继续" / "INT-001 没问题了，继续 Spec" | `archive` + handoff — do not prompt twice (§10, §18) |
+| "spec found an issue with INT-001" | `feedback` (§11) |
+| "I need to change X but it's archived" | `reopen` (§9) |
+| "is Y technically feasible?" | Evidence in `# Evaluation`; unresolved facts in `# Unknowns` |
+| "does X still make sense?" | Ask the user — product value and priority are not engineering assessments |
+
+## 5. Core Workflow
+
+`Discover → Classify → Clarify → Persist → Evaluate → Handoff`
+
+| Operation | Steps actually run |
+|---|---|
+| `list` | Discover only — frontmatter of every intent; print `id`, `title`, `status`, `parent`, `related` (count), `updated`, `active` first |
+| `show` | Discover only — print the file, edit nothing; an ambiguous partial ID lists candidates and asks |
+| `tree` | Discover only — walk `parent` / `related`; orphans are roots, `related` in parentheses, cycles / self-parent / missing parent reported as warnings |
+| `new` | Discover → Classify (existing vs. new) → Clarify → Persist |
+| `refine` | Discover → Classify (modify / child / keep) → Persist |
+| `resume` | Discover → Persist, continuing the open frontier |
+| `archive` | Discover → Evaluate (completion gate) → Persist → Handoff |
+| `feedback` | Discover → Classify (ownership level) → Persist the outcome |
+
+## 6. Creating an Intent
+
+1. Capture `# Original Intent` from the user's raw input — verbatim.
+2. Discover existing intents and classify: **Modify** (same user objective —
+   keep the ID) · **Child** (a user-valued sub-goal with its own outcome and
+   priority, §16) · **Independent** (a separate objective, subordinate to
+   nothing) · **Reconcile** (material semantic overlap, shared abstraction,
+   or constraint conflict, §19). Ask only when two plausible paths change
+   confirmed product meaning or the requested identity. Same product or
+   system does not mean same intent.
+3. **Technical capabilities are not independent intents.** RPC access, DB
+   schema design, API definitions, and specific algorithms are not user
+   goals: surface that and route to Spec / Architecture / Module Design. If
+   the user wants a capability to support their goal, capture the goal and
+   let downstream choose the means.
+4. Create the file and frontmatter (§2, §13), clarify, and persist after
+   every meaningful clarification or research result — never batch to the
+   end. Explain a Modify routing by naming the matched objective and the
+   reused ID.
+
+Procedure: `references/lifecycle.md` §2.
+
+## 7. Modifying an Intent
+
+Resolve the target (given ID, else the intent under discussion, else the
+most recently active one), classify the change by impact
+(`../../references/cross-layer-coordination.md` §2.5.b), then edit in place:
+preserve the intent ID and every stable item ID (§17), append the change to
+`# Decisions` with date and reason, update `updated`, and record the effect
+on other intents or downstream Specs in `# Relationships and Impact` while
+warning the user. A necessary correction determined by confirmed sources
+uses the current authorization; a new product choice goes to the user. An
+archived target is reopened first (§9).
+
+Procedure: `references/lifecycle.md` §4.
+
+## 8. Refining and Splitting (`refine`)
+
+Refinement is **boundary-driven, not size-driven**. A split is justified
+only when the candidate sub-goal has an **independent outcome** the owner
+can manage on its own (§16), an **independent decision space**, and a
+**meaningful benefit** for clarification, boundaries, context, or
+traceability.
+
+Outcomes: **Modify** (no new file, ID preserved) · **Create child** (explain
+the independently valuable outcome) · **Keep** (explain why no split is
+needed). If a sub-intent already covers the topic, surface it instead of
+duplicating. Do not split a large but clear intent just because it is large,
+cross-domain, or will produce multiple Specs.
+
+A child creation is classified by its effect on the parent's authoritative
+content — no parent meaning change (the parent is not reopened, even when
+archived) · material change to the parent (reopen first) · content moved to
+the child (reopen first, keep the original wording as history, migrate
+references so old pointers still resolve).
+
+Procedure: `references/lifecycle.md` §3.
+
+## 9. Resuming and Reopening
+
+`resume` — apply `../../references/change-impact.md` to changed Goal /
+Constraint / Decision items and their cited downstream items (old `final` /
+PASS evidence stays scoped to its old basis), read `# Resume Notes` for the
+last position, read `# Decisions` first and **do not re-ask answered
+questions**, continue the open frontier, then record affected IDs, owner,
+and next action in `# Resume Notes`.
+
+`reopen` — apply `../../references/cross-layer-coordination.md` §2.5.b: an
+authorized goal covers a necessary correction that preserves confirmed user
+meaning; ask only if the confirmed goal or a key constraint would change.
+Set `status: active`, update `updated`, note why in `# Resume Notes`, then
+record changed item IDs, affected Spec references, uncertain links, and the
+next owner/action per `../../references/change-impact.md`. Do not infer
+impact from the intent filename alone. An explicit request to change an
+archived intent authorizes reopen-and-modify; stop and confirm if the change
+goes beyond what the user asked for.
+
+Procedure: `references/lifecycle.md` §6.
+
+## 10. Archiving
+
+1. Render the final summary: clarified intent, constraints, decisions, facts,
+   unknowns, spec input.
+2. **Authorization.** Apply `../../references/cross-layer-coordination.md`
+   §2.5.b. A confirmed stage or an instruction to complete this goal covers
+   archive once the checks pass. One explicit confirmation ("确认，继续") is
+   enough — do not ask again, and do not extend that authorization to
+   unrelated intents, Specs, architecture decisions, or code.
+3. **Completion check** — required for the command and the natural-language
+   flow, read against the saved document, not the summary:
+
+   | Check | Pass condition |
+   |---|---|
+   | Goal | The original and clarified goals still describe the same thing |
+   | Sequence | The confirmed operation order in `# Clarified Intent` is intact and reachable from the real starting state (`../../references/cross-layer-coordination.md` §8) |
+   | Confirmed content | User-confirmed constraints and decisions are present and current |
+   | Unknowns | No Blocking unknown remains — an unresolved *product choice* blocks; a recorded non-blocking unknown does not |
+   | Evidence | Load-bearing facts carry a source and verification date; the traceable record of decisions and relationships is intact |
+   | Currency | No `_TBD_` or stale claim is left in the current account; corrections recorded with their reason in `# Resume Notes` |
+   | Feedback | Feedback received for this intent is recorded with its status — accepted is not downstream synchronization |
+
+   Complex or high-risk intents (money, security, core data correctness,
+   multi-step user path) run a deeper check. Routine cleanup needs no second
+   confirmation; a changed user goal or product decision does. If the path,
+   outcome, or authoritative meaning is still unclear, name the specific gap
+   and keep the intent active — never pass an Intent gap downstream as if it
+   were complete.
+4. **Archive does not require downstream Spec to be complete.** The intent is
+   ready when the user confirmed goal, scope, and decisions; Spec,
+   Architecture, and Module work may follow in parallel or later. A later
+   downstream finding routes back through `feedback`, which may lead to
+   `reopen`; that is not automatic.
+5. When authorized and the checks pass: set `status: archived`, update
+   `updated`, append a short `# Resume Notes` entry, tell the user that
+   `reopen` and `feedback` remain available, and hand off (§18).
+
+Procedure and the full check list: `references/lifecycle.md` §5.
+
+## 11. Feedback Routing
+
+Receive feedback from Spec, Architecture, Module Design, or Implementation and
+route it to the owner that can fix it.
+
+1. Identify source and target; load the target `INTENT.md` and the source
+   artifact by path. Never fabricate a source: if only an intent ID is given,
+   inspect recorded feedback, Resume Notes, and relevant Git changes first,
+   and ask only if the source stays unidentifiable.
+2. Assess the problem, then pick the **ownership level**:
+
+   | Level | Symptom | Route |
+   |---|---|---|
+   | Intent | User goal ambiguity, conflicting user goals or constraints, a decision to revisit, a fact that invalidates the original user goal | Handle here |
+   | Spec | Incomplete system behavior, missing acceptance criteria or functional requirements | Route to Spec |
+   | Architecture | Unclear module ownership, missing cross-module capability, conflicting dependencies, unclear contract ownership | Route to Architecture |
+   | Module / Implementation | Wrong implementation, algorithm bugs, DB design, code/spec mismatch | Route back to the source |
+3. Handled here: repair an internal contradiction determined by confirmed
+   sources under the current authorization; a new product choice goes to the
+   user; a material change to an archived intent uses `reopen` (§9). Several
+   intents sharing a semantic conflict go to `/intent-reconcile` (§19) under
+   the authorized goal, preserving the return point.
+4. Record the conclusion in `# Relationships and Impact` or `# Resume Notes` —
+   no separate feedback file, no second relationship database.
+5. Return to the source owner: source, target, problem, evidence, requested
+   resolution, then **Status** (`Accepted` · `Rejected` · `Redirected` ·
+   `Needs Owner Decision`), **Rationale**, **Intent changes**, **Downstream
+   impact**, **Suggested next step**. These are outcomes of one feedback
+   event, not lifecycle states. A short natural-language message with an
+   intent ID is acceptable when the context is clear. The source artifact
+   usually cannot be modified from this skill — return the result text for
+   its owner to apply. **Do not claim the source artifact was updated.**
+
+Cross-layer detail — feedback contract, minimum escalation, closure
+semantics — belongs to `../../references/cross-layer-coordination.md` §3, §4,
+§5; load it only when the issue crosses authority layers.
+
+Intent normally does **not** delegate to the Independent Reviewer: its
+authoritative content is the user's stated goals and decisions, not a
+verifiable system artifact. Self-check plus the user's confirmation is the
+standard. A Targeted Resolution Verification
+(`../../references/verification.md` §3) applies only when the change has
+material downstream correctness implications, an authorized fix materially
+changes a downstream requirement, constraint, invariant, public contract, or
+load-bearing decision, and that Trigger B fires.
+
+## 12. Relationships
+
+- `parent` — exactly one parent; "this is a sub-goal of X". The parent must
+  exist, walking up must not include the child (no cycle), and an intent
+  cannot be its own parent. An archived parent is allowed, with a warning.
+- `related` — a loose "this affects that" link; multiple allowed. Add one
+  only for a real cross-effect, not topical similarity.
+- `impact_scope` — what this intent touches in the real world: modules or
+  files, public interfaces, related Specs, related intents, existing
+  user-facing behavior. Not the same as `parent` or `related`. Populate it as
+  clarification progresses; mark unknown entries explicitly instead of
+  inventing module names.
+
+## 13. INTENT.md Structure
+
+The section names and order are fixed by `references/intent-template.md`
+(downstream readers rely on them): `# Original Intent` · `# Clarified
+Intent` · `# Constraints and Success Criteria` · `# Decisions` · `# Facts and
+Research` · `# Unknowns` · `# Evaluation` · `# Relationships and Impact` ·
+`# Spec Input` · `# Resume Notes`.
+
+**One fact or decision has exactly one authoritative location.** The
+canonical homes are `# Clarified Intent`, `# Constraints and Success
+Criteria`, `# Decisions`, `# Facts and Research`, and `# Unknowns`. `# Spec
+Input` is a handoff map that points at those sections by item ID instead of
+copying them. Omit a subsection with no applicable content; never invent data
+to fill the shape. Item IDs are optional (§17).
+
+Field-level template, the single-authority table, and the placement notes
+(`## Assumptions to Confirm`, engineering-only `# Evaluation`, `_TBD_`
+handling) are in `references/intent-template.md` — load it when creating a
+new `INTENT.md` or restructuring an existing one.
+
+## 14. Core Invariants
+
+| # | Invariant |
+|---|---|
+| 1 | **Confirmed meaning is the user's.** Never silently change a confirmed goal, constraint, decision, or the confirmed operation order. Within an authorized goal the owning layer fixes its own contradictions; that is not a second approval round. |
+| 2 | **Modify before creating.** If the objective is the same, modify the existing intent and preserve its ID. Creation is the exception. |
+| 3 | **A child needs independent user value** the owner can manage on its own (§16). |
+| 4 | **IDs are immutable.** The intent ID is never re-numbered or reused, and a stable item ID is never reassigned to a different meaning (§17). |
+| 5 | **Separate what is known from what is assumed.** Verified facts carry a source and date; unverified claims live in `# Unknowns`; agent inference is labeled `(assumed)`. A user's claim is a fact about what the user said, not a fact about the world. |
+| 6 | **Keep history.** Material edits, splits, and migrations are recorded with date, old meaning, new meaning, and reason; superseded items stay traceable; downstream pointers still resolve. |
+| 7 | **Stay inside the layer.** Intent does not write Specs, contracts, module designs, or code, and does not modify another layer's artifact; it returns a result for that layer's owner to apply. |
+| 8 | **Never claim work that did not happen.** No claiming a downstream artifact was updated, synced, or verified when it was not. Accepted feedback is not downstream synchronization. |
+| 9 | **Archive is not downstream completion.** An Intent may be archived while Spec, Architecture, and Module work are pending, and archive still requires its own completion check (§10). |
+| 10 | **The user sequence stays at user level.** Intent records the ordered user-visible steps and the confirmed order; UI detail, error handling, and system state transitions belong to Spec (§18). |
+
+## 15. Reference Loading
+
+Load a reference only when its trigger fires. Do not read unrelated
+references, and do not re-read an unchanged file in the same context.
+
+| Reference | Load it when | Do not load it for |
+|---|---|---|
+| `references/clarification.md` | A user decision is unresolved and must be asked, or a clarification round resumes | `list`, `show`, `tree`; editorial edits |
+| `references/research.md` | A fact must be established, a claim verified, or conflicting sources reconciled | Decisions the user owns; `list`, `show` |
+| `references/lifecycle.md` | Creating, matching, splitting, archiving, reopening, or resuming an intent | `list`, `show`, `tree`; plain feedback triage |
+| `references/intent-template.md` | Creating a new `INTENT.md` or restructuring an existing one | `list`, `show`; small content edits |
+| `references/item-ids.md` | Assigning, renaming, moving, or citing a stable item ID | Prose edits that touch no item ID |
+| `../../references/cross-layer-coordination.md` | Work or feedback crosses an authority layer, or an ownership / authorization question arises | In-Intent work that stays in this layer |
+| `../../references/change-impact.md` | A changed item may affect a downstream artifact, contract, or evidence | Content that provably does not move downstream |
+| `../../references/verification.md` | A formal independent-verification trigger fires, or a review result must be triaged | Ordinary capture and routine archive |
+
+If a rule requires one of these files, read it before acting on that rule.
+Never reconstruct a protocol from memory because its reference is not loaded —
+load it, or state that the capability is unavailable and keep the return
+point.
+
+## 16. Intent Boundary
+
+Three layers: **User objective** — a result the owner wants and can
+independently prioritize, revise, accept, defer, or remove; this is what an
+Intent captures. **System capability** — behavior required to fulfill one or
+more user objectives; belongs to Spec. **Technical responsibility** —
+architecture, module, interface, implementation; belongs to Architecture /
+Module Design.
+
+Create a child Intent only when it represents a distinct user-valued outcome
+within the parent objective, the owner can manage its scope or priority
+separately, and separate management improves clarity, evolution, or
+traceability.
+
+Do **not** create a child Intent merely because the capability has
+independent technical decisions, the module can be implemented or tested
+independently, the feature requires substantial research, the system spans
+multiple domains or technologies, the parent produces multiple Specs, or the
+document has become large.
+
+Route a proposed separation by what it is really about: **system behavior** →
+keep it in the Intent and let Spec decompose capabilities; **module
+ownership, APIs, data storage, or algorithms** → defer to Architecture or
+Module Design. When uncertain, compare alternative structures and explain
+which user objectives would actually become independently manageable.
+
+## 17. Stable Item IDs
+
+Important goals, constraints, success criteria, and decisions may carry a
+stable item ID so downstream artifacts can cite them exactly:
 
 ```text
 INT-001/G-01  Goal
@@ -641,40 +373,51 @@ INT-001/S-01  Success criterion
 INT-001/D-01  Decision
 ```
 
-### Rules
+The intent ID is immutable, an assigned ID is never reassigned to a
+different meaning, a wording-only edit keeps the ID, and a material change
+adds a new ID while the old entry stays as history. `references/item-ids.md`
+is the authority for assignment, migration, and downstream citation.
 
-- The intent ID (`INT-NNN`) is immutable.
-- Item IDs are only assigned to content with real traceability value — important goals, hard constraints, success criteria, confirmed decisions. Plain explanation, examples, and minor text do not need IDs.
-- Assigned IDs **cannot be reassigned** to a different meaning.
-- Wording-only edits do not change item IDs. The same `INT-001/C-01` still refers to the same constraint after a paraphrase.
-- If the meaning materially changes, preserve the original entry as a historical record (e.g., "D-01 superseded by D-05 on YYYY-MM-DD — original: …") and add the new entry under a new ID. Do not silently reuse the old ID for a different meaning.
-- When an item moves to a child intent, record the migration (e.g., "moved to INT-002/C-01 on YYYY-MM-DD" in the parent's `# Resume Notes`, with a reciprocal pointer in the child).
-- Do not invent IDs that do not yet exist. Do not retrofit IDs to existing intents in bulk — assign them when a downstream artifact needs to reference them.
-- If a downstream reference exists without an item ID, it may fall back to `INT-NNN` + file + section location. Not every intent must use item IDs.
+## 18. Hand-off
 
-### In `INTENT.md`
+The skill never writes code or designs solutions. Its output is the
+`INTENT.md`. A downstream Spec with no prior conversation context must find,
+through `# Spec Input` and the sections it points at: the user's goal and
+why, success criteria and hard constraints, confirmed decisions and their
+dates, verified facts and their sources, remaining unknowns, impact scope
+and relationships, and what the Spec Agent is **not** allowed to decide. A
+downstream Spec cites the intents it consumes by ID, so a later intent change
+can be detected.
 
-Use bold item IDs followed by content, e.g.:
+**An Intent may produce zero, one, or many Specs.** `# Spec Input` is the
+contract each consuming Spec reads — write it without one specific Spec in
+mind. Intent hierarchy does not determine Spec decomposition: a large
+cross-domain Intent can feed several Specs without being split into children.
 
-```markdown
-# Constraints and Success Criteria
+`# Clarified Intent` states the user's **operation sequence from a real
+starting point**: what the user knows and provides at the start, who supplies
+each input, the confirmed order of operations, and what the user observes
+when it works. Keep it at that level — detailed UI behavior, error and
+failure handling, and system state transitions belong to Spec — but do not
+drop a step or blur the order when a downstream reader could otherwise
+misread the core flow. The shared rule is
+`../../references/cross-layer-coordination.md` §8.
 
-## Hard Constraints
+## 19. Reconcile Trigger
 
-- **C-01**: 历史回测不得使用未来数据。
-- **C-02**: 资产净值必须按统一计价基准计算。
+During `new`, a material modification, or `refine`, run one lightweight
+semantic check against existing intents:
 
-## Success Criteria
+> Does this change expose a material semantic overlap, shared abstraction,
+> inherited-constraint conflict, or incompatible goal with an existing intent?
 
-- **S-01**: 同一数据集的回测结果可复现。
+**No** → continue the normal flow. **Yes** → name the candidate intents and
+the reason, then use `/intent-reconcile` under the authorized goal; if
+invocation is unavailable, follow that Skill's file when the tools permit,
+otherwise record the missing capability and the return point. Reconciliation
+that changes confirmed product meaning needs a user decision
+(`../../references/cross-layer-coordination.md` §2.5.b).
 
-# Decisions
-
-## Confirmed Decisions
-
-- **D-01** (2026-10-08): 支持策略驱动的仓位调整。
-```
-
-### Downstream reference format
-
-A Spec or Architecture document can reference by `INT-NNN/C-01` (or `INT-NNN/G-01`, `INT-NNN/S-01`, `INT-NNN/D-01`). When this skill sees a downstream change, it can locate the exact item and assess whether the change is material.
+Domain similarity — same tech stack, same data source — is not sufficient on
+its own. Do not loop: at most one reconcile suggestion per change; further
+iterations require an explicit user request.
