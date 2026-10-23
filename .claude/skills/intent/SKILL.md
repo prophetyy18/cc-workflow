@@ -64,7 +64,8 @@ Users do not have to know the subcommand names. The model routes these intents:
 | "确认，继续" / "INT-001 没问题了，继续 Spec" (after a recent completion proposal) | `archive` + handoff to Spec — do not prompt a second time |
 | "spec found an issue with INT-001", "architecture needs INT-002 changed" | `feedback` |
 | "I need to change X but it's archived" | `reopen` with impact and authorization check |
-| "does X still make sense?", "is Y feasible?" | Add to `# Evaluation` and `# Unknowns` |
+| "is Y technically feasible?" | Record evidence in `# Evaluation`; put unresolved facts in `# Unknowns` |
+| "does X still make sense?" | Ask the user; product value and priority are not engineering assessments |
 
 **Modification is the default, not creation.** Before creating a new intent, search for an existing one whose goal is still the same. Only create new when the goal is genuinely independent.
 
@@ -329,37 +330,64 @@ What this intent touches in the project. Examples:
 
 ## 14. INTENT.md Template
 
+Keep the `#` section names and order below: downstream readers use them. For
+each section you retain, use its specified `##` headings and field labels so a
+reader can distinguish confirmed input, inference, evidence, and open work.
+Omit a subsection with no applicable content; do not invent data to fill the
+shape. Item IDs are optional and follow §22 when traceability is needed.
+
 ```markdown
 ---
 id: INT-NNN
 title: <short title>
 status: active
-parent: INT-NNN        # omit if none
-related:               # omit if none
+parent: INT-NNN        # omit this field if none
+related:               # omit this field if none
   - INT-NNN
-impact_scope: []       # populate as you learn; [] is fine initially
+impact_scope: []       # YAML list of known affected areas; [] until known
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 
 # Original Intent
 
+## User Request
+
 <verbatim user input — do not paraphrase>
 
 # Clarified Intent
 
-<one-paragraph restatement of what the user actually wants, validated by user. If the agent's restatement has any agent-inferred assumption, label it "(assumed)".>
+## Confirmed Goal
+
+- **Goal**: <outcome stated or confirmed by the user; keep their constraints intact>
+
+## Assumptions to Confirm
+
+- **(assumed)**: <agent inference, not a confirmed decision>
+  **Confirm by**: <specific question for the user>
 
 # Constraints and Success Criteria
 
-<hard constraints; how we know it succeeded. Testable where possible.>
+## Hard Constraints
+
+- **Constraint**: <non-negotiable requirement stated by the user>
+  **Check**: <how a later stage can verify it>
+
+## Success Criteria
+
+- **Outcome**: <observable result the user wants>
+  **Measure**: <what would show that it succeeded>
 
 # Decisions
 
-- YYYY-MM-DD: <decision> — <one-line context or rationale>
-- YYYY-MM-DD: <decision> — …
+## Confirmed Decisions
+
+- **Decision** (YYYY-MM-DD): <choice the user actually confirmed>
+  **Rationale**: <brief context; do not present agent advice as confirmation>
 
 # Facts and Research
+
+## Verified Facts
 
 - **Fact**: <one sentence, the minimum claim>
   **Source**: <URL or path:line in this repo>
@@ -370,28 +398,88 @@ updated: YYYY-MM-DD
 
 # Unknowns
 
+## Open Questions
+
 - **Unknown**: <what is unknown>
   **Why it matters**: <downstream impact>
   **How to resolve**: <specific action>
 
+## Deferred Questions
+
+- **Question**: <unanswered question deliberately deferred>
+  **Return when**: <trigger or next stage that must resolve it>
+
 # Evaluation
 
-<agent's independent assessment: feasibility, risks, alternatives. Clearly labeled as agent opinion, NOT user requirement.>
+## Engineering Feasibility
+
+- **Assessment**: <brief technical feasibility assessment based on known evidence>
+  **Evidence**: <verified fact or explicit uncertainty supporting the assessment>
+
+## Engineering Risks
+
+- **Risk**: <technical failure mode, not a product or priority judgment>
+  **Signal**: <earliest observable indication>
+  **Mitigation**: <engineering action or question for a later stage>
 
 # Relationships and Impact
 
-<parent/child tree position; related intents; impact_scope walkthrough; downstream Specs that may consume this.>
+## Links
+
+- **Parent**: <INT-NNN or none>
+- **Children**: <INT-NNN list or none>
+- **Related**: <INT-NNN list or none>
+
+## Impact Scope
+
+- **Affected behavior**: <user-facing behavior that may change>
+- **Modules or interfaces**: <verified paths or interfaces; otherwise record as Unknown>
+- **Downstream Specs**: <known Spec IDs or none>
 
 # Spec Input
 
-<self-contained brief for a Spec Agent with no prior context: what, why, success criteria, hard constraints, confirmed decisions, verified facts, unknowns, impact_scope, and what the Spec Agent must NOT decide on its own.>
+## Goal and Context
+
+- **Goal**: <what the user wants, understandable without this conversation>
+- **Why**: <reason stated by the user; mark any inference (assumed)>
+
+## Requirements and Evidence
+
+- **Success criteria**: <observable outcomes and measures>
+- **Hard constraints**: <non-negotiable requirements>
+- **Confirmed decisions**: <user-confirmed choices, with dates>
+- **Verified facts**: <claims with source and verification date>
+- **Open unknowns**: <questions and how to resolve them>
+
+## Decision Boundaries
+
+- **Impact scope**: <affected behavior, known modules and interfaces>
+- **Do not decide**: <choices the Spec Agent must return to the user>
 
 # Resume Notes
 
-<short status: last action, what's next, key open questions.>
+## Current State
+
+- **Last action** (YYYY-MM-DD): <what was done>
+- **Open questions**: <unresolved items or none>
+
+## Next Action
+
+- **Owner**: <user, this skill, or downstream agent>
+- **Action**: <specific next step and return point>
 ```
 
-**Omit or trim sections that don't apply.** Empty sections are fine. **Do not pad with fake content** to make the document look complete. While drafting, a section that would only contain "TBD" may use `_TBD_`; resolve or remove it before archive under §9 step 4.
+For example, if the user only says "I want a shared team calendar," external
+calendar sync is **not** confirmed. Record it under `## Assumptions to Confirm`
+as `- **(assumed)**: The calendar must sync with external providers.` followed
+by `**Confirm by**: Ask which providers, if any, are required.` Do not put it
+under `## Confirmed Goal` or `## Confirmed Decisions` until the user answers.
+
+`# Evaluation` is limited to engineering feasibility and engineering risks.
+Keep it brief. Product value, market fit, priority, and whether the goal is
+worth pursuing belong to the user; raise such points as questions instead.
+While drafting, a section with no real content may use `_TBD_`; resolve or
+remove it before archive under §9 step 4. Never pad with fake content.
 
 ## 15. Modification Flow (vs Creation)
 
@@ -460,7 +548,7 @@ a separate per-layer checklist.
 
 ## 19. Hard Rules
 
-1. **Owner authority.** Never silently change user intent or constraints. If disagreeing, surface it in `# Evaluation`, not by editing the user's words.
+1. **Owner authority.** Never silently change user intent or constraints. If disagreeing, ask the user or record an open question in `# Unknowns`; do not edit the user's words.
 2. **Evidence before assumption.** Facts need sources. Unverified claims go in `# Unknowns`, never in `# Facts and Research`.
 3. **No fabricated requirements.** Omit empty sections. Don't pad.
 4. **Modification is the default, creation is the exception.** If the underlying objective is the same, modify.
@@ -492,6 +580,7 @@ a separate per-layer checklist.
 26. **Don't claim sync that didn't happen.** If a downstream artifact cannot be modified from this skill (almost always), return a clear result for its owner to apply. Do not claim the artifact was updated.
 27. **One explicit confirmation is enough.** When the user has explicitly confirmed the current stage's completion ("确认，继续" / "需求已经确定" / "INT-001 没问题了"), that single confirmation authorizes the corresponding archive and the immediate handoff. Do not prompt a second time to "are you sure?". Do not extend the authorization to unrelated changes (other intents, unrequested Specs, architectural decisions, code).
 28. **Completion check before every archive.** User confirmation does not waive §9 step 4 for the command or natural-language flow. Keep the intent active while a material gap remains; do not ask for a second confirmation after routine cleanup when the original authorization still applies.
+29. **Engineering-only evaluation.** Keep `# Evaluation` to technical feasibility and engineering risks with evidence. Do not assess product value, market fit, or user priority there.
 
 ## 20. Lightweight Reconcile Trigger
 
@@ -543,18 +632,19 @@ Preserve the owner's original goals and all applicable constraints. Do not split
 
 ## 22. Stable Item IDs
 
-Important goals, constraints, and decisions may be assigned **stable item IDs** so downstream artifacts (Spec, Architecture, Module) can refer to them precisely:
+Important goals, constraints, success criteria, and decisions may be assigned **stable item IDs** so downstream artifacts (Spec, Architecture, Module) can refer to them precisely:
 
 ```text
 INT-001/G-01  Goal
 INT-001/C-01  Constraint
+INT-001/S-01  Success criterion
 INT-001/D-01  Decision
 ```
 
 ### Rules
 
 - The intent ID (`INT-NNN`) is immutable.
-- Item IDs are only assigned to content with real traceability value — important goals, hard constraints, confirmed decisions. Plain explanation, examples, and minor text do not need IDs.
+- Item IDs are only assigned to content with real traceability value — important goals, hard constraints, success criteria, confirmed decisions. Plain explanation, examples, and minor text do not need IDs.
 - Assigned IDs **cannot be reassigned** to a different meaning.
 - Wording-only edits do not change item IDs. The same `INT-001/C-01` still refers to the same constraint after a paraphrase.
 - If the meaning materially changes, preserve the original entry as a historical record (e.g., "D-01 superseded by D-05 on YYYY-MM-DD — original: …") and add the new entry under a new ID. Do not silently reuse the old ID for a different meaning.
@@ -569,14 +659,22 @@ Use bold item IDs followed by content, e.g.:
 ```markdown
 # Constraints and Success Criteria
 
+## Hard Constraints
+
 - **C-01**: 历史回测不得使用未来数据。
 - **C-02**: 资产净值必须按统一计价基准计算。
 
+## Success Criteria
+
+- **S-01**: 同一数据集的回测结果可复现。
+
 # Decisions
+
+## Confirmed Decisions
 
 - **D-01** (2026-10-08): 支持策略驱动的仓位调整。
 ```
 
 ### Downstream reference format
 
-A Spec or Architecture document can reference by `INT-NNN/C-01` (or `INT-NNN/G-01`, `INT-NNN/D-01`). When this skill sees a downstream change, it can locate the exact item and assess whether the change is material.
+A Spec or Architecture document can reference by `INT-NNN/C-01` (or `INT-NNN/G-01`, `INT-NNN/S-01`, `INT-NNN/D-01`). When this skill sees a downstream change, it can locate the exact item and assess whether the change is material.
