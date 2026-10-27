@@ -1,12 +1,22 @@
 # Review and Coverage Methodology
 
-The full rules for risk review (during intake), Spec review (`/spec review`), and coverage analysis (`/spec coverage`). Read on demand when running any of these.
+The full rules for intake review (before writing), Spec review (`/spec review`), and coverage analysis (`/spec coverage`). Read on demand when running any of these.
 
-## 1. Risk Review (during intake)
+## 1. Intake Review (before writing)
 
-Run when starting a new Spec (`/spec <intent-id>` or `/spec new`).
+Run when starting Spec work on an Intent (`/spec <intent-id>` or `/spec new`), and when the source Intent changes materially. The review produces **zero or more findings** — there is no fixed full-category report, and a clean intake is a valid outcome. Findings can be raised **before a `SPEC.md` exists**; intake does not require a Spec artifact.
 
-### 1.1 Categories (apply when relevant)
+### 1.1 Pre-write alignment check
+
+Before writing any Requirement, confirm these five against existing authoritative content. Each is a check, not a new document:
+
+1. **Source Intent** — goals, hard constraints, confirmed decisions, success criteria, and the user's real starting state (`INTENT.md` plus its `parent` and related Intents).
+2. **Existing Specs** — which Specs already cite this Intent and what capability scope each owns, so this work extends rather than duplicates them (`SKILL.md` §3, §6).
+3. **Key facts** — every load-bearing factual claim classified Verified / Supported / Unverified ([fact-verification.md](fact-verification.md) §2).
+4. **Capability boundaries** — which system capabilities this Spec owns, and which belong to another Spec or to Architecture (`SKILL.md` §7).
+5. **Split scope** — one Spec or several, and what stays in the shared invariant section (`SKILL.md` §8).
+
+### 1.2 Categories (apply when relevant)
 
 - **Goal clarity** — is the user goal unambiguous enough to derive system behavior?
 - **Constraint compatibility** — do constraints across multiple related Intents agree?
@@ -14,26 +24,46 @@ Run when starting a new Spec (`/spec <intent-id>` or `/spec new`).
 - **Unprovable assumptions** — does the goal depend on something that cannot be verified?
 - **Infeasible core requirement** — is any core requirement technically infeasible?
 - **High-impact risk** — does the system touch assets, security, core data correctness, or other high-stakes areas?
-- **Blocking Unknowns** — are there Unknowns that prevent the Spec from being written?
+- **Open items that block writing** — is there an open item that makes a Requirement or acceptance condition impossible to write correctly?
 
-### 1.2 Blocking vs. Non-Blocking
+### 1.3 Open items: owner, and when to pause
 
-- **Blocking** — the Unknown is required to write correct Requirements. Pause and resolve before continuing.
-- **Non-Blocking** — the Unknown affects downstream design but not Requirement definition. Record in `# Unknowns and Upstream Feedback` and continue.
+Every open item — Unknown, ambiguity, unverified claim, missing decision — is **owned by a layer**, not escalated by default. Work these three questions in order.
 
-### 1.3 Routing per finding
+**Q1 — Does the answer change user-confirmed goal, scope, constraints, or the meaning of success?**
 
-- User goal ambiguity / contradiction → `/intent feedback <intent-id> <source>`.
-- Constraint conflict across Intents → `/intent-reconcile <id1> <id2> [<id3> ...]`.
-- Spec-level issue (incomplete system behavior, missing acceptance) → handle in this Spec.
-- Architecture-level issue (module ownership, public contract) → record in `# Architecture Handoff` or `# Unknowns and Upstream Feedback`. Do NOT auto-feedback to Intent.
-- Fact not yet verified → run verification or record as Unknown with a `How to resolve` step.
+- Yes, and it cannot be derived from upstream → the item goes back to **Intent / the user**. Spec does not decide it.
+- No, or it can be derived from upstream → continue to Q2.
 
-### 1.4 Output
+**Q2 — Whose content does it change?**
 
-A short list of findings. For each: severity (Blocking / Non-Blocking), category, proposed resolution.
+- System behavior, invariants, acceptance conditions → **Spec** handles it in this Spec.
+- Module ownership, public contract, dependency direction, implementation choice → **Architecture** (or Module Design).
+- A claim that must be checked → **research** ([fact-verification.md](fact-verification.md)).
 
-Do not produce a fixed full-category report. Apply only what is relevant.
+**Q3 — Does it block writing the current Requirement or acceptance condition?**
+
+- Yes → pause **the affected work only**; surface the item and wait for its owner.
+- No → record the basis (§1.4) and continue the unaffected work.
+
+Two limits on this procedure:
+
+- **Not every Unknown or default becomes a user question.** A default or unresolved detail that leaves confirmed meaning intact is Spec's to settle, Architecture's to route, or research's to check. Only an item that both changes confirmed product meaning and cannot be derived from upstream reaches the user.
+- **Do not use Spec's own just-written Requirement as proof that an upstream choice was confirmed.** A Requirement you derived shows your reasoning; confirmation comes from the Intent or the user.
+
+### 1.4 Recording findings and feedback
+
+Record each finding with: **source** (intent item / spec / fact id), **evidence** (with its scope), **impact** (what it would change, or "none"), **owner** (Intent / user / Spec / Architecture / research), **blocking** (yes / no, per §1.3 Q3), **return point** (what waits on what). No fixed template file — the existing artifact record is enough.
+
+Where:
+
+- **Before a `SPEC.md` exists** — Intent items go via `/intent feedback <intent-id> <source>`; Architecture items are held with their return point until a Spec exists to carry them (`SKILL.md` §20).
+- **In a Spec** — `# Unknowns and Upstream Feedback`, and `# Architecture Handoff` for Architecture decisions (`SKILL.md` §20).
+
+### 1.5 Severity
+
+- **Blocking** — the open item makes a Requirement or acceptance condition impossible to write correctly. Pause the affected work; the rest of the Spec continues.
+- **Non-Blocking** — the item affects downstream design, coverage, or confidence but not the definition of the Requirement. Record it and continue.
 
 ## 2. Spec Review (`/spec review <spec-id>`)
 
@@ -186,7 +216,7 @@ Each concrete decision has exactly one owner. A multi-layer finding produces mul
 | Module Design / Contract | API / schema / algorithm design, interface-field, default-value, magic-number choices — none of these are Spec Requirements. |
 | Implementation | Code-level issue at the Implementation stage. |
 | Verification | Empirical test not yet performed; observation gap. |
-| User | Trade-off, default value, magic number — agent cannot decide alone. |
+| User | A material trade-off, default, or magic number that changes confirmed product meaning and cannot be derived upstream (§1.3 Q1). |
 
 ### 2.6 Output format (Spec Skill presents this to the user)
 
@@ -247,7 +277,7 @@ Against the current authoritative content (this Spec + downstream guarantees + r
 - A Requirement is unambiguous only after wording clarification → clarification edit (`Accept with caveat`).
 - The gap is module ownership / public contract / capability attribution → not Spec's job.
 - The gap is actual code / runtime / empirical verification → not Spec's job.
-- The gap is a trade-off / default value / magic number → `Owner Decision Required` (User).
+- The gap is a trade-off / default value / magic number that changes confirmed product meaning and cannot be derived upstream → `Owner Decision Required` (User). Otherwise it belongs to the layer that owns the content (§1.3 Q2).
 - The evidence is incomplete or unverified → `Request Evidence` (state what would resolve).
 - Same root cause as another finding → `Merge with F-N`.
 

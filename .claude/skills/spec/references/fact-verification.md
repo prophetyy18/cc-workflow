@@ -8,9 +8,9 @@ Establish an **adequate** factual basis for each load-bearing Requirement. Not m
 
 ## 1. When Fact Verification Triggers
 
-Fact verification is not limited to the initial Spec risk review. It applies at any point a load-bearing factual claim is encountered:
+Fact verification is not limited to the initial Spec intake review. It applies at any point a load-bearing factual claim is encountered:
 
-- **Intake** (risk review) — claims about external systems or domain behavior.
+- **Intake** (intake review) — claims about external systems or domain behavior.
 - **Capability discovery** — factual assumptions about what inputs or outputs are available.
 - **Requirement derivation** — claims that justify a Derived Requirement.
 - **Spec review** — claims implicit in the existing Requirements.

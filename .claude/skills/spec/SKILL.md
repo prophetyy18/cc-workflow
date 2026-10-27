@@ -26,7 +26,7 @@ Read `$ARGUMENTS`. First token is the subcommand, the rest is the target.
 | Subcommand | Target | Behavior |
 |---|---|---|
 | (empty) or `help` | — | Show this help |
-| `<intent-id>` (bare) | intent id | Primary entry: read intent, run risk review, determine Spec scope |
+| `<intent-id>` (bare) | intent id | Primary entry: read intent, run intake review, determine Spec scope |
 | `new` | `<intent-id> [scope]` | Create a new Spec for an intent (optionally scoped) |
 | `list` | — | List all Specs grouped by status |
 | `show` | `<spec-id>` | Print the full `SPEC.md` |
@@ -76,20 +76,17 @@ The `id` field in frontmatter is the source of truth. Titles, `source_intents`, 
 Use when the user wants to start spec work but hasn't said "new" explicitly.
 
 1. Load `INTENT.md`. Read its `parent` and directly related intents for context.
-2. Read any existing Specs that cite this intent. Note their scope.
-3. **Risk review** (see [references/review.md](references/review.md#1-risk-review-during-intake)):
-   - User goal clarity, constraint compatibility, fact verification, unprovable assumptions, infeasible core requirements, high-impact risks, Blocking Unknowns.
-   - For load-bearing factual claims, also follow [references/fact-verification.md](references/fact-verification.md): classify as Verified / Supported / Unverified; defer or resolve before closing the Spec.
-4. **Capability discovery** (see §7): map the intent to system capabilities.
-5. **Spec decomposition decision**: one Spec, or several? Or does a related Spec already exist?
-6. Record the scope and its source Intent items; reuse an existing Spec when it owns the same capability.
-7. Proceed to `new` or `resume` under the user's Spec or whole-goal instruction. Apply cross-layer §2.5.b if decomposition exposes a material product choice. A routine capability boundary does not require another approval round.
+2. **Intake review** (see [references/review.md](references/review.md#1-intake-review-before-writing)): run the pre-write alignment check — source Intent, existing Specs, key facts, capability boundaries, split scope — then route each open item by [§1.3](references/review.md#13-open-items-owner-and-when-to-pause). Findings may be zero or more, and may be raised before a `SPEC.md` exists. Pause only what an open item actually blocks.
+3. **Capability discovery** (see §7): map the intent to system capabilities.
+4. **Spec decomposition decision** (see §8): one Spec, or several? Or does a related Spec already exist?
+5. Record the scope and its source Intent items; reuse an existing Spec when it owns the same capability.
+6. Proceed to `new` or `resume` under the user's Spec or whole-goal instruction. Apply cross-layer §2.5.b if decomposition exposes a material product choice. A routine capability boundary does not require another approval round.
 
 ## 6. Subcommand: `new <intent-id> [scope]`
 
 Create a new Spec.
 
-1. Re-run the risk review. If Blocking Unknowns exist, surface them — do not silently fill in assumptions.
+1. Re-run the intake review ([references/review.md](references/review.md#1-intake-review-before-writing)). If an open item blocks writing a Requirement or acceptance condition, surface it — do not silently fill in assumptions. Non-blocking items are recorded and do not delay the work.
 2. Read the source intent again. Identify the scope: which capabilities this Spec will cover.
 3. If `[scope]` is given, narrow to that. Otherwise infer the smallest useful scope from the Intent and existing Specs; ask only if plausible choices change confirmed product scope (§2.5.b).
 4. **Check existing Specs**:
@@ -216,6 +213,8 @@ updated: YYYY-MM-DD
 <what Architecture must decide. Required capabilities, required contract semantics, but not actual API names or module names. Items left open: "Architecture must assign capability X to a module", "Architecture must provide a contract for behavior Y".>
 
 # Unknowns and Upstream Feedback
+
+<Each open item and feedback: source, evidence (with scope), impact, owner, blocking, return point.>
 
 - **Unknown**: <what is unknown, why it matters, how to resolve>
 - **Feedback to Intent**: <if a user goal is ambiguous, contradictory, or infeasible, route via `/intent feedback <intent-id> <source>`>
@@ -559,7 +558,15 @@ evidence, not Skill availability.
 
 ## 20. Upstream Feedback
 
-Spec may find problems at any layer. Route them by ownership level:
+Spec may find problems at any layer. Route each one to the layer that owns the
+decision. Spec does NOT modify Intent or Architecture content itself.
+
+**Who owns it?** Apply the open-item rule in
+[references/review.md §1.3](references/review.md#13-open-items-owner-and-when-to-pause):
+the item goes to the layer whose content it changes — Intent / the user when it
+changes confirmed meaning and cannot be derived upstream, Spec for system
+behavior and acceptance, Architecture for module and implementation choices,
+research for a claim that must be checked.
 
 **Feedback to Intent** (via `/intent feedback <intent-id> <source>`):
 
@@ -575,12 +582,14 @@ Spec may find problems at any layer. Route them by ownership level:
 - Dependency direction conflict
 - Capability ownership unclear
 
-Spec does NOT modify Intent or Architecture. It only describes the problem, the evidence, and the requested resolution.
+**What to record:** source, evidence (with scope), impact, owner, blocking,
+return point — see
+[references/review.md §1.4](references/review.md#14-recording-findings-and-feedback).
 
-Record feedback in `# Unknowns and Upstream Feedback`; under an authorized
-whole-goal task, the Main Agent enters the owning Skill or reads and follows
-it when native invocation is unavailable. Report a genuinely unavailable
-capability and preserve the return point. Do not claim an unperformed edit.
+Under an authorized whole-goal task, the Main Agent enters the owning Skill or
+reads and follows it when native invocation is unavailable. Report a genuinely
+unavailable capability and preserve the return point. Do not claim an
+unperformed edit.
 
 ## 21. Hard Rules
 
