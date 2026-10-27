@@ -95,8 +95,10 @@ For each affected contract, classify:
 
 - **Existing Contract Sufficient** — current contract semantics cover the new Requirement; no change needed.
 - **Internal Change Only** — the change is in the Provider's private implementation; public contract and consumers are untouched.
-- **Compatible Extension** — the public contract grows (new optional field, new method, new event) without breaking existing consumers.
-- **Breaking Change** — the public contract's existing semantics or structure change; existing consumers may break.
+- **Compatible Extension** — consumers gain an optional observable behavior
+  while existing obligations and their ordering remain valid.
+- **Breaking Change** — a consumer-observable guarantee, prerequisite,
+  timing, or failure meaning changes; existing consumers may break.
 - **New Public Capability** — the Requirement cannot be satisfied by any existing contract; a new cross-module capability is required.
 - **Insufficient Evidence** — cannot reliably judge; the impact Plan must list what evidence is missing.
 

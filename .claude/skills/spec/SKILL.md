@@ -6,7 +6,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, Bash(date*), 
 
 # Spec Skill
 
-Transforms a clarified user Intent into **complete, verifiable, traceable system requirements**. Spec is the authoritative layer for "what the system must guarantee" — it does not design how. Architecture decides module ownership and contracts; Module Design decides implementation.
+Transforms a clarified user Intent into **complete, verifiable, traceable system requirements**. Spec is the authoritative layer for "what the system must guarantee" — it does not design how. Architecture decides module and public capability ownership; Module Design defines the owned public contract content and internal design.
 
 ## 1. Layer Boundaries
 
@@ -14,8 +14,8 @@ Transforms a clarified user Intent into **complete, verifiable, traceable system
 |---|---|---|
 | **Intent** | User objectives, goals, constraints, confirmed decisions, success conditions | System behavior, modules, APIs |
 | **Spec** (this skill) | System capabilities, functional & non-functional requirements, system invariants, cross-capability correctness, acceptance conditions | Module names, API shapes, schemas, algorithms, storage choices |
-| **Architecture** | Module boundaries, capability ownership, public contracts, dependency direction | Specific APIs beyond the contract, internal implementation |
-| **Module Design** | API details, schemas, algorithms, internal structure | Why these capabilities exist (Intent's job) |
+| **Architecture** | Module boundaries, capability and public contract ownership, required cross-module semantics, dependency direction | Concrete API / schema fields and internal implementation |
+| **Module Design** | Provider-owned public contract content, API details, schemas, algorithms, internal structure | Module or contract ownership; why these capabilities exist |
 
 **Spec describes what the system must guarantee. It does not decide how.**
 
@@ -94,7 +94,9 @@ Create a new Spec.
 3. If `[scope]` is given, narrow to that. Otherwise infer the smallest useful scope from the Intent and existing Specs; ask only if plausible choices change confirmed product scope (§2.5.b).
 4. **Check existing Specs**:
    - Does an existing Spec already cover part of this scope? If yes, surface — modify existing first, don't duplicate.
-   - If split is appropriate, propose a primary Spec and optionally cross-Spec invariants.
+   - If the §8 split test passes, choose the owning Spec for each behavior
+     and define any required cross-Spec invariant once with participating
+     Specs citing it.
 5. **Generate Spec ID**: scan `docs/specs/SPEC-*/SPEC.md`, find max `SPEC-NNN`, take next.
 6. Create `docs/specs/SPEC-NNN/SPEC.md` with `status: active`. Create `docs/specs/` if missing.
 7. Fill frontmatter (`id`, `title`, `status`, `source_intents`, `created`, `updated`).
@@ -121,15 +123,14 @@ The map can live in the Spec's `# Scope and Sources` or `# System Capabilities` 
 
 ## 8. Spec Decomposition
 
-One Spec per independent, verifiable system behavior or behavior group. Not per module, per code directory, per intent, or per API.
+One Spec per independent, verifiable system behavior or behavior group. Not per module, per code directory, per intent, or per API. First check existing Specs: extend the Spec that already owns the behavior instead of creating a duplicate.
 
-Split when:
+Split only when **both** conditions hold:
 
-- Behavior boundary is clear and self-contained.
-- Each side can have its own acceptance criteria.
-- Different change/maintenance cadence.
-- Splitting makes the system easier to understand and verify.
-- Splitting does NOT lose system-level invariants.
+- The behaviors have a clear boundary; each side can be described without silently changing the other side's guarantee.
+- Each side has its own observable acceptance conditions.
+
+Different change cadence and easier review can favor a split after both conditions hold; neither alone justifies one. Keep heavily coupled behavior together. Before splitting, identify any guarantee that only holds when the sides compose, choose one authoritative Spec item and stable ID for its definition, and make every participating Spec cite it with its own participation and system-verification obligation. Do not copy competing definitions of the same invariant.
 
 Do not split just because:
 
@@ -138,8 +139,6 @@ Do not split just because:
 - There are two sets of APIs.
 - The requirement doc is long.
 - It needs many tests.
-
-Heavily-coupled capabilities belong in the same Spec. Cross-Spec invariants must be explicitly captured in both Specs and a shared invariant section.
 
 **One Intent → many Specs. Many Intents → one Spec.** This is normal. The `source_intents` field lists all that apply.
 
@@ -202,7 +201,7 @@ updated: YYYY-MM-DD
 
 # System Invariants and Dependencies
 
-<cross-capability / cross-Spec correctness constraints that must always hold. Examples: "no future-data leakage", "unified NAV calculation", "deterministic replay".>
+<cross-capability / cross-Spec correctness constraints that must always hold. Define each invariant once with a stable ID in its authoritative Spec; participating Specs cite that ID and state their participation and system-verification obligation. Examples: "no future-data leakage", "unified NAV calculation", "deterministic replay".>
 
 # Acceptance and Verification
 
@@ -431,131 +430,46 @@ Spec identifies the route; Architecture owns Architecture decisions. The Main
 Agent continues through the appropriate Skill when the broader task is already
 authorized, using cross-layer §2.5.c before dependent work.
 
-### 19.1 Routing inputs
+### 19.1 Routing basis
 
-Routing makes two **independent** checks before deciding.
+Read the current project's authoritative Architecture Baseline at
+`docs/architecture/ARCHITECTURE.md`, a project-explicit adopted path, or its
+named successor. A Skill install directory, empty stub, or unrelated sample
+is not a project Baseline. Check Skill invocability separately from Baseline
+availability; a file on disk does not prove native invocation is available.
+Use the archived Spec's changed REQ/INV items and `# Architecture Handoff` as
+the routing input.
 
-**Skill Availability** — Whether the Architecture Skill is invocable from the current Claude Code environment. Skills may come from project-level `.claude/skills/`, user-level skills, or other supported sources. **A Skill file existing on disk is not the same as the Skill being invocable in this run.** A separate Skill directory by itself does not imply any project Baseline.
+### 19.2 Route
 
-**Baseline Availability** — Whether the current business project has an authoritative Architecture Baseline. The Baseline is a *project* artifact, distinct from any Skill.
+| Evidence | Next owning work |
+|---|---|
+| No trustworthy project Baseline | `/architecture init` (Route A) |
+| Baseline exists, but capability ownership, public contract semantics, dependency direction, state authority, or invariant responsibility may be affected or is uncertain | `/architecture impact SPEC-NNN` (Route B) |
+| Baseline names the affected owners, and current evidence shows its public capabilities and required semantics still cover the Spec | Module Design for those `MOD-<slug>` IDs (Route C) |
 
-Canonical search order for the current project's Baseline:
+A missing Owner in an existing Baseline is Route B, not reinitialization.
+Uncertainty calls for impact analysis, not an assumed Architecture revision.
+Spec names the changed requirement semantics, the Baseline evidence or gap,
+and the question Architecture must decide. Architecture alone classifies the
+impact and revises ownership or public capability boundaries; the Provider's
+Module Design owns concrete contract content. Spec does not edit either.
 
-1. `docs/architecture/ARCHITECTURE.md` (preferred convention).
-2. A project-explicit authoritative path the project has adopted (for example, a top-level `ARCHITECTURE.md`). Use it only when the project has clearly chosen that path.
-3. Any formal successor the project explicitly names.
+For Route C, cite the existing Owner and applicable capability/contract
+semantics rather than inferring sufficiency from a filename. If evidence is
+missing, use Route B. Under an authorized whole-goal task, the Main Agent
+enters the owning Skill (or follows its file when native invocation is
+unavailable), checks cross-layer §2.5.c, and preserves a return point when a
+capability is genuinely unavailable. A standalone Spec request reports the
+route without executing downstream work.
 
-An empty directory, a missing file, or a near-empty stub is **Baseline absent**. The following are **not** valid Baseline evidence, regardless of filename or directory name:
+### 19.3 Handoff record
 
-- `.claude/skills/architecture/SKILL.md` and its references (this is the Skill's own documentation).
-- The Architecture Skill install directory and any file inside it.
-- Generic framework documentation, third-party templates, or unrelated sample projects.
-- Documents not authored as the project's authoritative Baseline.
-
-Other routing inputs (always project-scoped):
-
-- The archived `SPEC.md`, especially `# Architecture Handoff` and `# Requirements`.
-- Module / contract documentation that legitimately follows from the project's Baseline (not Skill files).
-- Cross-references to other Specs that share capabilities.
-
-### 19.2 Three routes
-
-**Route A — Architecture Init**
-
-Apply when:
-
-- No trustworthy Architecture Baseline exists for the current business project (Baseline Availability = absent).
-
-This is the **only** trigger for Route A. Any "new capability without a module Owner" or "applicability of an existing Baseline unclear" is **not** a Route A trigger — see Route B.
-
-Important clarifications — none of these alone establish a Baseline:
-
-- The Architecture Skill is installed or invocable from this environment.
-- `.claude/skills/architecture/SKILL.md` exists on disk.
-- An architecture-shaped directory exists but is empty.
-- A file with a similar filename exists in an unrelated location.
-
-Skill Availability is **independent** of this route: a Baseline can be absent whether or not the Skill is invocable.
-
-Recommendation: `/architecture init`. Under an authorized whole-goal task,
-the Main Agent invokes that Skill or reads and follows it if invocation is
-unavailable. Preserve the Handoff when neither is possible.
-
-**Route B — Architecture Impact**
-
-Apply when **any** of:
-
-- A trustworthy Baseline exists, but a new system capability has no clear module Owner. **(Baseline present + new capability lacks Owner → Route B, not Route A. Reinitialization is not justified by a coverage gap alone.)**
-- An existing public contract may be insufficient for a new Requirement.
-- The Spec may change module ownership, dependency direction, or authoritative state attribution.
-- The Spec may change public contract semantics.
-- Cross-module system invariants may be affected.
-- There is not enough evidence to conclude the existing architecture absorbs the change.
-- The Baseline's applicability to the current Spec is uncertain and needs targeted verification.
-
-When a Baseline exists but is partial or applicability is uncertain, evaluate the gap before recommending reinitialization. Targeted Impact (or even Module Design) is usually cheaper than `init`. Only Architecture itself decides whether a Revision is actually needed (its impact result A / B / C).
-
-**Insufficient evidence means we need to check, not that revision is required.**
-
-Recommendation: `/architecture impact SPEC-NNN`. Use the same Main Agent
-handoff rule as Route A.
-
-**Route C — Direct Module Design**
-
-Apply when **all** of:
-
-- A trustworthy Architecture Baseline exists for the current project.
-- The capabilities needed have clear responsibility Owners.
-- Required public contracts exist and are sufficient.
-- The Spec does not change module boundaries, contract ownership, or key cross-module semantics.
-- The remaining work is module-internal design or implementation.
-
-**Route C requires real evidence** — a trustworthy Baseline that names the affected Owners and shows the contracts hold. Do not conclude Route C from filename similarity, directory presence, or Skill availability.
-
-When the routing evidence itself is incomplete (Baseline exists but Owner / contract status unclear), do not guess Route C. Surface `Insufficient evidence` and propose `/architecture impact SPEC-NNN` or targeted verification.
-
-Recommendation: proceed directly to Module Design for the relevant module. No new Architecture work required. Skill invocability is not required to recommend Route C — it changes only who performs the Module Design, not the routing verdict.
-
-For each affected module ID from the Baseline, invoke the Module Design Skill
-or read and follow it in the Main Agent under an authorized whole-goal task.
-Record a return point if the capability is genuinely unavailable.
-
-### 19.3 Routing evidence
-
-The routing conclusion must cite the minimum evidence:
-
-- The relevant Spec Requirements.
-- Required system capabilities.
-- Existing architecture evidence (or its explicit absence).
-- Whether a module owner already exists.
-- Whether a public contract gap is detected.
-- The recommended next step and its reasoning.
-
-If architecture documents are missing, do **not** invent module or contract claims to make the routing look cleaner.
-
-### 19.4 Scope
-
-Spec only proposes the route. It must NOT directly modify:
-
-- Module responsibility.
-- Public contracts.
-- Architecture baseline.
-- Module Design.
-
-If a downstream Architecture or Module Design step concludes the existing baseline is wrong, that conclusion comes from those layers, not from Spec.
-
-### 19.5 No extra router skill
-
-Downstream Routing is a small step in Spec's existing Hand-off, not a separate Workflow Controller, Router Agent, or Handoff Manager.
-
-### 19.6 Skill availability is not fixed
-
-Judge Skill invocation and the business project's Baseline independently at
-runtime. A Skill file or empty directory is not a Baseline. If native Skill
-invocation is unavailable but files and tools are accessible, the Main Agent
-follows the owning Skill; otherwise it reports the actual blocker and return
-point without claiming the handoff ran. Routing A/B/C depends on Baseline
-evidence, not Skill availability.
+Record the affected REQ/INV IDs, needed capabilities and semantics, the
+Baseline location or absence, the route and its evidence, the owning next
+step, and any unresolved question. This is a short handoff in the current
+Spec/Resume Notes, not another router artifact or a claim that downstream
+work already happened.
 
 ## 20. Upstream Feedback
 

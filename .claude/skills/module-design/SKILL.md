@@ -221,6 +221,13 @@ For each field, cross-check against:
 - Known Consumers' actual use (search the consumer code or contract
   reference where one exists).
 
+For each provided and consumed capability, name the Consumer and the exact
+contract guarantee it relies on. At the user's corresponding workflow step,
+check that the Consumer can already obtain every required input from a
+Provider or the stated starting state. Record a missing Provider or a
+forward dependency as a scoped feedback item; do not fill the gap with an
+invented API or an unstated user action.
+
 When multiple Capabilities are tightly coupled (same Provider, shared
 state, shared timing rules), use a single contract file rather than
 splitting by Capability unless audiences are genuinely disjoint.
@@ -533,6 +540,9 @@ design transition. The split matches
   an earlier `final` or Review covers only its former scope.
   If the needed behavior belongs to another Provider, send
   cross-layer feedback to its owner and record the dependency.
+- Each actual Consumer is linked to the guarantee it uses, and the
+  required Provider output is available at the step when that Consumer
+  needs it; a later result cannot satisfy an earlier prerequisite.
 - **No unresolved prerequisite for this scope**, regardless of its
   label. Apply `cross-layer-coordination.md` §2.5.c/e. Sending feedback,
   editing upstream, or renaming a blocker as an obligation does not

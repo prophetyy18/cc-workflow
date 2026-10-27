@@ -228,8 +228,9 @@ necessary layer (§4), preserving confirmed user meaning.
 
 ### 8.7 Completion claim
 
-Report documents/contracts, code/local tests and real user-path evidence
-separately. Only the last establishes user success under real conditions.
+Report documents/contracts, module code and contract evidence, and real
+user-path evidence separately. A module handoff closes only its verified
+scope; only the full path establishes user success under real conditions.
 
 ### 8.8 Per-step reachability
 
@@ -247,7 +248,9 @@ complete must cover the scope needed. Preserve confirmed choices and order.
 
 #### 8.8.3 Resolve and verify
 
-Route by §4. At Implementation handoff, run the required path from its initial
-state and record failure behavior, conditions and unexercised transitions
-(`verification.md` §4.7). A final Design may have a runtime obligation;
-that status is not user-path acceptance.
+Route by §4. At a module Implementation handoff, exercise its required real
+public and available integration boundaries and record the covered steps,
+failure behavior, conditions and unexercised transitions (`verification.md`
+§4.7). The integration owner runs the full sequence from its initial state
+before claiming user-path acceptance. A final Design or module handoff is
+not that acceptance.

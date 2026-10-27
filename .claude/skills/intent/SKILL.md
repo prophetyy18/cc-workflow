@@ -108,6 +108,12 @@ The skill never writes code or designs solutions. Its output is the `INTENT.md`,
 
 `# Spec Input` is therefore **optional and short**: a handoff map, never a copy — the goals and constraints the Spec must satisfy by item ID, the product choices it must return to the user rather than settle, and the impact scope when known. An Intent may produce zero, one, or many Specs; hierarchy does not determine Spec decomposition.
 
+Before handoff, check that Spec can locate the confirmed goal and constraint
+IDs, the user's real starting state and confirmed operation order where a path
+exists, and any open product choices. A missing item is a named handoff gap,
+not permission for Spec to infer a user choice. This check does not select
+system capabilities or decide how many Specs to write.
+
 When the next stage cannot be invoked — unavailable, out of authorization, or not installed — say so plainly and leave the pointer: the `INTENT.md` path, the item IDs a downstream layer must satisfy, the open product choices it must return, and the impact scope. Never state that a downstream artifact was updated when it was not (invariant 6).
 
 `# Clarified Intent` states the user's **operation sequence from a real starting point** — what the user knows and provides at the start, who supplies each input, the confirmed order, and what the user observes when it works. Keep it at user level: UI detail, error handling, and system state transitions belong to Spec (`../../references/cross-layer-coordination.md` §8), but do not drop a step or blur the order when a downstream reader could otherwise misread the core flow.

@@ -164,6 +164,13 @@ optional, and they are what the next layer (Module Design) depends on:
    start. After Baseline adoption, change an ID only via an explicit
    `revise` — and propagate to downstream artifacts.
 
+For each affected REQ and cross-capability INV, check the complete row:
+source item → Primary Owner → collaborators when needed → public capability
+Provider and actual Consumers → integration verifier and verification path.
+Use `none` only when the edge genuinely does not apply; an unknown Owner or
+Provider remains an open Architecture question. The separate Baseline tables
+must agree on the same item rather than merely looking complete in aggregate.
+
 ### Step 5 — Define Dependency Boundaries
 
 For each module, document:
@@ -197,6 +204,9 @@ Verify:
 
 - Every important Requirement has at least one Primary Owner.
 - Every cross-capability System Invariant has an integration owner and a verification path.
+- Every affected REQ/INV has a traversable ownership row from its source to
+  the responsible module, required Provider/Consumers, and verification owner;
+  there are no contradictory assignments across Baseline sections.
 - No two modules claim authoritative ownership of the same state.
 - No Requirement is orphaned (no module responsible for satisfying it).
 - System-level guarantees (e.g., "no future-data leakage in the combined historical + replay + performance path") are not silently lost in the module split.
@@ -432,7 +442,9 @@ Skills look up by. Do not leave the first column blank; do not let the
 display name stand in for the ID.
 
 ## 3. Capability / Requirement Ownership
-<for each System Capability: which module(s) own it, which Requirements it satisfies. Use the MOD-<slug> ID from §2, not a display name.>
+<for each REQ/INV: source ID, capability, Primary Owner, collaborators,
+required public Provider/Consumers or none, integration verifier and
+verification path. Use the MOD-<slug> ID from §2, not a display name.>
 
 ## 4. Dependency Boundaries
 <allowed / forbidden dependencies, authoritative state owners, required direction. Refer to modules by MOD-<slug>.>
@@ -484,6 +496,8 @@ Architecture does **not** use Intent / Spec's `active` → `archived` lifecycle.
 `init` is complete when:
 
 - Important System Capabilities have Primary Owners.
+- Each affected REQ/INV's ownership row is complete and agrees with the
+  public capability, dependency and invariant sections.
 - Public Capabilities have Providers and at least one recorded Consumer (or "no known consumer yet").
 - Module dependency boundaries are explicit.
 - System Invariants have integration owners and verification paths.

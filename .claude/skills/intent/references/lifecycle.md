@@ -95,10 +95,10 @@ execution.
    and to any downstream artifact that cited them.
 
 **What the proposed separation is really about.** Route it by its nature:
-**system behavior** → keep it in the Intent and let Spec decompose
-capabilities; **module ownership, APIs, data storage, or algorithms** →
-defer to Architecture or Module Design. When uncertain, compare alternative
-structures and explain which user objectives would actually become
+if the user objective stays the same, keep the Intent intact and let Spec
+decompose system behavior; module ownership goes to Architecture, while APIs,
+data storage, and algorithms go to Module Design. When uncertain, compare
+alternative structures and explain which user objectives would actually become
 independently manageable.
 
 **What does not trigger a reconcile here.** A requested parent/child split is

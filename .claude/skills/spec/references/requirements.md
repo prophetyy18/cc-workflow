@@ -66,6 +66,9 @@ When a Requirement has real traceability value, assign `SPEC-NNN/REQ-NNN`:
 - IDs do NOT change on wording edits.
 - A Requirement whose meaning materially changes should get a new ID; the old one is kept as a historical record.
 - Cross-references from other documents use `SPEC-NNN/REQ-NNN`.
+- A cross-capability invariant that other Specs or downstream artifacts cite
+  gets `SPEC-NNN/INV-NNN` in its one authoritative Spec. Preserve its ID on
+  wording-only edits; a new meaning gets a new ID and a supersession note.
 
 ## 4. Source Attribution
 
@@ -107,7 +110,13 @@ These preserve traceability across revisions.
 
 When capabilities are split across multiple Specs, certain correctness conditions only hold when the capabilities work together. These **system invariants** must be:
 
-- Recorded in `# System Invariants and Dependencies` of every Spec that participates.
+- Defined once as a stable, traceable item in one authoritative Spec's
+  `# System Invariants and Dependencies`. Choose the Spec that owns the
+  composed behavior or the most direct source goal; do not create a separate
+  relationship database just for the invariant.
+- Cited by ID in every participating Spec's `# System Invariants and
+  Dependencies`, with that Spec's participation and system-verification
+  obligation. A reference does not silently redefine the invariant.
 - Identified by asking: "if Spec A and Spec B are both correctly implemented individually, could the combined system still violate a user constraint?" If yes, an invariant is missing.
 
 Common kinds:
@@ -117,4 +126,6 @@ Common kinds:
 - **Deterministic composition** — e.g., "replay must produce the same state regardless of execution order".
 - **Atomicity** — e.g., "a state change either fully completes or is fully rolled back".
 
-Invariants are not tested in one Spec; they require an end-to-end verification at the system level.
+The authoritative Spec defines the required system outcome; Architecture
+assigns an integration owner and verification path. Passing each Spec's
+isolated tests does not prove the invariant: it requires system-level evidence.

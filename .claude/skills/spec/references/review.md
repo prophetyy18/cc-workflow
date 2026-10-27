@@ -152,7 +152,7 @@ See `.claude/agents/independent-reviewer.md` §3 for the full procedure. The Rev
 ### 2.3 Checklist (criteria the Reviewer applies)
 
 1. **Risk re-check** — re-run the intake risk categories against the current Spec content.
-2. **Completeness** — every System Capability has at least one Requirement. Every cross-capability invariant is recorded in `# System Invariants and Dependencies`.
+2. **Completeness** — every System Capability has at least one Requirement. Every cross-capability invariant is defined once in an authoritative Spec and cited with participation and verification obligations in each related Spec's `# System Invariants and Dependencies`.
 3. **Traceability** — every Requirement cites a source. No orphan Requirements. All cited Intent items still exist (verify by reading the Intent).
 4. **Conflict** — no Requirement contradicts another Requirement in this Spec or a related Spec.
 5. **Testability** — every Requirement can be observed, with clear pass/fail criteria. Numeric thresholds have measurement methods.
@@ -355,7 +355,7 @@ A coverage table:
 
 ### 3.6 Large Intent
 
-A large Intent does not need to be split into sub-Intents to achieve coverage. Coverage is a per-Intent check; if gaps exist, decide whether to create a new Spec, extend an existing Spec, or accept the gap as out of scope (deferred to Architecture, or not required at all).
+A large Intent does not need to be split into sub-Intents to achieve coverage. Coverage is a per-Intent check. If a required system behavior is missing, extend the Spec that owns it or create a Spec only when `SKILL.md` §8's behavior-and-acceptance split test passes. A gap may be excluded only when the source Intent explicitly excludes it or the user changes the confirmed scope. Architecture may assign responsibility for a defined behavior; it cannot declare a required behavior out of scope.
 
 ## 4. Change Impact
 

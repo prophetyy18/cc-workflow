@@ -38,8 +38,8 @@ and prerequisite checks rather than introducing another lifecycle or agent.
    owner, specific evidence and next action. Show why a nearby module is
    unaffected only when its ownership and contract use support that claim.
    Terminate propagation at an evidenced unchanged boundary.
-4. Report separately: current document/contract closure; code and local-test
-   coverage; real user-path evidence. State the version and scope of each
+4. Report separately: current document/contract closure; module code, local-test
+   and real-boundary coverage; full user-path evidence. State the version and scope of each
    old PASS/final/real run, or say scope unknown. A working-tree edit, mock,
    skipped test, or status field alone cannot close the user path.
 5. Select the next work that can close with concrete evidence. State its

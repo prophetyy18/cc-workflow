@@ -100,7 +100,9 @@ and keep the affected authority open.
 
 ## 6. Boundaries with Spec and Architecture
 
-This skill produces shared-ability statements in intent language ("the system shall support …"). It does **not**:
+This skill expresses shared outcomes in user language (for example, "users
+need to reach the same result in both modes"). Spec derives the system
+guarantees from those outcomes. This skill does **not**:
 
 - Name specific mechanisms (Callback, Hook, Queue, Event Bus, etc.).
 - Define module boundaries, public contract schemas, or API ownership.

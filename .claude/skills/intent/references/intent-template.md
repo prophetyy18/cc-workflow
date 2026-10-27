@@ -45,6 +45,9 @@ updated: YYYY-MM-DD
 
 <only when the goal has an ordered path>
 
+- **Starting state**: <what the user already knows and can provide before
+  the first action, and what the system already has>
+
 1. <step, in confirmed order>
 
 # Constraints and Success Criteria
@@ -146,6 +149,8 @@ goal sits with that goal>
 
 - **Goals**: <INT-001/G-01 — one line of label each>
 - **Constraints**: <INT-001/C-01>
+- **User path**: <link to the real starting state and confirmed operation
+  order in `# Clarified Intent`, when the goal has an ordered path>
 
 ## Do Not Decide
 
@@ -213,7 +218,7 @@ form they apply while writing:
   typically after a clarification, and typically with a history worth
   keeping.
 - **`# Spec Input` never copies content.** It points at item IDs and names
-  the choices the Spec Agent must return to the user.
+  the user path and the choices the Spec Agent must return to the user.
 - **An inference is never a decision.** `(assumed)` items live under
   `## Inferred, Not Authorized` and are never counted as confirmation.
 - **One uncertainty, one entry.** An inference that is still waiting for the

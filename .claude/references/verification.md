@@ -320,10 +320,12 @@ A passing test suite is necessary but not sufficient:
   `Implementation Verified`.
 
 **End-to-end user-journey check** (anchor to
-`cross-layer-coordination.md` §8). For tasks that have a user
-sequence (UI flow, API call sequence, CLI commands, data
-pipeline), acceptance must include a run from the real starting
-state covering every step. The run is classified per §4.7
+`cross-layer-coordination.md` §8). For a claim that a user goal with a
+sequence is complete (UI flow, API call sequence, CLI commands, data
+pipeline), acceptance must include a run from the real starting state
+covering every step. A scoped module handoff instead checks the real
+boundaries it owns and records the remaining integration path and owner.
+The run is classified per §4.7
 (real / offline replay / mock / not-run). If the real run cannot
 execute, the gate does not close on the basis of "every
 component / unit test passed"; name the missing pre-condition,
@@ -430,24 +432,22 @@ allowed; that skip must be reported. Calling a "real test"
 accepted because all tests passed when real tests did not run is
 **not** permitted.
 
-When the task's required real acceptance has not been performed,
-the Main Agent does **not** announce implementation or the user
-path closed. An implementation or delivery artifact does not
-transition to "complete" / "handoff closed" on the basis of
-mock-only or skipped real-acceptance evidence. The Main Agent
-records what was *not* verified (the
-missing pre-condition, the test that would have run, and what kind
-of test it would be) and saves the resume position in the
-artifact's `# Resume Notes` (or equivalent). Re-classifying an
-unsatisfied necessary acceptance as "Consumer follow-up" or
-"production-time validation" to close the task is the same
-anti-pattern: the task's own completion discipline set the gate,
-and the gate is the gate.
+When required real acceptance for a claimed scope has not been performed,
+the Main Agent does **not** announce that scope closed. A module handoff
+requires real evidence for its required public and available integration
+boundaries; it does not require unrelated unfinished modules to complete the
+whole user journey. Report module code/contract handoff and system-path
+acceptance as separate claims. The user goal remains open until the required
+sequence runs from the real starting state with visible success and failure
+behavior. For any missing real check, record its precondition, the test that
+would have run, owner and return point in `# Resume Notes` (or equivalent).
+Do not relabel an unverified module boundary as a Consumer follow-up or a
+mock-only result as live evidence to close that module handoff.
 
-This rule gates a claim that implementation or the user path is
-verified. A Module Design may become `final` when its contracts are
-complete and the real-run obligation is explicitly handed to
-Implementation; `final` alone is not real-run evidence. After an
+This rule gates each claim at its observed boundary. A Module Design may
+become `final` when its contracts are complete and the real-run obligation
+is explicitly handed to Implementation; `final` alone is not real-run
+evidence. After an
 upstream change, classify old evidence against the changed path
 before reusing it, and rerun only the affected boundaries.
 

@@ -495,23 +495,20 @@ handoff obligations.
   constant), the test's expected value must match an
   *independent recomputation*; if it doesn't, surface as a
   Spec-side error per the Spec §17 routine-correction flow.
-- **Real-acceptance evidence for the user sequence from the
-  real starting state** is in place and PASS, classified per
-  `verification.md` §4.7. One or more runs must show each
-  transition from the source Intent's `# Clarified Intent`:
-  the available initial data, user input, system response,
-  visible result, and the next reachable action. Exercise a
-  relevant failure path and record what the user actually
-  sees. Apply `cross-layer-coordination.md` §8.8; a later
-  result cannot serve as the prerequisite for an earlier
-  action. Component / unit tests,
-  mocks, and source-string checks are necessary but not
-  sufficient. If the real test cannot run, name the missing
-  pre-condition (per `verification.md` §4.8 gap classes),
-  the test that would have run, and keep the handoff open —
-  do not close on mock-only or skipped-real-acceptance
-  evidence. The full rule is `cross-layer-coordination.md`
-  §8.4 (Implementation row) and §8.8 (per-step discipline).
+- **Real evidence for this module's claimed scope** is in place.
+  Exercise the provided public capabilities and the available
+  Provider/Consumer integration boundaries under actual operating
+  conditions, including a relevant failure path. Classify each run
+  by its actual boundary per `verification.md` §4.7. If a required
+  module boundary cannot run, name the missing precondition and
+  keep that module handoff open; mock-only evidence does not prove
+  live compatibility. A module may hand off once its own required
+  scope is verified even if other modules have not yet completed
+  the full user path. Record the unexercised transitions, their
+  owner and the integration return point. Do not claim the user
+  goal complete until the whole sequence runs from the source
+  Intent's real starting state, including visible success and
+  failure behavior (`cross-layer-coordination.md` §8.8).
 - Compare the current source Intent, Spec, and Design with the
   versions or semantics used by the recorded tests and prior
   handoff. When an upstream change affects an input, Provider,
@@ -545,12 +542,19 @@ Handoff` (and the §6 Trigger A list this Skill maintains)
 
 - Each Spec REQ assigned to this module has a passing
   observable test with an independent-recomputation check on
-  numerical expected values.
+  numerical expected values. When full REQ acceptance crosses
+  unfinished modules, label this test as evidence for the module's
+  contribution and keep the integration-level REQ acceptance open
+  with its owner and next check; do not claim the whole REQ passed.
 - Record each handoff claim's REQ/INV and contract-field scope,
   source Git basis, command/environment, observed result and
   evidence location in the existing handoff or Resume Notes per
   `../../references/change-impact.md`. A bare test count or PASS
   without scope cannot be reused after an upstream change.
+- Record which user-path transitions this module's real runs covered,
+  which remain for integration, the responsible owner and the next
+  executable check. Module handoff is a scoped code/contract claim,
+  not system acceptance.
 - The Trigger A / Trigger B verification entries that the
   module's contract surface requires (per `verification.md` §3
   — money / assets / security / data correctness / public
